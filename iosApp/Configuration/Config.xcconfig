@@ -1,0 +1,7 @@
+TEAM_ID=
+
+PRODUCT_NAME=offlinelai_kmp
+PRODUCT_BUNDLE_IDENTIFIER=org.abma.offlinelai_kmp.offlinelai_kmp$(TEAM_ID)
+
+CURRENT_PROJECT_VERSION=1
+MARKETING_VERSION=1.0
