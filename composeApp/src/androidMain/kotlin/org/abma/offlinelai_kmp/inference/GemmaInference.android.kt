@@ -1,6 +1,7 @@
 package org.abma.offlinelai_kmp.inference
 
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
+import com.google.mediapipe.tasks.genai.llminference.VisionModelOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -36,9 +37,8 @@ actual class GemmaInference {
                 val options = LlmInference.LlmInferenceOptions.builder()
                     .setModelPath(modelFile)
                     .setMaxTokens(config.maxTokens)
-//                    .setTopK(config.topK)
-//                    .setTemperature(config.temperature)
-//                    .setRandomSeed(config.randomSeed)
+                    .setMaxTopK(config.topK)
+                    .setVisionModelOptions(VisionModelOptions.builder().build())
                     .build()
 
                 loadingProgress = 0.5f
