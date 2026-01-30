@@ -2,12 +2,9 @@ package org.abma.offlinelai_kmp.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.onCompletion
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.abma.offlinelai_kmp.domain.model.ChatMessage
 import org.abma.offlinelai_kmp.domain.model.ModelConfig
@@ -30,9 +27,8 @@ class ChatViewModel : ViewModel() {
     private var streamingMessageId: String? = null
 
     fun loadModel(modelPath: String, config: ModelConfig = ModelConfig()) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(modelState = ModelState.LOADING, errorMessage = null) }
-
             try {
                 gemmaInference.loadModel(modelPath, config)
                 _uiState.update {
@@ -76,8 +72,7 @@ class ChatViewModel : ViewModel() {
     }
 
     private fun generateResponse(prompt: String) {
-        viewModelScope.launch {
-            // Create initial AI message (streaming)
+        viewModelScope.launch(Dispatchers.IO) {
             val aiMessage = ChatMessage.aiMessage("", isStreaming = true)
             streamingMessageId = aiMessage.id
 

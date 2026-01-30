@@ -45,7 +45,7 @@ fun SettingsScreen(
     onLoadModel: (String, ModelConfig) -> Unit,
     currentModelPath: String = ""
 ) {
-    var modelPath by remember { mutableStateOf(currentModelPath.ifBlank { "/storage/emulated/0/Download/gemma-2b-it-gpu-int4.bin" }) }
+    var modelPath by remember { mutableStateOf(currentModelPath.ifBlank { "gemma-2b-it-gpu-int4.bin" }) }
     var maxTokens by remember { mutableIntStateOf(1024) }
     var temperature by remember { mutableFloatStateOf(0.8f) }
     var topK by remember { mutableIntStateOf(40) }
