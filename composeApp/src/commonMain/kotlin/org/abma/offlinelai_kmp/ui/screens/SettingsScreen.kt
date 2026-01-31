@@ -1,63 +1,18 @@
 package org.abma.offlinelai_kmp.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.OfflineBolt
-import androidx.compose.material.icons.outlined.Storage
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,9 +20,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.abma.offlinelai_kmp.domain.model.ModelConfig
-import org.abma.offlinelai_kmp.domain.model.ModelInfo
+import org.abma.offlinelai_kmp.domain.repository.LoadedModel
+import org.abma.offlinelai_kmp.picker.rememberFilePicker
 import org.abma.offlinelai_kmp.ui.theme.GradientEnd
 import org.abma.offlinelai_kmp.ui.theme.GradientStart
 
@@ -76,14 +33,23 @@ import org.abma.offlinelai_kmp.ui.theme.GradientStart
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onLoadModel: (String, ModelConfig) -> Unit,
-    currentModelPath: String = ""
+    onRemoveModel: (String) -> Unit = {},
+    loadedModels: List<LoadedModel> = emptyList(),
+    currentModelPath: String? = null
 ) {
-    var modelPath by remember { mutableStateOf(currentModelPath.ifBlank { "gemma-2b-it-gpu-int4.bin" }) }
+    var selectedModelPath by remember(currentModelPath) { mutableStateOf(currentModelPath) }
     var maxTokens by remember { mutableIntStateOf(1024) }
     var temperature by remember { mutableFloatStateOf(0.8f) }
     var topK by remember { mutableIntStateOf(40) }
-    var selectedModel by remember { mutableStateOf<ModelInfo?>(ModelInfo.GEMMA_2B_IT_GPU) }
     var showAdvancedSettings by remember { mutableStateOf(false) }
+    var pendingModelPath by remember { mutableStateOf<String?>(null) }
+
+    // File picker for importing new models
+    val launchFilePicker = rememberFilePicker { path ->
+        if (path != null) {
+            pendingModelPath = path
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -93,9 +59,7 @@ fun SettingsScreen(
             ) {
                 TopAppBar(
                     title = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
                                     .size(40.dp)
@@ -144,55 +108,114 @@ fun SettingsScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Model Selection Section
+            // Import New Model Section
             SectionHeader(
-                title = "Select Model",
-                icon = Icons.Default.AutoAwesome
+                title = "Import Model",
+                icon = Icons.Default.Add
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Available Models
-            ModelInfo.availableModels.forEach { model ->
-                PolishedModelCard(
-                    model = model,
-                    isSelected = selectedModel == model,
-                    onClick = {
-                        selectedModel = model
-                        modelPath = model.fileName
-                    }
+            OutlinedButton(
+                onClick = { launchFilePicker() },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.FolderOpen,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Browse Files to Import Model")
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            // Show pending model path if selected
+            pendingModelPath?.let { path ->
+                Spacer(modifier = Modifier.height(12.dp))
 
-            // Custom Model Path Section
-            SectionHeader(
-                title = "Model File Name",
-                icon = Icons.Outlined.Folder
-            )
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Selected file:",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = path.substringAfterLast("/"),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
 
-            Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
-            OutlinedTextField(
-                value = modelPath,
-                onValueChange = {
-                    modelPath = it
-                    selectedModel = null
-                },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Model file name") },
-                placeholder = { Text("gemma-2b-it-gpu-int4.bin") },
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                        Button(
+                            onClick = {
+                                val config = ModelConfig(
+                                    maxTokens = maxTokens,
+                                    temperature = temperature,
+                                    topK = topK
+                                )
+                                onLoadModel(path, config)
+                                pendingModelPath = null
+                                onNavigateBack()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Load This Model")
+                        }
+                    }
+                }
+            }
+
+            // Previously Loaded Models Section (only show if there are loaded models)
+            if (loadedModels.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(24.dp))
+
+                SectionHeader(
+                    title = "Previously Loaded Models",
+                    icon = Icons.Default.AutoAwesome
                 )
-            )
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                loadedModels.forEach { model ->
+                    LoadedModelCard(
+                        model = model,
+                        isSelected = selectedModelPath == model.path,
+                        onSelect = {
+                            selectedModelPath = model.path
+                            maxTokens = model.config.maxTokens
+                            temperature = model.config.temperature
+                            topK = model.config.topK
+                        },
+                        onLoad = {
+                            onLoadModel(model.path, model.config)
+                            onNavigateBack()
+                        },
+                        onRemove = { onRemoveModel(model.path) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Advanced Settings Section
             Card(
@@ -244,10 +267,7 @@ fun SettingsScreen(
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
-                Column(
-                    modifier = Modifier.padding(top = 16.dp)
-                ) {
-                    // Max Tokens
+                Column(modifier = Modifier.padding(top = 16.dp)) {
                     SettingSlider(
                         title = "Max Tokens",
                         description = "Maximum length of generated response",
@@ -259,7 +279,6 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Temperature
                     SettingSlider(
                         title = "Temperature",
                         description = "Controls randomness (0 = focused, 2 = creative)",
@@ -271,7 +290,6 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Top K
                     SettingSlider(
                         title = "Top K",
                         description = "Number of highest probability tokens to consider",
@@ -284,40 +302,6 @@ fun SettingsScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-
-            // Load Model Button
-            Button(
-                onClick = {
-                    val config = ModelConfig(
-                        maxTokens = maxTokens,
-                        temperature = temperature,
-                        topK = topK
-                    )
-                    onLoadModel(modelPath, config)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                enabled = modelPath.isNotBlank(),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = "Load Model",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
 
             // Info Card
             Card(
@@ -346,13 +330,11 @@ fun SettingsScreen(
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "iOS (via Finder):\n" +
-                                    "1. Connect iPhone to Mac\n" +
-                                    "2. Open Finder → Select iPhone → Files tab\n" +
-                                    "3. Drag model file into this app's folder\n\n" +
-                                    "Android:\n" +
-                                    "1. Copy model to Downloads or /data/local/tmp/llm/\n" +
-                                    "2. Use 'Browse Files' to import",
+                            text = "1. Download a Gemma model (.bin or .task file)\n" +
+                                    "2. Tap 'Browse Files' above\n" +
+                                    "3. Select the model from your device storage\n" +
+                                    "4. The model will be imported and ready to use\n\n" +
+                                    "Supported: Gemma 2B/7B, GPU/CPU variants",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             lineHeight = MaterialTheme.typography.bodySmall.lineHeight * 1.4
@@ -371,9 +353,7 @@ private fun SectionHeader(
     title: String,
     icon: ImageVector
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
             imageVector = icon,
             contentDescription = null,
@@ -391,13 +371,15 @@ private fun SectionHeader(
 }
 
 @Composable
-private fun PolishedModelCard(
-    model: ModelInfo,
+private fun LoadedModelCard(
+    model: LoadedModel,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onSelect: () -> Unit,
+    onLoad: () -> Unit,
+    onRemove: () -> Unit
 ) {
     Card(
-        onClick = onClick,
+        onClick = onSelect,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
@@ -411,10 +393,7 @@ private fun PolishedModelCard(
             defaultElevation = if (isSelected) 4.dp else 1.dp
         ),
         border = if (isSelected) {
-            androidx.compose.foundation.BorderStroke(
-                2.dp,
-                MaterialTheme.colorScheme.primary
-            )
+            androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
         } else null
     ) {
         Row(
@@ -429,9 +408,7 @@ private fun PolishedModelCard(
                     .size(48.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(
-                        Brush.linearGradient(
-                            listOf(GradientStart, GradientEnd)
-                        )
+                        Brush.linearGradient(listOf(GradientStart, GradientEnd))
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -446,14 +423,14 @@ private fun PolishedModelCard(
             Spacer(Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = model.name,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     if (isSelected) {
                         Spacer(Modifier.width(8.dp))
@@ -465,55 +442,51 @@ private fun PolishedModelCard(
                         )
                     }
                 }
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = model.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Spacer(Modifier.height(4.dp))
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                 ) {
-                    MiniChip(
-                        icon = Icons.Outlined.Storage,
-                        text = "${model.sizeInMB} MB"
-                    )
-                    MiniChip(
-                        icon = Icons.Outlined.OfflineBolt,
-                        text = "On-device"
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.OfflineBolt,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = "On-device",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Action buttons
+            Row {
+                if (isSelected) {
+                    IconButton(onClick = onLoad) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Load",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                IconButton(onClick = onRemove) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Remove",
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun MiniChip(
-    icon: ImageVector,
-    text: String
-) {
-    Surface(
-        shape = RoundedCornerShape(6.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(12.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.width(4.dp))
-            Text(
-                text = text,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }

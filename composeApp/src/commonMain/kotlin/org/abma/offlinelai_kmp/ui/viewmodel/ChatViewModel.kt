@@ -9,14 +9,19 @@ import kotlinx.coroutines.launch
 import org.abma.offlinelai_kmp.domain.model.ChatMessage
 import org.abma.offlinelai_kmp.domain.model.ModelConfig
 import org.abma.offlinelai_kmp.domain.model.ModelState
+import org.abma.offlinelai_kmp.domain.repository.LoadedModel
+import org.abma.offlinelai_kmp.domain.repository.ModelRepository
 import org.abma.offlinelai_kmp.inference.GemmaInference
+import kotlin.time.Clock
 
 data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(),
     val modelState: ModelState = ModelState.NOT_LOADED,
     val loadingProgress: Float = 0f,
     val currentInput: String = "",
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val currentModelPath: String? = null,
+    val loadedModels: List<LoadedModel> = emptyList()
 )
 
 class ChatViewModel : ViewModel() {
@@ -24,29 +29,68 @@ class ChatViewModel : ViewModel() {
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     private val gemmaInference = GemmaInference()
+    private val modelRepository = ModelRepository()
     private var streamingMessageId: String? = null
+
+    init {
+        // Load saved models on initialization
+        refreshLoadedModels()
+    }
+
+    fun refreshLoadedModels() {
+        val models = modelRepository.getLoadedModels()
+        val currentPath = modelRepository.getCurrentModelPath()
+        _uiState.update {
+            it.copy(
+                loadedModels = models,
+                currentModelPath = currentPath
+            )
+        }
+    }
 
     fun loadModel(modelPath: String, config: ModelConfig = ModelConfig()) {
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(modelState = ModelState.LOADING, errorMessage = null) }
             try {
                 gemmaInference.loadModel(modelPath, config)
+
+                // Save successfully loaded model
+                val modelName = modelPath.substringAfterLast("/").substringBeforeLast(".")
+                val currentTime = Clock.System.now().toEpochMilliseconds()
+                val loadedModel = LoadedModel(
+                    name = modelName,
+                    path = modelPath,
+                    config = config,
+                    loadedAt = currentTime
+                )
+                modelRepository.saveModel(loadedModel)
+                modelRepository.setCurrentModelPath(modelPath)
+
                 _uiState.update {
                     it.copy(
                         modelState = ModelState.READY,
-                        loadingProgress = 1f
+                        loadingProgress = 1f,
+                        currentModelPath = modelPath,
+                        loadedModels = modelRepository.getLoadedModels()
                     )
                 }
             } catch (e: Exception) {
-                print("Error is ${e.message}")
+                println("Error loading model: ${e.message}")
+                e.printStackTrace()
                 _uiState.update {
                     it.copy(
                         modelState = ModelState.ERROR,
-                        errorMessage = e.message ?: "Failed to load model"
+                        errorMessage = e.message ?: "Failed to load model",
+                        loadingProgress = 0f
                     )
                 }
             }
         }
+    }
+
+    fun removeLoadedModel(path: String) {
+        modelRepository.removeModel(path)
+        refreshLoadedModels()
     }
 
     fun updateInput(input: String) {
@@ -89,7 +133,8 @@ class ChatViewModel : ViewModel() {
 
             gemmaInference.generateResponseWithHistory(messagesForContext, prompt)
                 .catch { e ->
-                    print("Errir is ${e.message}")
+                    println("Error generating response: ${e.message}")
+                    e.printStackTrace()
                     _uiState.update { state ->
                         val updatedMessages = state.messages.map { msg ->
                             if (msg.id == streamingMessageId) {

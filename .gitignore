@@ -5,18 +5,26 @@
 **/build/
 !src/**/build/
 local.properties
+gradle-wrapper.jar
 
 # IntelliJ IDEA
 .idea
+*.ipr
+*.iws
 
 # macOS
 .DS_Store
 **/.DS_Store
+.AppleDouble
+.LSOverride
+._*
 
 # Android
 captures
 .externalNativeBuild
 .cxx
+*.apk
+*.aab
 
 # Xcode
 xcuserdata
@@ -31,6 +39,10 @@ DerivedData/
 *.ipa
 *.dSYM.zip
 *.dSYM
+*.xccheckout
+*.moved-aside
+*.pbxuser
+!default.pbxuser
 
 # CocoaPods
 iosApp/Pods/
@@ -70,4 +82,10 @@ node_modules/
 
 # Konan
 .konan/
+
+# Configuration cache reports (generated)
+build/reports/
+
+# Crash reports
+*.crash
 

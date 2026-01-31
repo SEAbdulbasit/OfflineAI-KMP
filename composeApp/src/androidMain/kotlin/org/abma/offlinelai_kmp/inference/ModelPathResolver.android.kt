@@ -5,10 +5,19 @@ import java.io.File
 actual object ModelPathResolver {
 
     actual fun resolve(modelPath: String): String? {
+        // If the path is already absolute and exists, use it directly
+        if (modelPath.startsWith("/") && fileExists(modelPath)) {
+            return modelPath
+        }
         return getSearchPaths(modelPath).firstOrNull { fileExists(it) }
     }
 
     actual fun getSearchPaths(modelPath: String): List<String> {
+        // If it's already an absolute path, just check that path
+        if (modelPath.startsWith("/")) {
+            return listOf(modelPath)
+        }
+
         val context = AndroidContextProvider.applicationContext
         return listOf(
             "/data/local/tmp/llm/$modelPath",
