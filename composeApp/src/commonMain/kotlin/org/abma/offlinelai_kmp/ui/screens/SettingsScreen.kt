@@ -169,7 +169,7 @@ fun SettingsScreen(
 
             // Custom Model Path Section
             SectionHeader(
-                title = "Custom Model Path",
+                title = "Model File Name",
                 icon = Icons.Outlined.Folder
             )
 
@@ -182,8 +182,8 @@ fun SettingsScreen(
                     selectedModel = null
                 },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Model file path") },
-                placeholder = { Text("/path/to/model.bin") },
+                label = { Text("Model file name") },
+                placeholder = { Text("gemma-2b-it-gpu-int4.bin") },
                 singleLine = true,
                 shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -340,17 +340,20 @@ fun SettingsScreen(
                     )
                     Column {
                         Text(
-                            text = "How to set up",
+                            text = "How to add model files",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "1. Download a Gemma model (.bin or .task file)\n" +
-                                    "2. Place it in your device's storage\n" +
-                                    "3. Select from available models or enter custom path\n" +
-                                    "4. Tap 'Load Model' to start chatting",
+                            text = "iOS (via Finder):\n" +
+                                    "1. Connect iPhone to Mac\n" +
+                                    "2. Open Finder → Select iPhone → Files tab\n" +
+                                    "3. Drag model file into this app's folder\n\n" +
+                                    "Android:\n" +
+                                    "1. Copy model to Downloads or /data/local/tmp/llm/\n" +
+                                    "2. Use 'Browse Files' to import",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             lineHeight = MaterialTheme.typography.bodySmall.lineHeight * 1.4

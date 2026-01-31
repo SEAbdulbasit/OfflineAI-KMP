@@ -2,20 +2,25 @@ package org.abma.offlinelai_kmp.inference
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import org.abma.offlinelai_kmp.domain.model.ModelConfig
+import platform.Foundation.*
 
+/**
+ * iOS implementation of GemmaInference.
+ *
+ * MediaPipe inference is handled by the Swift layer (InferenceBridge.swift).
+ * The Kotlin code validates the model file exists and manages state.
+ * Actual inference calls are made from the iOS app layer.
+ */
 actual class GemmaInference {
     private var isLoaded = false
     private var loadingProgress = 0f
     private var modelPath: String? = null
     private var config: ModelConfig? = null
-
-    // For iOS, we'll use a native MediaPipe wrapper
-    // This requires setting up the MediaPipe framework in the iOS project
+    private var resolvedModelPath: String? = null
 
     actual suspend fun loadModel(modelPath: String, config: ModelConfig) {
         withContext(Dispatchers.IO) {
@@ -24,16 +29,43 @@ actual class GemmaInference {
                 this@GemmaInference.modelPath = modelPath
                 this@GemmaInference.config = config
 
-                // Initialize MediaPipe LLM Inference for iOS
-                // The actual native implementation will be provided via cinterop
-                loadingProgress = 0.5f
+                // Resolve model path
+                val resolvedPath = resolveModelPath(modelPath)
 
-                // TODO: Initialize native MediaPipe LLM
-                // For now, we'll use a stub that can be replaced with actual implementation
-                initializeNativeModel(modelPath, config)
+                loadingProgress = 0.3f
+
+                // Check if file exists
+                val fileManager = NSFileManager.defaultManager
+                if (!fileManager.fileExistsAtPath(resolvedPath)) {
+                    val availablePaths = getSearchPaths(modelPath)
+                    val appDocuments = NSSearchPathForDirectoriesInDomains(
+                        NSDocumentDirectory,
+                        NSUserDomainMask,
+                        true
+                    ).firstOrNull() as? String ?: "Unknown"
+
+                    throw IllegalArgumentException(
+                        "Model file not found: $modelPath\n\n" +
+                        "📁 Add the model via Finder:\n" +
+                        "1. Connect iPhone to Mac\n" +
+                        "2. Open Finder → Select iPhone → Files tab\n" +
+                        "3. Find this app and drag the model file into it\n\n" +
+                        "Searched locations:\n${availablePaths.take(4).joinToString("\n") { " • $it" }}\n\n" +
+                        "App Documents: $appDocuments"
+                    )
+                }
+
+                loadingProgress = 0.5f
+                resolvedModelPath = resolvedPath
+
+                // Store the path for the Swift bridge to use
+                // The actual MediaPipe loading happens when generate is called
+                NSUserDefaults.standardUserDefaults.setObject(resolvedPath, forKey = "gemma_model_path")
+                NSUserDefaults.standardUserDefaults.synchronize()
 
                 loadingProgress = 1.0f
                 isLoaded = true
+
             } catch (e: Exception) {
                 isLoaded = false
                 loadingProgress = 0f
@@ -42,34 +74,82 @@ actual class GemmaInference {
         }
     }
 
-    private fun initializeNativeModel(modelPath: String, config: ModelConfig) {
-        // This will be implemented using cinterop with MediaPipe iOS SDK
-        // For now, this is a placeholder
+    private fun resolveModelPath(modelPath: String): String {
+        val fileManager = NSFileManager.defaultManager
+        val searchPaths = getSearchPaths(modelPath)
+        return searchPaths.firstOrNull { path ->
+            fileManager.fileExistsAtPath(path)
+        } ?: searchPaths.first()
     }
 
-    actual fun generateResponse(prompt: String): Flow<String> = callbackFlow {
+    private fun getSearchPaths(modelPath: String): List<String> {
+        val documentsDir = NSSearchPathForDirectoriesInDomains(
+            NSDocumentDirectory,
+            NSUserDomainMask,
+            true
+        ).firstOrNull() as? String ?: ""
+
+        val cachesDir = NSSearchPathForDirectoriesInDomains(
+            NSCachesDirectory,
+            NSUserDomainMask,
+            true
+        ).firstOrNull() as? String ?: ""
+
+        val homeDir = NSHomeDirectory()
+
+        val bundlePath = NSBundle.mainBundle.pathForResource(
+            modelPath.removeSuffix(".bin").removeSuffix(".task"),
+            ofType = if (modelPath.endsWith(".bin")) "bin" else "task"
+        ) ?: ""
+
+        return listOf(
+            "$documentsDir/$modelPath",
+            "$documentsDir/models/$modelPath",
+            "$cachesDir/$modelPath",
+            bundlePath,
+            modelPath,
+            "$homeDir/Documents/$modelPath"
+        ).filter { it.isNotEmpty() }
+    }
+
+    actual fun generateResponse(prompt: String): Flow<String> = flow {
         if (!isLoaded) {
             throw IllegalStateException("Model not loaded")
         }
 
-        // Generate response using native MediaPipe
-        // This is a placeholder - actual implementation will use cinterop
-        generateNativeResponse(prompt) { token, isDone ->
-            if (token != null) {
-                trySend(token)
+        // Store the prompt for the Swift bridge
+        NSUserDefaults.standardUserDefaults.setObject(prompt, forKey = "gemma_current_prompt")
+        NSUserDefaults.standardUserDefaults.synchronize()
+
+        // Post notification that generation is requested
+        NSNotificationCenter.defaultCenter.postNotificationName(
+            "GemmaGenerateRequest",
+            `object` = null,
+            userInfo = mapOf("prompt" to prompt, "modelPath" to (resolvedModelPath ?: ""))
+        )
+
+        // Wait for response (stored by Swift bridge)
+        // Poll for the response with timeout
+        var response: String? = null
+        var attempts = 0
+        val maxAttempts = 600 // 60 seconds timeout (100ms per attempt)
+
+        while (response == null && attempts < maxAttempts) {
+            kotlinx.coroutines.delay(100)
+            response = NSUserDefaults.standardUserDefaults.stringForKey("gemma_response")
+            if (response != null) {
+                // Clear the response
+                NSUserDefaults.standardUserDefaults.removeObjectForKey("gemma_response")
+                NSUserDefaults.standardUserDefaults.synchronize()
             }
-            if (isDone) {
-                close()
-            }
+            attempts++
         }
 
-        awaitClose { }
-    }
-
-    private fun generateNativeResponse(prompt: String, callback: (String?, Boolean) -> Unit) {
-        // Placeholder for native MediaPipe generation
-        // Will be implemented via cinterop
-        callback("iOS MediaPipe implementation pending. Please set up MediaPipe CocoaPods.", true)
+        if (response != null) {
+            emit(response)
+        } else {
+            emit("Error: Generation timeout. Please ensure the model is loaded correctly.")
+        }
     }
 
     actual fun generateResponseWithHistory(
@@ -95,15 +175,15 @@ actual class GemmaInference {
     actual fun getLoadingProgress(): Float = loadingProgress
 
     actual fun close() {
-        // Release native resources
-        releaseNativeModel()
+        NSUserDefaults.standardUserDefaults.removeObjectForKey("gemma_model_path")
+        NSUserDefaults.standardUserDefaults.removeObjectForKey("gemma_current_prompt")
+        NSUserDefaults.standardUserDefaults.removeObjectForKey("gemma_response")
+        NSUserDefaults.standardUserDefaults.synchronize()
+
         isLoaded = false
         loadingProgress = 0f
         modelPath = null
         config = null
-    }
-
-    private fun releaseNativeModel() {
-        // Placeholder for releasing native MediaPipe resources
+        resolvedModelPath = null
     }
 }

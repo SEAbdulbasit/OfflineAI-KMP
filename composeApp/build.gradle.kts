@@ -1,4 +1,3 @@
-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -7,6 +6,7 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
+    kotlin("native.cocoapods")
 }
 
 kotlin {
@@ -16,14 +16,25 @@ kotlin {
         }
     }
 
-    listOf(
-        iosArm64(),
-        iosSimulatorArm64()
-    ).forEach { iosTarget ->
-        iosTarget.binaries.framework {
+    // iOS targets - framework is managed by CocoaPods
+    iosArm64()
+    iosSimulatorArm64()
+
+    cocoapods {
+        summary = "Offline AI KMP - Gemma on-device inference"
+        homepage = "https://github.com/aspect-ai/OfflinelAI-KMP"
+        version = "1.0"
+        ios.deploymentTarget = "15.0"
+        podfile = project.file("../iosApp/Podfile")
+
+        framework {
             baseName = "ComposeApp"
-            isStatic = true
+            isStatic = true // Static framework - MediaPipe is used only in Swift layer
+            binaryOption("bundleId", "org.abma.offlinelai_kmp.ComposeApp")
         }
+
+        // Note: MediaPipe pods are declared in the Podfile for Swift usage only
+        // They cannot be used directly from Kotlin/Native due to Swift runtime requirements
     }
 
     sourceSets {
