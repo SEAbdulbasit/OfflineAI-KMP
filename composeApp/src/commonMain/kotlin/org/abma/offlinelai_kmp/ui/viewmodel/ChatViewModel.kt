@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import org.abma.offlinelai_kmp.domain.model.Attachment
 import org.abma.offlinelai_kmp.domain.model.ChatMessage
 import org.abma.offlinelai_kmp.domain.model.ModelConfig
 import org.abma.offlinelai_kmp.domain.model.ModelState
@@ -21,7 +22,9 @@ data class ChatUiState(
     val currentInput: String = "",
     val errorMessage: String? = null,
     val currentModelPath: String? = null,
-    val loadedModels: List<LoadedModel> = emptyList()
+    val loadedModels: List<LoadedModel> = emptyList(),
+    val pendingAttachments: List<Attachment> = emptyList(),
+    val isAttachmentLoading: Boolean = false
 )
 
 class ChatViewModel : ViewModel() {
@@ -99,20 +102,71 @@ class ChatViewModel : ViewModel() {
 
     fun sendMessage() {
         val input = _uiState.value.currentInput.trim()
-        if (input.isEmpty()) return
+        val attachments = _uiState.value.pendingAttachments
+
+        // Allow sending with just attachments even if text is empty
+        if (input.isEmpty() && attachments.isEmpty()) return
         if (_uiState.value.modelState != ModelState.READY) return
 
-        val userMessage = ChatMessage.user(input)
+        val userMessage = ChatMessage.user(input, attachments)
 
         _uiState.update { state ->
             state.copy(
                 messages = state.messages + userMessage,
                 currentInput = "",
+                pendingAttachments = emptyList(),
                 modelState = ModelState.GENERATING
             )
         }
 
-        generateResponse(input)
+        // Build prompt with attachment info
+        val promptWithAttachments = buildPromptWithAttachments(input, attachments)
+        generateResponse(promptWithAttachments)
+    }
+
+    private fun buildPromptWithAttachments(text: String, attachments: List<Attachment>): String {
+        if (attachments.isEmpty()) return text
+
+        val attachmentDescriptions = attachments.joinToString("\n") { attachment ->
+            when (attachment.type) {
+                org.abma.offlinelai_kmp.domain.model.AttachmentType.IMAGE ->
+                    "[User attached an image: ${attachment.fileName}]"
+                org.abma.offlinelai_kmp.domain.model.AttachmentType.PDF ->
+                    "[User attached a PDF document: ${attachment.fileName}]"
+                org.abma.offlinelai_kmp.domain.model.AttachmentType.DOCUMENT ->
+                    "[User attached a document: ${attachment.fileName}]"
+            }
+        }
+
+        return if (text.isNotEmpty()) {
+            "$attachmentDescriptions\n\n$text"
+        } else {
+            attachmentDescriptions
+        }
+    }
+
+    fun addAttachment(attachment: Attachment) {
+        _uiState.update { state ->
+            state.copy(pendingAttachments = state.pendingAttachments + attachment)
+        }
+    }
+
+    fun removeAttachment(attachmentId: String) {
+        _uiState.update { state ->
+            state.copy(pendingAttachments = state.pendingAttachments.filter { it.id != attachmentId })
+        }
+    }
+
+    fun clearAttachments() {
+        _uiState.update { state ->
+            state.copy(pendingAttachments = emptyList())
+        }
+    }
+
+    fun setAttachmentLoading(loading: Boolean) {
+        _uiState.update { state ->
+            state.copy(isAttachmentLoading = loading)
+        }
     }
 
     private fun generateResponse(prompt: String) {

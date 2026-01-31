@@ -14,10 +14,12 @@ data class ChatMessage(
     val isFromUser: Boolean,
     val timestamp: Long = Clock.System.now().toEpochMilliseconds(),
     val isStreaming: Boolean = false,
-    val isError: Boolean = false
+    val isError: Boolean = false,
+    val attachments: List<Attachment> = emptyList()
 ) {
     companion object {
-        fun user(content: String) = ChatMessage(content = content, isFromUser = true)
+        fun user(content: String, attachments: List<Attachment> = emptyList()) =
+            ChatMessage(content = content, isFromUser = true, attachments = attachments)
 
         fun ai(content: String, isStreaming: Boolean = false) =
             ChatMessage(content = content, isFromUser = false, isStreaming = isStreaming)
