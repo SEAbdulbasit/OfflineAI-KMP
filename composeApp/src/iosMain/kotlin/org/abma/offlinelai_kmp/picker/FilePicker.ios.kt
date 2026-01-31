@@ -72,16 +72,23 @@ private class DocumentPickerDelegate(
         try {
             val url = didPickDocumentsAtURLs.firstOrNull() as? NSURL
             if (url != null) {
-                // The file is already copied to temp Inbox by iOS (asCopy = true)
-                // Now copy it to our Documents directory for persistence
-                val destPath = copyToDocuments(url)
-                // Small delay to ensure the UI is ready before callback
-                NSOperationQueue.mainQueue.addOperationWithBlock {
-                    try {
-                        onFilePicked(destPath)
-                    } catch (e: Exception) {
-                        NSLog("Error in file picker callback: ${e.message}")
-                        onFilePicked(null)
+                // Move file copy to background queue to prevent UI lag
+                val backgroundQueue = NSOperationQueue()
+                backgroundQueue.qualityOfService = NSQualityOfServiceUserInitiated
+
+                backgroundQueue.addOperationWithBlock {
+                    // The file is already copied to temp Inbox by iOS (asCopy = true)
+                    // Now copy it to our Documents directory for persistence
+                    val destPath = copyToDocuments(url)
+
+                    // Callback on main queue after copy is complete
+                    NSOperationQueue.mainQueue.addOperationWithBlock {
+                        try {
+                            onFilePicked(destPath)
+                        } catch (e: Exception) {
+                            NSLog("Error in file picker callback: ${e.message}")
+                            onFilePicked(null)
+                        }
                     }
                 }
             } else {

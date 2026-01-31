@@ -6,20 +6,30 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
-import org.abma.offlinelai_kmp.inference.AndroidContextProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 
 @Composable
 actual fun rememberFilePicker(onFilePicked: (String?) -> Unit): () -> Unit {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         if (uri != null) {
-            val path = copyFileToAppStorage(context, uri)
-            onFilePicked(path)
+            // Move file copy to IO thread to prevent UI lag
+            scope.launch {
+                val path = withContext(Dispatchers.IO) {
+                    copyFileToAppStorage(context, uri)
+                }
+                onFilePicked(path)
+            }
         } else {
             onFilePicked(null)
         }
