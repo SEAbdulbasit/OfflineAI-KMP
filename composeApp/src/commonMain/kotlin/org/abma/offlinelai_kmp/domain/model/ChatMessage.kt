@@ -1,51 +1,31 @@
 package org.abma.offlinelai_kmp.domain.model
 
-import kotlinx.serialization.Serializable
 import kotlin.random.Random
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
-@Serializable
+/**
+ * Represents a chat message in the conversation.
+ */
+@OptIn(ExperimentalTime::class)
 data class ChatMessage(
-    val id: String,
+    val id: String = generateId(),
     val content: String,
     val isFromUser: Boolean,
-    val timestamp: Long = currentTimeMillis(),
+    val timestamp: Long = Clock.System.now().toEpochMilliseconds(),
     val isStreaming: Boolean = false,
     val isError: Boolean = false
 ) {
     companion object {
-        fun userMessage(content: String): ChatMessage {
-            return ChatMessage(
-                id = generateId(),
-                content = content,
-                isFromUser = true
-            )
-        }
+        fun user(content: String) = ChatMessage(content = content, isFromUser = true)
 
-        fun aiMessage(content: String, isStreaming: Boolean = false): ChatMessage {
-            return ChatMessage(
-                id = generateId(),
-                content = content,
-                isFromUser = false,
-                isStreaming = isStreaming
-            )
-        }
+        fun ai(content: String, isStreaming: Boolean = false) =
+            ChatMessage(content = content, isFromUser = false, isStreaming = isStreaming)
 
-        fun errorMessage(error: String): ChatMessage {
-            return ChatMessage(
-                id = generateId(),
-                content = error,
-                isFromUser = false,
-                isError = true
-            )
-        }
+        fun error(message: String) =
+            ChatMessage(content = message, isFromUser = false, isError = true)
 
-        private fun generateId(): String {
-            return currentTimeMillis().toString() +
-                   Random.nextInt(0, 9999).toString().padStart(4, '0')
-        }
+        @OptIn(ExperimentalTime::class)
+        private fun generateId() = "${Clock.System.now().toEpochMilliseconds()}-${Random.nextInt(10000)}"
     }
 }
-
-// Platform-independent way to get current time
-internal expect fun currentTimeMillis(): Long
-

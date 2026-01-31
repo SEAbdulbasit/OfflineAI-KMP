@@ -289,7 +289,6 @@ fun SettingsScreen(
             Button(
                 onClick = {
                     val config = ModelConfig(
-                        modelPath = modelPath,
                         maxTokens = maxTokens,
                         temperature = temperature,
                         topK = topK

@@ -58,7 +58,7 @@ class ChatViewModel : ViewModel() {
         if (input.isEmpty()) return
         if (_uiState.value.modelState != ModelState.READY) return
 
-        val userMessage = ChatMessage.userMessage(input)
+        val userMessage = ChatMessage.user(input)
 
         _uiState.update { state ->
             state.copy(
@@ -73,7 +73,7 @@ class ChatViewModel : ViewModel() {
 
     private fun generateResponse(prompt: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            val aiMessage = ChatMessage.aiMessage("", isStreaming = true)
+            val aiMessage = ChatMessage.ai("", isStreaming = true)
             streamingMessageId = aiMessage.id
 
             _uiState.update { state ->
