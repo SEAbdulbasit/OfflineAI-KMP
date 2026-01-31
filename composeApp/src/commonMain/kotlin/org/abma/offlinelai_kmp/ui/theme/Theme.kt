@@ -6,32 +6,87 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-// Google AI Edge Gallery inspired color palette
-val GemmaBlue = Color(0xFF1A73E8)
-val GemmaLightBlue = Color(0xFF8AB4F8)
-val GemmaPurple = Color(0xFF9B72CB)
-val GemmaGreen = Color(0xFF34A853)
-val GemmaOrange = Color(0xFFEA8600)
+// ==================== HTML Design Color Palette ====================
 
-// Gradient colors for model icons
-val GradientStart = Color(0xFF4285F4)
-val GradientEnd = Color(0xFF9B72CB)
+// Gradient colors (matching HTML: from-indigo-500 to-purple-600)
+val GradientIndigo = Color(0xFF6366F1)  // indigo-500
+val GradientPurple = Color(0xFF9333EA)  // purple-600
+
+// Accent colors
+val EmeraldGreen = Color(0xFF10B981)    // emerald-500 - for "Ready" status
+val PrimaryBlue = Color(0xFF3B82F6)     // blue-500 - primary action color
+val SlateGray = Color(0xFF64748B)       // slate-500 - muted text
+
+// Legacy gradient colors (keep for compatibility)
+val GradientStart = GradientIndigo
+val GradientEnd = GradientPurple
+
+// ==================== Extended Color Scheme ====================
+
+@Immutable
+data class ExtendedColors(
+    val chatBackground: Color,
+    val inputBackground: Color,
+    val bubbleUser: Color,
+    val bubbleAi: Color,
+    val bubbleAiBorder: Color,
+    val avatarAi: Color,
+    val statusReady: Color,
+    val statusLoading: Color,
+    val headerBackground: Color,
+    val headerBorder: Color
+)
+
+// Light theme extended colors
+private val LightExtendedColors = ExtendedColors(
+    chatBackground = Color(0xFFF8FAFC),      // slate-50
+    inputBackground = Color(0xFFF1F5F9),     // slate-100
+    bubbleUser = PrimaryBlue,                 // blue-500
+    bubbleAi = Color(0xFFFFFFFF),            // white
+    bubbleAiBorder = Color(0xFFF1F5F9),      // slate-100
+    avatarAi = Color(0xFFE2E8F0),            // slate-200
+    statusReady = EmeraldGreen,               // emerald-500
+    statusLoading = Color(0xFF6366F1),       // indigo-500
+    headerBackground = Color(0xFFFFFFFF),    // white
+    headerBorder = Color(0xFFE2E8F0)         // slate-200
+)
+
+// Dark theme extended colors
+private val DarkExtendedColors = ExtendedColors(
+    chatBackground = Color(0xFF020617),      // slate-950
+    inputBackground = Color(0xFF1E293B),     // slate-800
+    bubbleUser = PrimaryBlue,                 // blue-500
+    bubbleAi = Color(0xFF1E293B),            // slate-800
+    bubbleAiBorder = Color(0xFF334155),      // slate-700
+    avatarAi = Color(0xFF1E293B),            // slate-800
+    statusReady = EmeraldGreen,               // emerald-500
+    statusLoading = Color(0xFF818CF8),       // indigo-400
+    headerBackground = Color(0xFF0F172A),    // slate-900
+    headerBorder = Color(0xFF1E293B)         // slate-800
+)
+
+val LocalExtendedColors = staticCompositionLocalOf { LightExtendedColors }
+
+// ==================== Material3 Color Schemes ====================
 
 private val DarkColorScheme = darkColorScheme(
-    primary = GemmaLightBlue,
-    onPrimary = Color(0xFF062E6F),
-    primaryContainer = Color(0xFF0842A0),
+    primary = PrimaryBlue,
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFF1E3A5F),
     onPrimaryContainer = Color(0xFFD1E4FF),
-    secondary = GemmaPurple,
+    secondary = GradientPurple,
     onSecondary = Color.White,
     secondaryContainer = Color(0xFF3D1F47),
     onSecondaryContainer = Color(0xFFF2DAFF),
-    tertiary = GemmaGreen,
+    tertiary = EmeraldGreen,
     onTertiary = Color.White,
     tertiaryContainer = Color(0xFF1B4D2E),
     onTertiaryContainer = Color(0xFFB8F5C9),
@@ -39,46 +94,50 @@ private val DarkColorScheme = darkColorScheme(
     onError = Color(0xFF690005),
     errorContainer = Color(0xFF93000A),
     onErrorContainer = Color(0xFFFFDAD6),
-    background = Color(0xFF0F0F0F),
-    onBackground = Color(0xFFE6E1E5),
-    surface = Color(0xFF1A1A1A),
-    onSurface = Color(0xFFE6E1E5),
-    surfaceVariant = Color(0xFF2D2D2D),
-    onSurfaceVariant = Color(0xFFCAC4D0),
-    surfaceContainerHigh = Color(0xFF252525),
-    surfaceContainer = Color(0xFF1F1F1F),
-    outline = Color(0xFF938F99),
-    outlineVariant = Color(0xFF49454F)
+    background = Color(0xFF0F172A),           // slate-900
+    onBackground = Color(0xFFF1F5F9),         // slate-100
+    surface = Color(0xFF0F172A),              // slate-900
+    onSurface = Color(0xFFF1F5F9),            // slate-100
+    surfaceVariant = Color(0xFF1E293B),       // slate-800
+    onSurfaceVariant = Color(0xFF94A3B8),     // slate-400
+    surfaceContainerHigh = Color(0xFF1E293B), // slate-800
+    surfaceContainer = Color(0xFF0F172A),     // slate-900
+    surfaceContainerLow = Color(0xFF020617),  // slate-950
+    outline = Color(0xFF475569),              // slate-600
+    outlineVariant = Color(0xFF334155)        // slate-700
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = GemmaBlue,
+    primary = PrimaryBlue,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFD3E3FD),
-    onPrimaryContainer = Color(0xFF001D36),
-    secondary = GemmaPurple,
+    primaryContainer = Color(0xFFDBEAFE),     // blue-100
+    onPrimaryContainer = Color(0xFF1E3A8A),   // blue-900
+    secondary = GradientPurple,
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFF2DAFF),
-    onSecondaryContainer = Color(0xFF2C0042),
-    tertiary = GemmaGreen,
+    secondaryContainer = Color(0xFFF3E8FF),   // purple-100
+    onSecondaryContainer = Color(0xFF581C87), // purple-900
+    tertiary = EmeraldGreen,
     onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFB8F5C9),
-    onTertiaryContainer = Color(0xFF002111),
-    error = Color(0xFFBA1A1A),
+    tertiaryContainer = Color(0xFFD1FAE5),    // emerald-100
+    onTertiaryContainer = Color(0xFF064E3B),  // emerald-900
+    error = Color(0xFFDC2626),                // red-600
     onError = Color.White,
-    errorContainer = Color(0xFFFFDAD6),
-    onErrorContainer = Color(0xFF410002),
-    background = Color(0xFFF8F9FA),
-    onBackground = Color(0xFF1C1B1F),
-    surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF1C1B1F),
-    surfaceVariant = Color(0xFFE8EAED),
-    onSurfaceVariant = Color(0xFF5F6368),
-    surfaceContainerHigh = Color(0xFFF1F3F4),
-    surfaceContainer = Color(0xFFF8F9FA),
-    outline = Color(0xFF79747E),
-    outlineVariant = Color(0xFFDADCE0)
+    errorContainer = Color(0xFFFEE2E2),       // red-100
+    onErrorContainer = Color(0xFF7F1D1D),     // red-900
+    background = Color(0xFFF8FAFC),           // slate-50
+    onBackground = Color(0xFF0F172A),         // slate-900
+    surface = Color(0xFFFFFFFF),              // white
+    onSurface = Color(0xFF0F172A),            // slate-900
+    surfaceVariant = Color(0xFFF1F5F9),       // slate-100
+    onSurfaceVariant = Color(0xFF64748B),     // slate-500
+    surfaceContainerHigh = Color(0xFFF1F5F9), // slate-100
+    surfaceContainer = Color(0xFFF8FAFC),     // slate-50
+    surfaceContainerLow = Color(0xFFF8FAFC),  // slate-50
+    outline = Color(0xFFCBD5E1),              // slate-300
+    outlineVariant = Color(0xFFE2E8F0)        // slate-200
 )
+
+// ==================== Typography ====================
 
 private val AppTypography = Typography(
     displayLarge = TextStyle(
@@ -152,16 +211,31 @@ private val AppTypography = Typography(
     )
 )
 
+// ==================== Theme Composable ====================
+
 @Composable
 fun GemmaTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val extendedColors = if (darkTheme) DarkExtendedColors else LightExtendedColors
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = AppTypography,
-        content = content
-    )
+    CompositionLocalProvider(LocalExtendedColors provides extendedColors) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = AppTypography,
+            content = content
+        )
+    }
 }
+
+// ==================== Extension Properties ====================
+
+/**
+ * Access extended colors from MaterialTheme
+ * Usage: MaterialTheme.extendedColors.chatBackground
+ */
+val MaterialTheme.extendedColors: ExtendedColors
+    @Composable
+    get() = LocalExtendedColors.current
