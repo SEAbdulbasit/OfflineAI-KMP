@@ -1,8 +1,12 @@
 package org.abma.offlinelai_kmp
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -14,7 +18,13 @@ import org.abma.offlinelai_kmp.ui.viewmodel.ChatViewModel
 
 @Composable
 fun App() {
-    GemmaTheme {
+    val systemDarkTheme = isSystemInDarkTheme()
+    var isDarkTheme by remember { mutableStateOf(systemDarkTheme) }
+
+    GemmaTheme(
+        darkTheme = isDarkTheme,
+        onToggleTheme = { isDarkTheme = !isDarkTheme }
+    ) {
         val navController = rememberNavController()
         val chatViewModel: ChatViewModel = viewModel { ChatViewModel() }
         val uiState by chatViewModel.uiState.collectAsState()

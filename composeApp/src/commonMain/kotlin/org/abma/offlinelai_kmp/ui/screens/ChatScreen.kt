@@ -41,6 +41,7 @@ import org.abma.offlinelai_kmp.ui.components.EmptyStateView
 import org.abma.offlinelai_kmp.ui.components.LoadingIndicator
 import org.abma.offlinelai_kmp.ui.theme.GradientIndigo
 import org.abma.offlinelai_kmp.ui.theme.GradientPurple
+import org.abma.offlinelai_kmp.ui.theme.LocalThemeToggle
 import org.abma.offlinelai_kmp.ui.theme.SlateGray
 import org.abma.offlinelai_kmp.ui.theme.extendedColors
 import org.abma.offlinelai_kmp.ui.viewmodel.ChatUiState
@@ -268,6 +269,7 @@ private fun ChatTopBar(
     modifier: Modifier = Modifier
 ) {
     val extendedColors = MaterialTheme.extendedColors
+    val toggleTheme = LocalThemeToggle.current
 
     Surface(
         modifier = modifier,
@@ -317,7 +319,7 @@ private fun ChatTopBar(
                     containerColor = Color.Transparent
                 ),
                 actions = {
-                    IconButton(onClick = { /* Toggle theme - handled by system */ }) {
+                    IconButton(onClick = toggleTheme) {
                         Icon(
                             imageVector = Icons.Default.Contrast,
                             contentDescription = "Toggle theme",

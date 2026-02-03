@@ -61,16 +61,16 @@ private val LightExtendedColors = ExtendedColors(
 
 // Dark theme extended colors
 private val DarkExtendedColors = ExtendedColors(
-    chatBackground = Color(0xFF020617),      // slate-950
-    inputBackground = Color(0xFF1E293B),     // slate-800
-    bubbleUser = PrimaryBlue,                 // blue-500
-    bubbleAi = Color(0xFF1E293B),            // slate-800
-    bubbleAiBorder = Color(0xFF334155),      // slate-700
-    avatarAi = Color(0xFF1E293B),            // slate-800
-    statusReady = EmeraldGreen,               // emerald-500
-    statusLoading = Color(0xFF818CF8),       // indigo-400
-    headerBackground = Color(0xFF0F172A),    // slate-900
-    headerBorder = Color(0xFF1E293B)         // slate-800
+    chatBackground = Color(0xFF0A0A0A),       // Near black
+    inputBackground = Color(0xFF1E1E1E),      // Dark gray
+    bubbleUser = PrimaryBlue,                  // blue-500
+    bubbleAi = Color(0xFF1E1E1E),             // Dark gray
+    bubbleAiBorder = Color(0xFF2D2D2D),       // Medium dark gray
+    avatarAi = Color(0xFF1E1E1E),             // Dark gray
+    statusReady = EmeraldGreen,                // emerald-500
+    statusLoading = Color(0xFF818CF8),        // indigo-400
+    headerBackground = Color(0xFF121212),     // Near black
+    headerBorder = Color(0xFF2D2D2D)          // Medium dark gray
 )
 
 val LocalExtendedColors = staticCompositionLocalOf { LightExtendedColors }
@@ -90,21 +90,23 @@ private val DarkColorScheme = darkColorScheme(
     onTertiary = Color.White,
     tertiaryContainer = Color(0xFF1B4D2E),
     onTertiaryContainer = Color(0xFFB8F5C9),
-    error = Color(0xFFFFB4AB),
-    onError = Color(0xFF690005),
+    error = Color(0xFFCF6679),
+    onError = Color.Black,
     errorContainer = Color(0xFF93000A),
     onErrorContainer = Color(0xFFFFDAD6),
-    background = Color(0xFF0F172A),           // slate-900
-    onBackground = Color(0xFFF1F5F9),         // slate-100
-    surface = Color(0xFF0F172A),              // slate-900
-    onSurface = Color(0xFFF1F5F9),            // slate-100
-    surfaceVariant = Color(0xFF1E293B),       // slate-800
-    onSurfaceVariant = Color(0xFF94A3B8),     // slate-400
-    surfaceContainerHigh = Color(0xFF1E293B), // slate-800
-    surfaceContainer = Color(0xFF0F172A),     // slate-900
-    surfaceContainerLow = Color(0xFF020617),  // slate-950
-    outline = Color(0xFF475569),              // slate-600
-    outlineVariant = Color(0xFF334155)        // slate-700
+    background = Color.Black,                  // Pure black
+    onBackground = Color.White,
+    surface = Color(0xFF121212),               // Near black
+    onSurface = Color.White,
+    surfaceVariant = Color(0xFF1E1E1E),        // Dark gray
+    onSurfaceVariant = Color(0xFFCAC4D0),
+    surfaceContainerHigh = Color(0xFF1E1E1E), // Dark gray
+    surfaceContainer = Color(0xFF121212),      // Near black
+    surfaceContainerLow = Color(0xFF0A0A0A),   // Very dark
+    outline = Color(0xFF938F99),
+    outlineVariant = Color(0xFF49454F),
+    inverseSurface = Color(0xFFE6E1E5),
+    inverseOnSurface = Color(0xFF1C1B1F)
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -211,17 +213,34 @@ private val AppTypography = Typography(
     )
 )
 
+// ==================== Theme State Management ====================
+
+/**
+ * Provides a callback to toggle the theme
+ */
+val LocalThemeToggle = staticCompositionLocalOf<() -> Unit> { {} }
+
+/**
+ * Provides the current dark theme state
+ */
+val LocalIsDarkTheme = staticCompositionLocalOf { false }
+
 // ==================== Theme Composable ====================
 
 @Composable
 fun GemmaTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    onToggleTheme: () -> Unit = {},
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
     val extendedColors = if (darkTheme) DarkExtendedColors else LightExtendedColors
 
-    CompositionLocalProvider(LocalExtendedColors provides extendedColors) {
+    CompositionLocalProvider(
+        LocalExtendedColors provides extendedColors,
+        LocalThemeToggle provides onToggleTheme,
+        LocalIsDarkTheme provides darkTheme
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = AppTypography,
