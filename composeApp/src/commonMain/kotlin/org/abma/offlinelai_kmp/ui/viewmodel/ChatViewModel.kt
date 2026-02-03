@@ -13,6 +13,7 @@ import org.abma.offlinelai_kmp.domain.model.ModelState
 import org.abma.offlinelai_kmp.domain.repository.LoadedModel
 import org.abma.offlinelai_kmp.domain.repository.ModelRepository
 import org.abma.offlinelai_kmp.inference.GemmaInference
+import org.abma.offlinelai_kmp.tools.*
 import kotlin.time.Clock
 
 data class ChatUiState(
@@ -24,7 +25,8 @@ data class ChatUiState(
     val currentModelPath: String? = null,
     val loadedModels: List<LoadedModel> = emptyList(),
     val pendingAttachments: List<Attachment> = emptyList(),
-    val isAttachmentLoading: Boolean = false
+    val isAttachmentLoading: Boolean = false,
+    val isToolCallInProgress: Boolean = false
 )
 
 class ChatViewModel : ViewModel() {
@@ -33,6 +35,7 @@ class ChatViewModel : ViewModel() {
 
     private val gemmaInference = GemmaInference()
     private val modelRepository = ModelRepository()
+    private val toolRegistry = createDefaultToolRegistry()
     private var streamingMessageId: String? = null
 
     init {
@@ -119,9 +122,10 @@ class ChatViewModel : ViewModel() {
             )
         }
 
-        // Build prompt with attachment info
+        // Build prompt with attachment info and tool instructions
         val promptWithAttachments = buildPromptWithAttachments(input, attachments)
-        generateResponse(promptWithAttachments)
+        val toolAwarePrompt = buildToolAwarePrompt(promptWithAttachments, toolRegistry.specs())
+        generateResponse(toolAwarePrompt)
     }
 
     private fun buildPromptWithAttachments(text: String, attachments: List<Attachment>): String {
@@ -206,18 +210,24 @@ class ChatViewModel : ViewModel() {
                     }
                 }
                 .onCompletion {
-                    _uiState.update { state ->
-                        val updatedMessages = state.messages.map { msg ->
-                            if (msg.id == streamingMessageId) {
-                                msg.copy(isStreaming = false)
-                            } else msg
+                    // Check for tool call in the response
+                    val toolCall = extractToolCall(accumulatedResponse)
+                    if (toolCall != null) {
+                        handleToolCall(toolCall, accumulatedResponse, messagesForContext)
+                    } else {
+                        _uiState.update { state ->
+                            val updatedMessages = state.messages.map { msg ->
+                                if (msg.id == streamingMessageId) {
+                                    msg.copy(isStreaming = false)
+                                } else msg
+                            }
+                            state.copy(
+                                messages = updatedMessages,
+                                modelState = ModelState.READY
+                            )
                         }
-                        state.copy(
-                            messages = updatedMessages,
-                            modelState = ModelState.READY
-                        )
+                        streamingMessageId = null
                     }
-                    streamingMessageId = null
                 }
                 .collect { token ->
                     accumulatedResponse += token
@@ -230,6 +240,119 @@ class ChatViewModel : ViewModel() {
                         state.copy(messages = updatedMessages)
                     }
                 }
+        }
+    }
+
+    private fun handleToolCall(
+        toolCall: ToolCall,
+        originalResponse: String,
+        messagesForContext: List<Pair<String, Boolean>>
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState.update { it.copy(isToolCallInProgress = true) }
+
+            try {
+                // Create tool context
+                val toolContext = ToolContext(
+                    loadedModels = _uiState.value.loadedModels,
+                    currentModelPath = _uiState.value.currentModelPath
+                )
+
+                // Execute the tool
+                val toolResult = toolRegistry.execute(toolCall, toolContext)
+                println("Tool '${toolCall.tool}' executed. Result: ${toolResult.result}")
+
+                // Update the AI message to show tool was called
+                val toolCallDisplay = "🔧 Calling ${toolCall.tool}...\n\n"
+                _uiState.update { state ->
+                    val updatedMessages = state.messages.map { msg ->
+                        if (msg.id == streamingMessageId) {
+                            msg.copy(content = toolCallDisplay, isStreaming = true)
+                        } else msg
+                    }
+                    state.copy(messages = updatedMessages)
+                }
+
+                // Build follow-up prompt with tool result
+                val toolResultPrompt = buildToolResultPrompt(toolCall, toolResult)
+                val followUpPrompt = formatPromptWithHistoryAndToolResult(
+                    messagesForContext,
+                    toolCall,
+                    toolResultPrompt
+                )
+
+                // Generate follow-up response
+                var followUpResponse = ""
+                gemmaInference.generateResponse(followUpPrompt)
+                    .catch { e ->
+                        println("Error in follow-up generation: ${e.message}")
+                        _uiState.update { state ->
+                            val updatedMessages = state.messages.map { msg ->
+                                if (msg.id == streamingMessageId) {
+                                    msg.copy(
+                                        content = toolCallDisplay + "Error processing tool result: ${e.message}",
+                                        isStreaming = false,
+                                        isError = true
+                                    )
+                                } else msg
+                            }
+                            state.copy(
+                                messages = updatedMessages,
+                                modelState = ModelState.READY,
+                                isToolCallInProgress = false
+                            )
+                        }
+                    }
+                    .onCompletion {
+                        _uiState.update { state ->
+                            val updatedMessages = state.messages.map { msg ->
+                                if (msg.id == streamingMessageId) {
+                                    msg.copy(isStreaming = false)
+                                } else msg
+                            }
+                            state.copy(
+                                messages = updatedMessages,
+                                modelState = ModelState.READY,
+                                isToolCallInProgress = false
+                            )
+                        }
+                        streamingMessageId = null
+                    }
+                    .collect { token ->
+                        followUpResponse += token
+                        // Strip any nested tool calls from follow-up
+                        val displayResponse = stripToolCallBlock(followUpResponse)
+                        _uiState.update { state ->
+                            val updatedMessages = state.messages.map { msg ->
+                                if (msg.id == streamingMessageId) {
+                                    msg.copy(content = toolCallDisplay + displayResponse)
+                                } else msg
+                            }
+                            state.copy(messages = updatedMessages)
+                        }
+                    }
+
+            } catch (e: Exception) {
+                println("Error handling tool call: ${e.message}")
+                e.printStackTrace()
+                _uiState.update { state ->
+                    val updatedMessages = state.messages.map { msg ->
+                        if (msg.id == streamingMessageId) {
+                            msg.copy(
+                                content = "Error executing tool: ${e.message}",
+                                isStreaming = false,
+                                isError = true
+                            )
+                        } else msg
+                    }
+                    state.copy(
+                        messages = updatedMessages,
+                        modelState = ModelState.READY,
+                        isToolCallInProgress = false
+                    )
+                }
+                streamingMessageId = null
+            }
         }
     }
 
