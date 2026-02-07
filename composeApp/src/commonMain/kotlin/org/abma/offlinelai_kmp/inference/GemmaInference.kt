@@ -25,7 +25,7 @@ expect class GemmaInference() {
      * @return Flow emitting the generated response
      */
     fun generateResponseWithHistory(
-        messages: List<Pair<String, Boolean>>,
+        systemPrompt: String,
         currentPrompt: String
     ): Flow<String>
 

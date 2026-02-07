@@ -55,9 +55,11 @@ import MediaPipeTasksGenAIC
         }
 
         do {
-            llmInference = try LlmInference(options: LlmInference.Options(modelPath: path))
+            let options = LlmInference.Options(modelPath: path)
+            options.maxTokens = 2048  // Increased to handle tool prompts
+            llmInference = try LlmInference(options: options)
             currentModelPath = path
-            print("InferenceBridge: Model loaded from \(path)")
+            print("InferenceBridge: Model loaded from \(path) with maxTokens=2048")
             return true
         } catch {
             print("InferenceBridge: Load failed - \(error.localizedDescription)")

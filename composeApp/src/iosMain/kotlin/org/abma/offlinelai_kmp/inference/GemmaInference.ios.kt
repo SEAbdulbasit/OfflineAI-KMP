@@ -80,9 +80,9 @@ actual class GemmaInference {
     }
 
     actual fun generateResponseWithHistory(
-        messages: List<Pair<String, Boolean>>,
+        systemPrompt: String,
         currentPrompt: String
-    ): Flow<String> = generateResponse(formatPromptWithHistory(messages, currentPrompt))
+    ): Flow<String> = generateResponse(systemPrompt+currentPrompt)
 
     actual fun isModelLoaded(): Boolean = isLoaded
 

@@ -1,9 +1,11 @@
 package org.abma.offlinelai_kmp.tools
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import platform.Foundation.*
 import platform.UIKit.*
+import kotlin.coroutines.resume
 
 actual object AppActionsProvider {
 
@@ -14,7 +16,17 @@ actual object AppActionsProvider {
             } else url
 
             val nsUrl = NSURL.URLWithString(validUrl) ?: return@withContext false
-            UIApplication.sharedApplication.openURL(nsUrl)
+
+            // Use modern openURL:options:completionHandler: API
+            suspendCancellableCoroutine { continuation ->
+                UIApplication.sharedApplication.openURL(
+                    nsUrl,
+                    options = emptyMap<Any?, Any>(),
+                    completionHandler = { success ->
+                        continuation.resume(success)
+                    }
+                )
+            }
         } catch (e: Exception) {
             println("Failed to open URL: ${e.message}")
             false
@@ -25,7 +37,16 @@ actual object AppActionsProvider {
         try {
             val cleanNumber = phoneNumber.replace(Regex("[^0-9+]"), "")
             val nsUrl = NSURL.URLWithString("tel:$cleanNumber") ?: return@withContext false
-            UIApplication.sharedApplication.openURL(nsUrl)
+
+            suspendCancellableCoroutine { continuation ->
+                UIApplication.sharedApplication.openURL(
+                    nsUrl,
+                    options = emptyMap<Any?, Any>(),
+                    completionHandler = { success ->
+                        continuation.resume(success)
+                    }
+                )
+            }
         } catch (e: Exception) {
             println("Failed to open dialer: ${e.message}")
             false
@@ -47,7 +68,16 @@ actual object AppActionsProvider {
                 }
             }
             val nsUrl = NSURL.URLWithString(urlString) ?: return@withContext false
-            UIApplication.sharedApplication.openURL(nsUrl)
+
+            suspendCancellableCoroutine { continuation ->
+                UIApplication.sharedApplication.openURL(
+                    nsUrl,
+                    options = emptyMap<Any?, Any>(),
+                    completionHandler = { success ->
+                        continuation.resume(success)
+                    }
+                )
+            }
         } catch (e: Exception) {
             println("Failed to open email: ${e.message}")
             false
@@ -58,7 +88,16 @@ actual object AppActionsProvider {
         try {
             val encodedQuery = encodeUrlComponent(query)
             val nsUrl = NSURL.URLWithString("maps://?q=$encodedQuery") ?: return@withContext false
-            UIApplication.sharedApplication.openURL(nsUrl)
+
+            suspendCancellableCoroutine { continuation ->
+                UIApplication.sharedApplication.openURL(
+                    nsUrl,
+                    options = emptyMap<Any?, Any>(),
+                    completionHandler = { success ->
+                        continuation.resume(success)
+                    }
+                )
+            }
         } catch (e: Exception) {
             println("Failed to open maps: ${e.message}")
             false
@@ -102,7 +141,16 @@ actual object AppActionsProvider {
     actual suspend fun openAppSettings(): Boolean = withContext(Dispatchers.Main) {
         try {
             val nsUrl = NSURL.URLWithString(UIApplicationOpenSettingsURLString) ?: return@withContext false
-            UIApplication.sharedApplication.openURL(nsUrl)
+
+            suspendCancellableCoroutine { continuation ->
+                UIApplication.sharedApplication.openURL(
+                    nsUrl,
+                    options = emptyMap<Any?, Any>(),
+                    completionHandler = { success ->
+                        continuation.resume(success)
+                    }
+                )
+            }
         } catch (e: Exception) {
             println("Failed to open settings: ${e.message}")
             false

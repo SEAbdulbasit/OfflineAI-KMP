@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ModelConfig(
-    val maxTokens: Int = 1024,
+    val maxTokens: Int = 2048,
     val temperature: Float = 0.8f,
     val topK: Int = 40
 )
