@@ -17,7 +17,6 @@ actual object AppActionsProvider {
 
             val nsUrl = NSURL.URLWithString(validUrl) ?: return@withContext false
 
-            // Use modern openURL:options:completionHandler: API
             suspendCancellableCoroutine { continuation ->
                 UIApplication.sharedApplication.openURL(
                     nsUrl,

@@ -16,7 +16,6 @@ actual fun rememberFilePicker(onFilePicked: (String?) -> Unit): () -> Unit {
     }
 }
 
-// Keep a strong reference to prevent delegate from being deallocated
 private var currentDelegate: DocumentPickerDelegate? = null
 
 private fun showDocumentPicker(onFilePicked: (String?) -> Unit) {
@@ -24,15 +23,11 @@ private fun showDocumentPicker(onFilePicked: (String?) -> Unit) {
 
     val picker = UIDocumentPickerViewController(
         forOpeningContentTypes = documentTypes,
-        asCopy = true  // iOS will copy the file to a temp location
+        asCopy = true
     )
 
-    // Create delegate and keep strong reference
     val delegate = DocumentPickerDelegate { path ->
-        // Callback from main queue - do NOT release delegate here
-        // as it may still be used by UIKit
         onFilePicked(path)
-        // Release delegate asynchronously after a short delay
         NSOperationQueue.mainQueue.addOperationWithBlock {
             currentDelegate = null
         }
@@ -43,10 +38,8 @@ private fun showDocumentPicker(onFilePicked: (String?) -> Unit) {
     picker.allowsMultipleSelection = false
     picker.modalPresentationStyle = UIModalPresentationPageSheet
 
-    // Get the top view controller safely
     val rootViewController = getRootViewController()
 
-    // Find the topmost presented view controller
     var topController = rootViewController
     while (topController?.presentedViewController != null) {
         topController = topController.presentedViewController

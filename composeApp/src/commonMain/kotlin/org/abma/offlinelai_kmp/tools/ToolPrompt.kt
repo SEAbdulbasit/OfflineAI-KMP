@@ -26,7 +26,6 @@ fun buildSystemPrompt(specs: List<ToolSpec>): String = buildString {
     specs.forEach { spec ->
         appendLine("• ${spec.name}: ${spec.description}")
 
-        // Parse and show parameters
         val params = extractParamDetails(spec.parametersSchemaJson)
         if (params.isNotEmpty()) {
             params.forEach { (paramName, paramDesc) ->
@@ -64,7 +63,6 @@ private fun extractParamDetails(schemaJson: String): Map<String, String> {
             if (desc != null) paramName to desc else null
         }.toMap()
     } catch (e: Exception) {
-        // Fallback to simple name extraction
         extractParamNames(schemaJson).associateWith { "Parameter" }
     }
 }
@@ -84,23 +82,18 @@ private fun extractParamNames(schemaJson: String): List<String> {
 }
 
 fun extractToolCall(text: String): ToolCall? {
-    // Try method 1: Look for <<{...}>> format
     val start = text.indexOf(TOOL_CALL_START)
     val end = text.indexOf(TOOL_CALL_END, start + TOOL_CALL_START.length)
 
     val jsonPayload = if (start != -1 && end != -1 && end > start) {
-        // Found <<{...}>> format
         text.substring(start + TOOL_CALL_START.length, end).trim()
     } else {
-        // Method 2: Look for ```json ... ``` or just {...} format
         val jsonMatch = text.let { input ->
-            // Try to extract from ```json ... ```
             val codeBlockPattern = "```json\\s*\\n([\\s\\S]*?)\\n```".toRegex()
             val match = codeBlockPattern.find(input)
             if (match != null) {
                 match.groupValues[1].trim()
             } else {
-                // Try to find raw JSON object
                 val jsonObjectPattern = "\\{[\\s\\S]*?\"tool\"[\\s\\S]*?\\}".toRegex()
                 jsonObjectPattern.find(input)?.value?.trim()
             }
@@ -111,7 +104,6 @@ fun extractToolCall(text: String): ToolCall? {
     if (jsonPayload.isBlank() || !jsonPayload.startsWith("{")) return null
 
     return try {
-        // Parse the JSON
         val element = json.parseToJsonElement(jsonPayload)
         val obj = element.jsonObject
 
@@ -127,18 +119,15 @@ fun extractToolCall(text: String): ToolCall? {
 }
 
 fun stripToolCallBlock(text: String): String {
-    // Remove <<{...}>> format
     val start = text.indexOf(TOOL_CALL_START)
     val end = text.indexOf(TOOL_CALL_END, start + TOOL_CALL_START.length)
     if (start != -1 && end != -1 && end > start) {
         return (text.substring(0, start) + text.substring(end + TOOL_CALL_END.length)).trim()
     }
 
-    // Remove ```json ... ``` format
     val codeBlockPattern = "```json\\s*\\n[\\s\\S]*?\\n```".toRegex()
     var result = text.replace(codeBlockPattern, "")
 
-    // Remove any standalone {...} with "tool" key
     val jsonObjectPattern = "\\{[\\s\\S]*?\"tool\"[\\s\\S]*?\\}".toRegex()
     result = result.replace(jsonObjectPattern, "")
 

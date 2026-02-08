@@ -201,7 +201,6 @@ class ChatViewModel : ViewModel() {
                 gemmaInference.generateResponseWithHistory(systemPrompt, formattedPrompt)
                     .collect { token ->
                         llmResponse += token
-                        // Show streaming to user
                         _uiState.update { state ->
                             val updatedMessages = state.messages.map { msg ->
                                 if (msg.id == streamingMessageId) msg.copy(content = llmResponse)
@@ -295,12 +294,10 @@ class ChatViewModel : ViewModel() {
 
                 println("🤖 Asking LLM to format tool result...")
 
-                // Step 4: Get LLM's natural response with tool result
                 var naturalResponse = ""
                 gemmaInference.generateResponse(followUpPrompt)
                     .collect { token ->
                         naturalResponse += token
-                        // Strip any nested tool calls from the response
                         val displayResponse = stripToolCallBlock(naturalResponse)
 
                         _uiState.update { state ->
@@ -315,7 +312,6 @@ class ChatViewModel : ViewModel() {
 
                 println("✅ Final response: $naturalResponse")
 
-                // Step 5: Mark as complete
                 _uiState.update { state ->
                     val updatedMessages = state.messages.map { msg ->
                         if (msg.id == streamingMessageId) {
