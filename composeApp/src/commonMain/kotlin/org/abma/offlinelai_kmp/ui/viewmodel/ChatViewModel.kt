@@ -56,10 +56,26 @@ class ChatViewModel : ViewModel() {
     }
 
     init {
-        refreshLoadedModels()
+        onAction(ChatAction.RefreshModels)
     }
 
-    fun refreshLoadedModels() {
+    fun onAction(action: ChatAction) {
+        when (action) {
+            is ChatAction.LoadModel -> loadModel(action.path, action.config)
+            is ChatAction.RemoveModel -> removeLoadedModel(action.path)
+            is ChatAction.UpdateInput -> updateInput(action.text)
+            is ChatAction.SendMessage -> sendMessage()
+            is ChatAction.AddAttachment -> addAttachment(action.attachment)
+            is ChatAction.RemoveAttachment -> removeAttachment(action.attachmentId)
+            is ChatAction.ClearAttachments -> clearAttachments()
+            is ChatAction.SetAttachmentLoading -> setAttachmentLoading(action.isLoading)
+            is ChatAction.ClearChat -> clearChat()
+            is ChatAction.DismissError -> dismissError()
+            is ChatAction.RefreshModels -> refreshLoadedModels()
+        }
+    }
+
+    private fun refreshLoadedModels() {
         getLoadedModelsUseCase().onSuccess { models ->
             val currentPath = modelRepository.getCurrentModelPath()
             _uiState.update {
@@ -71,7 +87,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    fun loadModel(modelPath: String, config: ModelConfig = ModelConfig()) {
+    private fun loadModel(modelPath: String, config: ModelConfig = ModelConfig()) {
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(modelState = ModelState.LOADING, errorMessage = null) }
 
@@ -98,16 +114,16 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    fun removeLoadedModel(path: String) {
+    private fun removeLoadedModel(path: String) {
         removeModelUseCase(path)
         refreshLoadedModels()
     }
 
-    fun updateInput(input: String) {
+    private fun updateInput(input: String) {
         _uiState.update { it.copy(currentInput = input) }
     }
 
-    fun sendMessage() {
+    private fun sendMessage() {
         val input = _uiState.value.currentInput.trim()
         val attachments = _uiState.value.pendingAttachments
 
@@ -129,25 +145,25 @@ class ChatViewModel : ViewModel() {
         generateResponse(promptWithAttachments)
     }
 
-    fun addAttachment(attachment: Attachment) {
+    private fun addAttachment(attachment: Attachment) {
         _uiState.update { state ->
             state.copy(pendingAttachments = state.pendingAttachments + attachment)
         }
     }
 
-    fun removeAttachment(attachmentId: String) {
+    private fun removeAttachment(attachmentId: String) {
         _uiState.update { state ->
             state.copy(pendingAttachments = state.pendingAttachments.filter { it.id != attachmentId })
         }
     }
 
-    fun clearAttachments() {
+    private fun clearAttachments() {
         _uiState.update { state ->
             state.copy(pendingAttachments = emptyList())
         }
     }
 
-    fun setAttachmentLoading(loading: Boolean) {
+    private fun setAttachmentLoading(loading: Boolean) {
         _uiState.update { state ->
             state.copy(isAttachmentLoading = loading)
         }
@@ -288,11 +304,11 @@ class ChatViewModel : ViewModel() {
         streamingMessageId = null
     }
 
-    fun clearChat() {
+    private fun clearChat() {
         _uiState.update { it.copy(messages = emptyList()) }
     }
 
-    fun dismissError() {
+    private fun dismissError() {
         _uiState.update { it.copy(errorMessage = null) }
     }
 

@@ -6,11 +6,7 @@ import org.abma.offlinelai_kmp.domain.repository.ModelRepository
 class GetLoadedModelsUseCase(
     private val modelRepository: ModelRepository
 ) {
-    operator fun invoke(): Result<List<LoadedModel>> {
-        return try {
-            Result.success(modelRepository.getLoadedModels())
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+    operator fun invoke(): Result<List<LoadedModel>> = runCatching {
+        modelRepository.getLoadedModels()
     }
 }

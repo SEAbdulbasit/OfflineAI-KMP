@@ -10,25 +10,24 @@ class LoadModelUseCase(
     private val gemmaInference: GemmaInference,
     private val modelRepository: ModelRepository
 ) {
-    suspend operator fun invoke(modelPath: String, config: ModelConfig = ModelConfig()): Result<LoadedModel> {
-        return try {
-            gemmaInference.loadModel(modelPath, config)
+    suspend operator fun invoke(
+        modelPath: String,
+        config: ModelConfig = ModelConfig()
+    ): Result<LoadedModel> = runCatching {
+        gemmaInference.loadModel(modelPath, config)
 
-            val modelName = modelPath.substringAfterLast("/").substringBeforeLast(".")
-            val currentTime = Clock.System.now().toEpochMilliseconds()
-            val loadedModel = LoadedModel(
-                name = modelName,
-                path = modelPath,
-                config = config,
-                loadedAt = currentTime
-            )
+        val modelName = modelPath.substringAfterLast("/").substringBeforeLast(".")
+        val currentTime = Clock.System.now().toEpochMilliseconds()
+        val loadedModel = LoadedModel(
+            name = modelName,
+            path = modelPath,
+            config = config,
+            loadedAt = currentTime
+        )
 
-            modelRepository.saveModel(loadedModel)
-            modelRepository.setCurrentModelPath(modelPath)
+        modelRepository.saveModel(loadedModel)
+        modelRepository.setCurrentModelPath(modelPath)
 
-            Result.success(loadedModel)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        loadedModel
     }
 }

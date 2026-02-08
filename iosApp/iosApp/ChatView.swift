@@ -4,13 +4,13 @@ import ComposeApp
 class ChatViewModelObservable: ObservableObject {
     private let wrapper = IosChatViewModelWrapper()
 
-    @Published var messages: [IosChatMessage] = []
-    @Published var modelState: String = "NOT_LOADED"
+    @Published var messages: [ChatMessage] = []
+    @Published var modelState: ModelState = ModelState.notLoaded
     @Published var loadingProgress: Float = 0.0
     @Published var currentInput: String = ""
     @Published var errorMessage: String? = nil
     @Published var currentModelPath: String? = nil
-    @Published var loadedModels: [IosLoadedModel] = []
+    @Published var loadedModels: [LoadedModel] = []
     @Published var isGenerating: Bool = false
     @Published var isToolCallInProgress: Bool = false
 
@@ -24,7 +24,7 @@ class ChatViewModelObservable: ObservableObject {
                 self?.errorMessage = state.errorMessage
                 self?.currentModelPath = state.currentModelPath
                 self?.loadedModels = state.loadedModels
-                self?.isGenerating = state.isGenerating
+                self?.isGenerating = state.modelState == ModelState.generating
                 self?.isToolCallInProgress = state.isToolCallInProgress
             }
         }
@@ -130,7 +130,7 @@ struct ChatView: View {
 }
 
 struct MessageListView: View {
-    let messages: [IosChatMessage]
+    let messages: [ChatMessage]
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -155,7 +155,7 @@ struct MessageListView: View {
 }
 
 struct MessageBubble: View {
-    let message: IosChatMessage
+    let message: ChatMessage
 
     var body: some View {
         HStack {
@@ -366,7 +366,7 @@ struct SettingsView: View {
 }
 
 struct ModelRow: View {
-    let model: IosLoadedModel
+    let model: LoadedModel
     let isActive: Bool
     let onLoad: () -> Void
     let onDelete: () -> Void
