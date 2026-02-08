@@ -15,10 +15,12 @@ import org.abma.offlinelai_kmp.domain.model.ModelConfig
 import org.abma.offlinelai_kmp.domain.model.ModelState
 import org.abma.offlinelai_kmp.domain.repository.LoadedModel
 import org.abma.offlinelai_kmp.domain.repository.ModelRepository
+import org.abma.offlinelai_kmp.domain.usecase.*
 import org.abma.offlinelai_kmp.inference.GemmaInference
-import org.abma.offlinelai_kmp.inference.formatPromptWithHistory
-import org.abma.offlinelai_kmp.tools.*
-import kotlin.time.Clock
+import org.abma.offlinelai_kmp.tools.ToolCall
+import org.abma.offlinelai_kmp.tools.ToolRegistry
+import org.abma.offlinelai_kmp.tools.buildSystemPrompt
+import org.abma.offlinelai_kmp.tools.createDefaultToolRegistry
 
 data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(),
@@ -39,8 +41,15 @@ class ChatViewModel : ViewModel() {
 
     private val gemmaInference = GemmaInference()
     private val modelRepository = ModelRepository()
-    private val toolRegistry = createDefaultToolRegistry()
+    private val toolRegistry: ToolRegistry = createDefaultToolRegistry()
     private var streamingMessageId: String? = null
+
+    private val loadModelUseCase = LoadModelUseCase(gemmaInference, modelRepository)
+    private val generateResponseUseCase = GenerateResponseUseCase(gemmaInference)
+    private val executeToolUseCase = ExecuteToolUseCase(gemmaInference, toolRegistry)
+    private val getLoadedModelsUseCase = GetLoadedModelsUseCase(modelRepository)
+    private val removeModelUseCase = RemoveModelUseCase(modelRepository)
+    private val buildPromptWithAttachmentsUseCase = BuildPromptWithAttachmentsUseCase()
 
     private val systemPrompt: String by lazy {
         buildSystemPrompt(toolRegistry.specs())
@@ -51,57 +60,46 @@ class ChatViewModel : ViewModel() {
     }
 
     fun refreshLoadedModels() {
-        val models = modelRepository.getLoadedModels()
-        val currentPath = modelRepository.getCurrentModelPath()
-        _uiState.update {
-            it.copy(
-                loadedModels = models,
-                currentModelPath = currentPath
-            )
+        getLoadedModelsUseCase().onSuccess { models ->
+            val currentPath = modelRepository.getCurrentModelPath()
+            _uiState.update {
+                it.copy(
+                    loadedModels = models,
+                    currentModelPath = currentPath
+                )
+            }
         }
     }
 
     fun loadModel(modelPath: String, config: ModelConfig = ModelConfig()) {
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(modelState = ModelState.LOADING, errorMessage = null) }
-            try {
-                gemmaInference.loadModel(modelPath, config)
 
-                val modelName = modelPath.substringAfterLast("/").substringBeforeLast(".")
-                val currentTime = Clock.System.now().toEpochMilliseconds()
-                val loadedModel = LoadedModel(
-                    name = modelName,
-                    path = modelPath,
-                    config = config,
-                    loadedAt = currentTime
-                )
-                modelRepository.saveModel(loadedModel)
-                modelRepository.setCurrentModelPath(modelPath)
-
-                _uiState.update {
-                    it.copy(
-                        modelState = ModelState.READY,
-                        loadingProgress = 1f,
-                        currentModelPath = modelPath,
-                        loadedModels = modelRepository.getLoadedModels()
-                    )
+            loadModelUseCase(modelPath, config)
+                .onSuccess { loadedModel ->
+                    _uiState.update {
+                        it.copy(
+                            modelState = ModelState.READY,
+                            loadingProgress = 1f,
+                            currentModelPath = loadedModel.path,
+                            loadedModels = modelRepository.getLoadedModels()
+                        )
+                    }
                 }
-            } catch (e: Exception) {
-                println("Error loading model: ${e.message}")
-                e.printStackTrace()
-                _uiState.update {
-                    it.copy(
-                        modelState = ModelState.ERROR,
-                        errorMessage = e.message ?: "Failed to load model",
-                        loadingProgress = 0f
-                    )
+                .onFailure { exception ->
+                    _uiState.update {
+                        it.copy(
+                            modelState = ModelState.ERROR,
+                            errorMessage = exception.message ?: "Failed to load model",
+                            loadingProgress = 0f
+                        )
+                    }
                 }
-            }
         }
     }
 
     fun removeLoadedModel(path: String) {
-        modelRepository.removeModel(path)
+        removeModelUseCase(path)
         refreshLoadedModels()
     }
 
@@ -127,33 +125,8 @@ class ChatViewModel : ViewModel() {
             )
         }
 
-        // Build prompt with attachments and pass to generateResponse
-        // System prompt will be added inside generateResponse()
-        val promptWithAttachments = buildPromptWithAttachments(input, attachments)
+        val promptWithAttachments = buildPromptWithAttachmentsUseCase(input, attachments)
         generateResponse(promptWithAttachments)
-    }
-
-    private fun buildPromptWithAttachments(text: String, attachments: List<Attachment>): String {
-        if (attachments.isEmpty()) return text
-
-        val attachmentDescriptions = attachments.joinToString("\n") { attachment ->
-            when (attachment.type) {
-                org.abma.offlinelai_kmp.domain.model.AttachmentType.IMAGE ->
-                    "[User attached an image: ${attachment.fileName}]"
-
-                org.abma.offlinelai_kmp.domain.model.AttachmentType.PDF ->
-                    "[User attached a PDF document: ${attachment.fileName}]"
-
-                org.abma.offlinelai_kmp.domain.model.AttachmentType.DOCUMENT ->
-                    "[User attached a document: ${attachment.fileName}]"
-            }
-        }
-
-        return if (text.isNotEmpty()) {
-            "$attachmentDescriptions\n\n$text"
-        } else {
-            attachmentDescriptions
-        }
     }
 
     fun addAttachment(attachment: Attachment) {
@@ -182,76 +155,34 @@ class ChatViewModel : ViewModel() {
 
     private fun generateResponse(prompt: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val messagesForContext = _uiState.value.messages
-                    .takeLast(10) // Keep last 10 messages for context
-                    .map { it.content to it.isFromUser }
+            val messagesForContext = _uiState.value.messages
+                .takeLast(10)
+                .map { it.content to it.isFromUser }
 
-                val aiMessage = ChatMessage.ai("", isStreaming = true)
-                streamingMessageId = aiMessage.id
-                _uiState.update { state ->
-                    state.copy(messages = state.messages + aiMessage)
-                }
-
-                println("🤖 Generating response with system prompt...")
-
-                val formattedPrompt = formatPromptWithHistory(messagesForContext, prompt)
-
-                var llmResponse = ""
-                gemmaInference.generateResponseWithHistory(systemPrompt, formattedPrompt)
-                    .collect { token ->
-                        llmResponse += token
-                        _uiState.update { state ->
-                            val updatedMessages = state.messages.map { msg ->
-                                if (msg.id == streamingMessageId) msg.copy(content = llmResponse)
-                                else msg
-                            }
-                            state.copy(messages = updatedMessages)
-                        }
-                    }
-
-                println("✅ LLM Response: $llmResponse")
-
-                val toolCall = extractToolCall(llmResponse)
-
-                if (toolCall != null) {
-                    println("🔧 Function call detected: ${toolCall.tool}")
-                    handleToolCall(toolCall, messagesForContext)
-                } else {
-                    println("💬 No function call, displaying response")
-                    _uiState.update { state ->
-                        val updatedMessages = state.messages.map { msg ->
-                            if (msg.id == streamingMessageId) {
-                                msg.copy(isStreaming = false)
-                            } else msg
-                        }
-                        state.copy(
-                            messages = updatedMessages,
-                            modelState = ModelState.READY
-                        )
-                    }
-                    streamingMessageId = null
-                }
-
-            } catch (e: Exception) {
-                e.printStackTrace()
-                _uiState.update { state ->
-                    val updatedMessages = state.messages.map { msg ->
-                        if (msg.id == streamingMessageId) {
-                            msg.copy(
-                                content = "Error: ${e.message}",
-                                isStreaming = false,
-                                isError = true
-                            )
-                        } else msg
-                    }
-                    state.copy(
-                        messages = updatedMessages,
-                        modelState = ModelState.READY
-                    )
-                }
-                streamingMessageId = null
+            val aiMessage = ChatMessage.ai("", isStreaming = true)
+            streamingMessageId = aiMessage.id
+            _uiState.update { state ->
+                state.copy(messages = state.messages + aiMessage)
             }
+
+            generateResponseUseCase(systemPrompt, prompt, messagesForContext)
+                .collect { result ->
+                    when (result) {
+                        is GenerateResponseResult.Streaming -> {
+                            updateStreamingMessage(result.partialResponse)
+                        }
+                        is GenerateResponseResult.Complete -> {
+                            if (result.toolCall != null) {
+                                handleToolCall(result.toolCall, messagesForContext)
+                            } else {
+                                finishStreaming()
+                            }
+                        }
+                        is GenerateResponseResult.Error -> {
+                            handleError(result.exception)
+                        }
+                    }
+                }
         }
     }
 
@@ -260,95 +191,109 @@ class ChatViewModel : ViewModel() {
         messagesForContext: List<Pair<String, Boolean>>
     ) {
         viewModelScope.launch(Dispatchers.IO) {
-            try {
-                _uiState.update { it.copy(isToolCallInProgress = true) }
+            _uiState.update { it.copy(isToolCallInProgress = true) }
 
-                // Step 1: Execute the tool
-                val toolContext = ToolContext(
-                    loadedModels = _uiState.value.loadedModels,
-                    currentModelPath = _uiState.value.currentModelPath
-                )
-
-                println("⚙️ Executing tool: ${toolCall.tool} with args: ${toolCall.arguments}")
-                val toolResult = toolRegistry.execute(toolCall, toolContext)
-                println("✅ Tool result: ${toolResult.result}")
-
-                // Step 2: Update UI to show tool is being called
-                val toolCallDisplay = "🔧 Calling ${toolCall.tool}...\n\n"
-                _uiState.update { state ->
-                    val updatedMessages = state.messages.map { msg ->
-                        if (msg.id == streamingMessageId) {
-                            msg.copy(content = toolCallDisplay, isStreaming = true)
-                        } else msg
+            executeToolUseCase(
+                toolCall = toolCall,
+                messagesForContext = messagesForContext,
+                loadedModels = _uiState.value.loadedModels,
+                currentModelPath = _uiState.value.currentModelPath
+            ).collect { result ->
+                when (result) {
+                    is ExecuteToolResult.Executing -> {
+                        updateStreamingMessage("🔧 Calling ${result.toolName}...\n\n")
                     }
-                    state.copy(messages = updatedMessages)
+                    is ExecuteToolResult.Streaming -> {
+                        updateStreamingMessage(result.toolDisplay + result.partialResponse)
+                    }
+                    is ExecuteToolResult.Complete -> {
+                        updateStreamingMessage(result.toolDisplay + result.response)
+                        finishToolCall()
+                    }
+                    is ExecuteToolResult.Error -> {
+                        handleToolError(toolCall.tool, result.exception)
+                    }
                 }
-
-                // Step 3: Ask LLM to format the tool result naturally
-                val toolResultPrompt = buildToolResultPrompt(toolCall, toolResult)
-                val followUpPrompt = formatPromptWithHistoryAndToolResult(
-                    messagesForContext,
-                    toolCall,
-                    toolResultPrompt
-                )
-
-                println("🤖 Asking LLM to format tool result...")
-
-                var naturalResponse = ""
-                gemmaInference.generateResponse(followUpPrompt)
-                    .collect { token ->
-                        naturalResponse += token
-                        val displayResponse = stripToolCallBlock(naturalResponse)
-
-                        _uiState.update { state ->
-                            val updatedMessages = state.messages.map { msg ->
-                                if (msg.id == streamingMessageId) {
-                                    msg.copy(content = toolCallDisplay + displayResponse)
-                                } else msg
-                            }
-                            state.copy(messages = updatedMessages)
-                        }
-                    }
-
-                println("✅ Final response: $naturalResponse")
-
-                _uiState.update { state ->
-                    val updatedMessages = state.messages.map { msg ->
-                        if (msg.id == streamingMessageId) {
-                            msg.copy(isStreaming = false)
-                        } else msg
-                    }
-                    state.copy(
-                        messages = updatedMessages,
-                        modelState = ModelState.READY,
-                        isToolCallInProgress = false
-                    )
-                }
-                streamingMessageId = null
-
-            } catch (e: Exception) {
-                println("❌ Error handling tool call: ${e.message}")
-                e.printStackTrace()
-
-                _uiState.update { state ->
-                    val updatedMessages = state.messages.map { msg ->
-                        if (msg.id == streamingMessageId) {
-                            msg.copy(
-                                content = "❌ Error executing ${toolCall.tool}: ${e.message}",
-                                isStreaming = false,
-                                isError = true
-                            )
-                        } else msg
-                    }
-                    state.copy(
-                        messages = updatedMessages,
-                        modelState = ModelState.READY,
-                        isToolCallInProgress = false
-                    )
-                }
-                streamingMessageId = null
             }
         }
+    }
+
+    private fun updateStreamingMessage(content: String) {
+        _uiState.update { state ->
+            val updatedMessages = state.messages.map { msg ->
+                if (msg.id == streamingMessageId) msg.copy(content = content)
+                else msg
+            }
+            state.copy(messages = updatedMessages)
+        }
+    }
+
+    private fun finishStreaming() {
+        _uiState.update { state ->
+            val updatedMessages = state.messages.map { msg ->
+                if (msg.id == streamingMessageId) msg.copy(isStreaming = false)
+                else msg
+            }
+            state.copy(
+                messages = updatedMessages,
+                modelState = ModelState.READY
+            )
+        }
+        streamingMessageId = null
+    }
+
+    private fun finishToolCall() {
+        _uiState.update { state ->
+            val updatedMessages = state.messages.map { msg ->
+                if (msg.id == streamingMessageId) msg.copy(isStreaming = false)
+                else msg
+            }
+            state.copy(
+                messages = updatedMessages,
+                modelState = ModelState.READY,
+                isToolCallInProgress = false
+            )
+        }
+        streamingMessageId = null
+    }
+
+    private fun handleError(exception: Exception) {
+        _uiState.update { state ->
+            val updatedMessages = state.messages.map { msg ->
+                if (msg.id == streamingMessageId) {
+                    msg.copy(
+                        content = "Error: ${exception.message}",
+                        isStreaming = false,
+                        isError = true
+                    )
+                } else msg
+            }
+            state.copy(
+                messages = updatedMessages,
+                modelState = ModelState.READY
+            )
+        }
+        streamingMessageId = null
+    }
+
+    private fun handleToolError(toolName: String, exception: Exception) {
+        _uiState.update { state ->
+            val updatedMessages = state.messages.map { msg ->
+                if (msg.id == streamingMessageId) {
+                    msg.copy(
+                        content = "❌ Error executing $toolName: ${exception.message}",
+                        isStreaming = false,
+                        isError = true
+                    )
+                } else msg
+            }
+            state.copy(
+                messages = updatedMessages,
+                modelState = ModelState.READY,
+                isToolCallInProgress = false
+            )
+        }
+        streamingMessageId = null
     }
 
     fun clearChat() {
