@@ -1,8 +1,5 @@
 package org.abma.offlinelai_kmp.tools
 
-/**
- * Platform-specific information provider.
- */
 interface PlatformInfoProvider {
     fun getPlatformName(): String
     fun getOsVersion(): String

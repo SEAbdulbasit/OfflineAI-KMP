@@ -4,18 +4,12 @@ import kotlin.random.Random
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-/**
- * Types of attachments that can be added to messages
- */
 enum class AttachmentType {
     IMAGE,
     PDF,
     DOCUMENT
 }
 
-/**
- * Represents an attachment (image, PDF, etc.) that can be added to a message
- */
 @OptIn(ExperimentalTime::class)
 data class Attachment(
     val id: String = generateId(),

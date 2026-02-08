@@ -57,7 +57,6 @@ fun App() {
                     onLoadModel = { path, config ->
                         try {
                             chatViewModel.loadModel(path, config)
-//                            navController.popBackStack()
                         } catch (e: Exception) {
                             e.printStackTrace()
                         }

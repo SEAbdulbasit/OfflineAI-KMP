@@ -34,7 +34,6 @@ actual class GemmaInference {
                 loadingProgress = 0.5f
                 resolvedModelPath = resolvedPath
 
-                // Store path for Swift bridge
                 NSUserDefaults.standardUserDefaults.setObject(resolvedPath, forKey = PREF_MODEL_PATH)
                 NSUserDefaults.standardUserDefaults.synchronize()
 
@@ -51,17 +50,14 @@ actual class GemmaInference {
     actual fun generateResponse(prompt: String): Flow<String> = flow {
         if (!isLoaded) throw IllegalStateException("Model not loaded")
 
-        // Clear any previous response
         NSUserDefaults.standardUserDefaults.removeObjectForKey(PREF_RESPONSE)
 
-        // Post notification to Swift bridge
         NSNotificationCenter.defaultCenter.postNotificationName(
             NOTIFICATION_GENERATE,
             `object` = null,
             userInfo = mapOf("prompt" to prompt, "modelPath" to (resolvedModelPath ?: ""))
         )
 
-        // Poll for response with timeout
         val response = pollForResponse(timeoutMs = 60_000, intervalMs = 100)
         emit(response ?: "Error: Generation timeout")
     }

@@ -1,8 +1,5 @@
 package org.abma.offlinelai_kmp.tools
 
-/**
- * Platform-specific app actions that can be triggered by tools.
- */
 expect object AppActionsProvider {
     suspend fun openUrl(url: String): Boolean
     suspend fun openDialer(phoneNumber: String): Boolean

@@ -54,13 +54,11 @@ private fun copyAttachmentToAppStorage(context: Context, uri: Uri): AttachmentPi
         val mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream"
         val fileName = getFileName(context, uri) ?: "attachment_${System.currentTimeMillis()}"
 
-        // Create attachments directory if it doesn't exist
         val attachmentsDir = File(context.filesDir, "attachments")
         if (!attachmentsDir.exists()) {
             attachmentsDir.mkdirs()
         }
 
-        // Generate unique file name to avoid conflicts
         val uniqueFileName = "${System.currentTimeMillis()}_$fileName"
         val destFile = File(attachmentsDir, uniqueFileName)
 

@@ -8,7 +8,6 @@ actual class ModelRepository {
 
     actual fun saveModel(model: LoadedModel) {
         val models = getLoadedModels().toMutableList()
-        // Remove if already exists (to update)
         models.removeAll { it.path == model.path }
         models.add(model)
 

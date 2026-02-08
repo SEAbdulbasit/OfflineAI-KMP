@@ -4,9 +4,6 @@ import kotlin.random.Random
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-/**
- * Represents a chat message in the conversation.
- */
 @OptIn(ExperimentalTime::class)
 data class ChatMessage(
     val id: String = generateId(),

@@ -102,9 +102,6 @@ fun ChatScreen(
     )
 }
 
-/**
- * Stateless ChatScreen content - can be used for previews
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreenContent(
@@ -1089,9 +1086,6 @@ fun ChatScreenPreviewWithMessagesDark() {
     )
 }
 
-/**
- * Preview: Generating response
- */
 @Preview
 @Composable
 fun ChatScreenPreviewGenerating() {

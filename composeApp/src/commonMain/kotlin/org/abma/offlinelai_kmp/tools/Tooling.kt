@@ -6,9 +6,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.abma.offlinelai_kmp.domain.repository.LoadedModel
 import kotlin.time.Clock
 
-/**
- * Defines a tool available to the model.
- */
 data class ToolSpec(
     val name: String,
     val description: String,

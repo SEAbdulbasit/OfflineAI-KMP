@@ -18,9 +18,7 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            // Permission granted
         } else {
-            // Permission denied - app can still work with app-specific directories
         }
     }
 
@@ -28,10 +26,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        // Initialize the context provider for MediaPipe
         AndroidContextProvider.init(applicationContext)
 
-        // Request storage permission if needed
         checkAndRequestStoragePermission()
 
         setContent {
@@ -42,7 +38,6 @@ class MainActivity : ComponentActivity() {
     private fun checkAndRequestStoragePermission() {
         when {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
-                // Android 11+ - need MANAGE_EXTERNAL_STORAGE for Downloads access
                 if (!android.os.Environment.isExternalStorageManager()) {
                     try {
                         val intent = android.content.Intent(
@@ -59,7 +54,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
             else -> {
-                // Android 10 and below
                 val permission = Manifest.permission.READ_EXTERNAL_STORAGE
                 if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
                     storagePermissionLauncher.launch(permission)

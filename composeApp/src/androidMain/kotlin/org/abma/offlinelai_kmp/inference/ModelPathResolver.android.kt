@@ -5,7 +5,6 @@ import java.io.File
 actual object ModelPathResolver {
 
     actual fun resolve(modelPath: String): String? {
-        // If the path is already absolute and exists, use it directly
         if (modelPath.startsWith("/") && fileExists(modelPath)) {
             return modelPath
         }
@@ -13,7 +12,6 @@ actual object ModelPathResolver {
     }
 
     actual fun getSearchPaths(modelPath: String): List<String> {
-        // If it's already an absolute path, just check that path
         if (modelPath.startsWith("/")) {
             return listOf(modelPath)
         }
@@ -25,7 +23,7 @@ actual object ModelPathResolver {
             "${context.filesDir.absolutePath}/$modelPath",
             "${context.cacheDir.absolutePath}/$modelPath",
             "/storage/emulated/0/Download/$modelPath",
-            modelPath // Direct path
+            modelPath
         )
     }
 

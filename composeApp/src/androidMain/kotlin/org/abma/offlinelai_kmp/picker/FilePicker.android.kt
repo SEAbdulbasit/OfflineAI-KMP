@@ -23,7 +23,6 @@ actual fun rememberFilePicker(onFilePicked: (String?) -> Unit): () -> Unit {
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         if (uri != null) {
-            // Move file copy to IO thread to prevent UI lag
             scope.launch {
                 val path = withContext(Dispatchers.IO) {
                     copyFileToAppStorage(context, uri)

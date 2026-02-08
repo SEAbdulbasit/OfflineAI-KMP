@@ -68,7 +68,6 @@ private class AttachmentPickerDelegate(
         try {
             val url = didPickDocumentsAtURLs.firstOrNull() as? NSURL
             if (url != null) {
-                // Move file processing to background queue
                 val backgroundQueue = NSOperationQueue()
                 backgroundQueue.qualityOfService = NSQualityOfServiceUserInitiated
 
@@ -82,7 +81,6 @@ private class AttachmentPickerDelegate(
                             NSLog("Error in attachment picker callback: ${e.message}")
                             onAttachmentPicked(null)
                         }
-                        // Release delegate
                         currentAttachmentDelegate = null
                     }
                 }
@@ -149,10 +147,8 @@ private class AttachmentPickerDelegate(
 
             if (success) {
                 NSLog("Attachment copied successfully to: $destPath")
-                // Clean up temp file
                 fileManager.removeItemAtPath(sourcePath, null)
 
-                // Determine mime type from extension
                 val mimeType = getMimeType(originalFileName)
 
                 AttachmentPickerResult(
