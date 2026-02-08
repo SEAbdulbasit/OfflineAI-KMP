@@ -46,7 +46,7 @@ class ChatViewModel : ViewModel() {
 
     private val loadModelUseCase = LoadModelUseCase(gemmaInference, modelRepository)
     private val generateResponseUseCase = GenerateResponseUseCase(gemmaInference)
-    private val executeToolUseCase = ExecuteToolUseCase(gemmaInference, toolRegistry)
+    private val executeToolUseCase = ExecuteToolUseCase(toolRegistry)
     private val getLoadedModelsUseCase = GetLoadedModelsUseCase(modelRepository)
     private val removeModelUseCase = RemoveModelUseCase(modelRepository)
     private val buildPromptWithAttachmentsUseCase = BuildPromptWithAttachmentsUseCase()

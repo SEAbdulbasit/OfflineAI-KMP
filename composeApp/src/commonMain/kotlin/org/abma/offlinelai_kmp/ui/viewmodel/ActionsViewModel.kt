@@ -20,7 +20,7 @@ class ActionsViewModel : BaseConversationViewModel() {
 
     private val toolRegistry: ToolRegistry = createDefaultToolRegistry()
     private val generateResponseUseCase = GenerateResponseUseCase(gemmaInference)
-    private val executeToolUseCase = ExecuteToolUseCase(gemmaInference, toolRegistry)
+    private val executeToolUseCase = ExecuteToolUseCase(toolRegistry)
 
     override val systemPrompt: String by lazy {
         buildSystemPrompt(toolRegistry.specs())
