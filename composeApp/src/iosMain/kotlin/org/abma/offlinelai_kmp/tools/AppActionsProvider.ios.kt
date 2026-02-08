@@ -1,12 +1,15 @@
 package org.abma.offlinelai_kmp.tools
 
+import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import platform.AVFoundation.*
 import platform.Foundation.*
 import platform.UIKit.*
 import kotlin.coroutines.resume
 
+@OptIn(ExperimentalForeignApi::class)
 actual object AppActionsProvider {
 
     actual suspend fun openUrl(url: String): Boolean = withContext(Dispatchers.Main) {
@@ -152,6 +155,30 @@ actual object AppActionsProvider {
             }
         } catch (e: Exception) {
             println("Failed to open settings: ${e.message}")
+            false
+        }
+    }
+
+    actual suspend fun toggleTorch(enable: Boolean): Boolean = withContext(Dispatchers.Main) {
+        try {
+            val device = AVCaptureDevice.defaultDeviceWithMediaType(AVMediaTypeVideo)
+                ?: return@withContext false
+
+            if (!device.hasTorch || !device.isTorchAvailable()) {
+                println("Torch not available on this device")
+                return@withContext false
+            }
+
+            device.lockForConfiguration(null)
+            if (enable) {
+                device.setTorchMode(AVCaptureTorchModeOn)
+            } else {
+                device.setTorchMode(AVCaptureTorchModeOff)
+            }
+            device.unlockForConfiguration()
+            true
+        } catch (e: Exception) {
+            println("Failed to toggle torch: ${e.message}")
             false
         }
     }

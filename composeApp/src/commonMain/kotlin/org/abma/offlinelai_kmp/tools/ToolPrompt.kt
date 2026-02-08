@@ -1,10 +1,6 @@
 package org.abma.offlinelai_kmp.tools
 
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.*
 
 private const val TOOL_CALL_START = "<<"
 private const val TOOL_CALL_END = ">>"
@@ -62,19 +58,88 @@ fun extractToolCall(text: String): ToolCall? {
     extractGemmaFunctionCall(text)?.let { return it }
 
     val start = text.indexOf(TOOL_CALL_START)
-    val end = text.indexOf(TOOL_CALL_END, start + TOOL_CALL_START.length)
+    if (start != -1) {
+        val end = text.indexOf(TOOL_CALL_END, start + TOOL_CALL_START.length)
+        val payload = if (end != -1) {
+            text.substring(start + TOOL_CALL_START.length, end).trim()
+        } else {
+            val afterStart = text.substring(start + TOOL_CALL_START.length)
+            val jsonStart = afterStart.indexOf('{')
+            if (jsonStart != -1) {
+                extractJsonObject(afterStart.substring(jsonStart))
+            } else null
+        }
 
-    if (start == -1 || end == -1 || end <= start) return null
+        payload?.let { p ->
+            parseToolCallJson(p)?.let { return it }
+        }
+    }
 
-    val payload = text.substring(start + TOOL_CALL_START.length, end).trim()
-    if (!payload.startsWith("{")) return null
+    val toolJsonPattern = """\{\s*"tool"\s*:\s*"([^"]+)"\s*,\s*"arguments"\s*:\s*(\{[^}]*\})?\s*\}?""".toRegex()
+    toolJsonPattern.find(text)?.let { match ->
+        val fullMatch = match.value
+        val jsonToTry = if (fullMatch.count { it == '{' } > fullMatch.count { it == '}' }) {
+            fullMatch + "}"
+        } else {
+            fullMatch
+        }
+        parseToolCallJson(jsonToTry)?.let { return it }
+    }
+
+    return null
+}
+
+private fun extractJsonObject(text: String): String? {
+    var braceCount = 0
+    var started = false
+    val sb = StringBuilder()
+
+    for (char in text) {
+        if (char == '{') {
+            braceCount++
+            started = true
+        }
+        if (started) {
+            sb.append(char)
+        }
+        if (char == '}') {
+            braceCount--
+            if (braceCount == 0 && started) {
+                return sb.toString()
+            }
+        }
+        // Stop if we hit a newline after starting (incomplete JSON)
+        if (started && char == '\n' && braceCount > 0) {
+            return sb.toString() + "}" // Try to complete it
+        }
+    }
+    return if (started) sb.toString() else null
+}
+
+private fun parseToolCallJson(payload: String): ToolCall? {
+    if (payload.isBlank() || !payload.contains("tool")) return null
 
     return try {
-        val obj = json.parseToJsonElement(payload).jsonObject
+        var cleaned = payload.trim()
+        if (!cleaned.endsWith("}")) {
+            cleaned = cleaned + "}"
+        }
+        if (cleaned.contains("\"arguments\":{}") || cleaned.contains("\"arguments\": {}")) {
+        } else if (cleaned.contains("\"arguments\":{") && !cleaned.contains("\"arguments\":{}")) {
+            val argsStart = cleaned.indexOf("\"arguments\":{")
+            val afterArgs = cleaned.substring(argsStart)
+            if (afterArgs.count { it == '{' } > afterArgs.count { it == '}' }) {
+                cleaned = cleaned.trimEnd('}') + "}}"
+            }
+        }
+
+        val obj = json.parseToJsonElement(cleaned).jsonObject
         val toolName = obj["tool"]?.jsonPrimitive?.content ?: return null
         val args = obj["arguments"]?.jsonObject ?: JsonObject(emptyMap())
         ToolCall(tool = toolName, arguments = args)
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        println("Failed to parse tool call JSON: ${e.message}")
+        println("Payload was: $payload")
         null
     }
 }
@@ -100,7 +165,8 @@ private fun extractGemmaFunctionCall(text: String): ToolCall? {
                 ?: obj["tool"]?.jsonPrimitive?.content ?: return null
             val args = obj["arguments"]?.jsonObject ?: JsonObject(emptyMap())
             return ToolCall(tool = toolName, arguments = args)
-        } catch (_: Exception) { }
+        } catch (_: Exception) {
+        }
     }
 
     // Parse attribute format: call="tool_name" arg1="value1"

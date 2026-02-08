@@ -172,6 +172,29 @@ class OpenAppSettingsTool : ToolHandler {
     }
 }
 
+class ToggleTorchTool : ToolHandler {
+    override val spec: ToolSpec = ToolSpec(
+        name = "toggle_torch",
+        description = "Turn the device flashlight/torch on or off. Use this when the user wants to control the flashlight.",
+        parametersSchemaJson = """{"type":"object","properties":{"enable":{"type":"boolean","description":"true to turn on the torch, false to turn it off"}},"required":["enable"]}"""
+    )
+
+    override suspend fun execute(arguments: JsonObject, context: ToolContext): ToolResult {
+        val enableStr = arguments["enable"]?.jsonPrimitive?.contentOrNull
+        val enable = enableStr?.lowercase() == "true" || enableStr == "1"
+
+        val success = AppActionsProvider.toggleTorch(enable)
+        return ToolResult(
+            spec.name,
+            if (success) {
+                if (enable) "Flashlight turned ON 🔦" else "Flashlight turned OFF"
+            } else {
+                "Failed to control flashlight. The device may not have a flashlight or permission was denied."
+            }
+        )
+    }
+}
+
 fun createDefaultToolRegistry(): ToolRegistry {
     return ToolRegistry(
         listOf(
@@ -182,7 +205,8 @@ fun createDefaultToolRegistry(): ToolRegistry {
             OpenMapsTool(),
             ShareTextTool(),
             CopyToClipboardTool(),
-            OpenAppSettingsTool()
+            OpenAppSettingsTool(),
+            ToggleTorchTool()
         )
     )
 }

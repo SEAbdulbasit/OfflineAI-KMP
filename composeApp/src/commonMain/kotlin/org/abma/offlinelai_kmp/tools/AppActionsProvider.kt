@@ -8,4 +8,5 @@ expect object AppActionsProvider {
     suspend fun shareText(text: String, title: String): Boolean
     suspend fun copyToClipboard(text: String): Boolean
     suspend fun openAppSettings(): Boolean
+    suspend fun toggleTorch(enable: Boolean): Boolean
 }

@@ -1,17 +1,17 @@
 import ComposeApp
 import SwiftUI
 
-// Observable wrapper for Chat (uses the unified ChatViewModel)
+// Observable wrapper for General Chat (no tools, no system prompt)
 class GeneralChatObservable: ObservableObject {
-    private let wrapper = IosChatViewModelWrapper()
+    private let wrapper = IosGeneralChatWrapper()
 
-    @Published var messages: [ChatMessage] = []
-    @Published var modelState: ModelState = ModelState.notLoaded
+    @Published var messages: [IosChatMessage] = []
+    @Published var modelState: String = "NOT_LOADED"
     @Published var loadingProgress: Float = 0.0
     @Published var currentInput: String = ""
     @Published var errorMessage: String? = nil
     @Published var currentModelPath: String? = nil
-    @Published var loadedModels: [LoadedModel] = []
+    @Published var loadedModels: [IosLoadedModel] = []
     @Published var isGenerating: Bool = false
 
     init() {
@@ -24,7 +24,7 @@ class GeneralChatObservable: ObservableObject {
                 self?.errorMessage = state.errorMessage
                 self?.currentModelPath = state.currentModelPath
                 self?.loadedModels = state.loadedModels
-                self?.isGenerating = state.modelState == ModelState.generating
+                self?.isGenerating = state.isGenerating
             }
         }
     }
@@ -41,17 +41,17 @@ class GeneralChatObservable: ObservableObject {
     deinit { wrapper.dispose() }
 }
 
-// Observable wrapper for Actions (uses the same unified ChatViewModel)
+// Observable wrapper for Actions (with tools and system prompt)
 class ActionsObservable: ObservableObject {
-    private let wrapper = IosChatViewModelWrapper()
+    private let wrapper = IosActionsWrapper()
 
-    @Published var messages: [ChatMessage] = []
-    @Published var modelState: ModelState = ModelState.notLoaded
+    @Published var messages: [IosChatMessage] = []
+    @Published var modelState: String = "NOT_LOADED"
     @Published var loadingProgress: Float = 0.0
     @Published var currentInput: String = ""
     @Published var errorMessage: String? = nil
     @Published var currentModelPath: String? = nil
-    @Published var loadedModels: [LoadedModel] = []
+    @Published var loadedModels: [IosLoadedModel] = []
     @Published var isGenerating: Bool = false
 
     init() {
@@ -64,7 +64,7 @@ class ActionsObservable: ObservableObject {
                 self?.errorMessage = state.errorMessage
                 self?.currentModelPath = state.currentModelPath
                 self?.loadedModels = state.loadedModels
-                self?.isGenerating = state.modelState == ModelState.generating
+                self?.isGenerating = state.isGenerating
             }
         }
     }
@@ -145,8 +145,8 @@ struct MainTabView: View {
 struct ConversationView: View {
     let title: String
     let placeholder: String
-    let messages: [ChatMessage]
-    let modelState: ModelState
+    let messages: [IosChatMessage]
+    let modelState: String
     let loadingProgress: Float
     @Binding var currentInput: String
     let errorMessage: String?
@@ -157,13 +157,13 @@ struct ConversationView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if modelState == ModelState.notLoaded {
+            if modelState == "NOT_LOADED" {
                 ContentUnavailableView(
                     "No Model Loaded",
                     systemImage: "cpu",
                     description: Text("Go to Settings to load a model")
                 )
-            } else if modelState == ModelState.loading {
+            } else if modelState == "LOADING" {
                 VStack(spacing: 16) {
                     ProgressView()
                         .scaleEffect(1.5)
@@ -172,7 +172,7 @@ struct ConversationView: View {
                     ProgressView(value: loadingProgress)
                         .frame(width: 200)
                 }
-            } else if modelState == ModelState.error {
+            } else if modelState == "ERROR" {
                 ContentUnavailableView(
                     "Error",
                     systemImage: "exclamationmark.triangle",
@@ -208,7 +208,7 @@ struct ConversationView: View {
             HStack(spacing: 12) {
                 TextField(placeholder, text: $currentInput)
                     .textFieldStyle(.roundedBorder)
-                    .disabled(modelState != ModelState.ready)
+                    .disabled(modelState != "READY")
 
                 Button {
                     onSend()
@@ -221,7 +221,7 @@ struct ConversationView: View {
                             .font(.title2)
                     }
                 }
-                .disabled(currentInput.isEmpty || modelState != ModelState.ready || isGenerating)
+                .disabled(currentInput.isEmpty || modelState != "READY" || isGenerating)
             }
             .padding()
             .background(.bar)
@@ -251,7 +251,7 @@ struct ConversationView: View {
 
 // Message row
 struct MessageRow: View {
-    let message: ChatMessage
+    let message: IosChatMessage
 
     var body: some View {
         HStack {

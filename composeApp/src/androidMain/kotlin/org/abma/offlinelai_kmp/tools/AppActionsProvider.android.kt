@@ -4,7 +4,9 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.hardware.camera2.CameraManager
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -116,6 +118,23 @@ actual object AppActionsProvider {
             true
         } catch (e: Exception) {
             println("Failed to open settings: ${e.message}")
+            false
+        }
+    }
+
+    actual suspend fun toggleTorch(enable: Boolean): Boolean = withContext(Dispatchers.Main) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+                val cameraId = cameraManager.cameraIdList.firstOrNull() ?: return@withContext false
+                cameraManager.setTorchMode(cameraId, enable)
+                true
+            } else {
+                println("Torch control requires Android M or higher")
+                false
+            }
+        } catch (e: Exception) {
+            println("Failed to toggle torch: ${e.message}")
             false
         }
     }

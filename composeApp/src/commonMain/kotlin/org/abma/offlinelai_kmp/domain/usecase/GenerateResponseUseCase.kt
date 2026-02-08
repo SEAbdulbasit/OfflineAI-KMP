@@ -22,6 +22,19 @@ class GenerateResponseUseCase(
         userPrompt: String
     ): Flow<GenerateResponseResult> = flow {
         val formattedPrompt = formatPrompt(userPrompt)
+
+        println("═══════════════════════════════════════════════════════════")
+        println("📤 SENDING TO LLM:")
+        println("───────────────────────────────────────────────────────────")
+        println("System Prompt (${systemPrompt.length} chars):")
+        println(systemPrompt.take(500))
+        if (systemPrompt.length > 500) println("... [truncated]")
+        println("───────────────────────────────────────────────────────────")
+        println("User Prompt: $userPrompt")
+        println("───────────────────────────────────────────────────────────")
+        println("Formatted Prompt: $formattedPrompt")
+        println("═══════════════════════════════════════════════════════════")
+
         var fullResponse = ""
 
         gemmaInference.generateResponseWithHistory(systemPrompt, formattedPrompt)
@@ -30,7 +43,21 @@ class GenerateResponseUseCase(
                 emit(GenerateResponseResult.Streaming(fullResponse))
             }
 
+        println("═══════════════════════════════════════════════════════════")
+        println("📥 LLM RESPONSE:")
+        println("───────────────────────────────────────────────────────────")
+        println(fullResponse)
+        println("═══════════════════════════════════════════════════════════")
+
         val toolCall = extractToolCall(fullResponse)
+        if (toolCall != null) {
+            println("🔧 DETECTED TOOL CALL: ${toolCall.tool}")
+            println("   Arguments: ${toolCall.arguments}")
+        } else {
+            println("💬 No tool call detected - regular response")
+        }
+        println("═══════════════════════════════════════════════════════════")
+
         emit(GenerateResponseResult.Complete(fullResponse, toolCall))
     }.catch { e ->
         emit(GenerateResponseResult.Error(e as? Exception ?: Exception(e)))

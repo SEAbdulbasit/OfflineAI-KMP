@@ -21,6 +21,13 @@ class ExecuteToolUseCase(
         currentModelPath: String?
     ): Flow<ExecuteToolResult> = flow {
         try {
+            println("═══════════════════════════════════════════════════════════")
+            println("🔧 EXECUTING TOOL:")
+            println("───────────────────────────────────────────────────────────")
+            println("Tool: ${toolCall.tool}")
+            println("Arguments: ${toolCall.arguments}")
+            println("═══════════════════════════════════════════════════════════")
+
             emit(ExecuteToolResult.Executing(toolCall.tool))
 
             val toolContext = ToolContext(
@@ -29,11 +36,18 @@ class ExecuteToolUseCase(
             )
 
             val toolResult = toolRegistry.execute(toolCall, toolContext)
+
+            println("═══════════════════════════════════════════════════════════")
+            println("✅ TOOL RESULT:")
+            println("───────────────────────────────────────────────────────────")
+            println(toolResult.result)
+            println("═══════════════════════════════════════════════════════════")
+
             val toolCallDisplay = "🔧 ${toolCall.tool}\n\n"
 
-            // Emit the tool result directly - no need for follow-up LLM call
             emit(ExecuteToolResult.Complete(toolCallDisplay, toolResult.result))
         } catch (e: Exception) {
+            println("❌ TOOL ERROR: ${e.message}")
             emit(ExecuteToolResult.Error(e))
         }
     }

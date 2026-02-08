@@ -4,13 +4,13 @@ import ComposeApp
 class ChatViewModelObservable: ObservableObject {
     private let wrapper = IosChatViewModelWrapper()
 
-    @Published var messages: [ChatMessage] = []
-    @Published var modelState: ModelState = ModelState.notLoaded
+    @Published var messages: [IosChatMessage] = []
+    @Published var modelState: String = "NOT_LOADED"
     @Published var loadingProgress: Float = 0.0
     @Published var currentInput: String = ""
     @Published var errorMessage: String? = nil
     @Published var currentModelPath: String? = nil
-    @Published var loadedModels: [LoadedModel] = []
+    @Published var loadedModels: [IosLoadedModel] = []
     @Published var isGenerating: Bool = false
     @Published var isToolCallInProgress: Bool = false
 
@@ -24,7 +24,7 @@ class ChatViewModelObservable: ObservableObject {
                 self?.errorMessage = state.errorMessage
                 self?.currentModelPath = state.currentModelPath
                 self?.loadedModels = state.loadedModels
-                self?.isGenerating = state.modelState == ModelState.generating
+                self?.isGenerating = state.isGenerating
                 self?.isToolCallInProgress = state.isToolCallInProgress
             }
         }
@@ -71,7 +71,7 @@ struct ChatView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if viewModel.modelState == ModelState.notLoaded {
+                if viewModel.modelState == "NOT_LOADED" {
                     EmptyStateView(
                         title: "No Model Loaded",
                         message: "Go to Settings to select and load a Gemma model",
@@ -79,9 +79,9 @@ struct ChatView: View {
                     ) {
                         showSettings = true
                     }
-                } else if viewModel.modelState == ModelState.loading {
+                } else if viewModel.modelState == "LOADING" {
                     LoadingView(progress: viewModel.loadingProgress)
-                } else if viewModel.modelState == ModelState.error {
+                } else if viewModel.modelState == "ERROR" {
                     EmptyStateView(
                         title: "Error",
                         message: viewModel.errorMessage ?? "Failed to load model",
@@ -95,7 +95,7 @@ struct ChatView: View {
 
                 ChatInputBar(
                     text: $viewModel.currentInput,
-                    isEnabled: viewModel.modelState == ModelState.ready,
+                    isEnabled: viewModel.modelState == "READY",
                     isGenerating: viewModel.isGenerating
                 ) {
                     viewModel.sendMessage()
@@ -130,7 +130,7 @@ struct ChatView: View {
 }
 
 struct MessageListView: View {
-    let messages: [ChatMessage]
+    let messages: [IosChatMessage]
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -155,7 +155,7 @@ struct MessageListView: View {
 }
 
 struct MessageBubble: View {
-    let message: ChatMessage
+    let message: IosChatMessage
 
     var body: some View {
         HStack {
@@ -366,7 +366,7 @@ struct SettingsView: View {
 }
 
 struct ModelRow: View {
-    let model: LoadedModel
+    let model: IosLoadedModel
     let isActive: Bool
     let onLoad: () -> Void
     let onDelete: () -> Void
