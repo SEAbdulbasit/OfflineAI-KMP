@@ -3,7 +3,7 @@ package org.abma.offlinelai_kmp.domain.usecase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import org.abma.offlinelai_kmp.inference.GemmaInference
-import org.abma.offlinelai_kmp.inference.formatPromptWithHistory
+import org.abma.offlinelai_kmp.inference.formatPrompt
 import org.abma.offlinelai_kmp.tools.ToolCall
 import org.abma.offlinelai_kmp.tools.extractToolCall
 
@@ -18,11 +18,10 @@ class GenerateResponseUseCase(
 ) {
     operator fun invoke(
         systemPrompt: String,
-        userPrompt: String,
-        conversationHistory: List<Pair<String, Boolean>>
+        userPrompt: String
     ): Flow<GenerateResponseResult> = flow {
         try {
-            val formattedPrompt = formatPromptWithHistory(conversationHistory, userPrompt)
+            val formattedPrompt = formatPrompt(userPrompt)
 
             var fullResponse = ""
             gemmaInference.generateResponseWithHistory(systemPrompt, formattedPrompt)

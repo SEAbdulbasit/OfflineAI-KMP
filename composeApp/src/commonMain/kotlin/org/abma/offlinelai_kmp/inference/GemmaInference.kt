@@ -15,17 +15,7 @@ expect class GemmaInference() {
     fun close()
 }
 
-fun formatPromptWithHistory(
-    messages: List<Pair<String, Boolean>>,
-    currentPrompt: String
-): String = buildString {
-    messages.forEach { (content, isFromUser) ->
-        if (isFromUser) {
-            append("<start_of_turn>user\n$content<end_of_turn>\n")
-        } else {
-            append("<start_of_turn>model\n$content<end_of_turn>\n")
-        }
-    }
-    append("<start_of_turn>user\n$currentPrompt<end_of_turn>\n")
+fun formatPrompt(userMessage: String): String = buildString {
+    append("<start_of_turn>user\n$userMessage<end_of_turn>\n")
     append("<start_of_turn>model\n")
 }

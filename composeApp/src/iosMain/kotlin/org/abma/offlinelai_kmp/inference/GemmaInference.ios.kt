@@ -7,7 +7,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import org.abma.offlinelai_kmp.domain.model.ModelConfig
-import platform.Foundation.*
+import platform.Foundation.NSNotificationCenter
+import platform.Foundation.NSUserDefaults
 
 
 actual class GemmaInference {
@@ -23,12 +24,14 @@ actual class GemmaInference {
                 val resolvedPath = ModelPathResolver.resolve(modelPath)
                     ?: throw IllegalArgumentException(
                         "Model file not found: $modelPath\n\n" +
-                        "📁 Add the model via Finder:\n" +
-                        "1. Connect iPhone to Mac\n" +
-                        "2. Open Finder → Select iPhone → Files tab\n" +
-                        "3. Drag model file into this app's folder\n\n" +
-                        "Searched in:\n${ModelPathResolver.getSearchPaths(modelPath).take(4).joinToString("\n") { " • $it" }}\n\n" +
-                        "Documents: ${ModelPathResolver.getDocumentsDirectory()}"
+                                "📁 Add the model via Finder:\n" +
+                                "1. Connect iPhone to Mac\n" +
+                                "2. Open Finder → Select iPhone → Files tab\n" +
+                                "3. Drag model file into this app's folder\n\n" +
+                                "Searched in:\n${
+                                    ModelPathResolver.getSearchPaths(modelPath).take(4).joinToString("\n") { " • $it" }
+                                }\n\n" +
+                                "Documents: ${ModelPathResolver.getDocumentsDirectory()}"
                     )
 
                 loadingProgress = 0.5f
@@ -78,7 +81,7 @@ actual class GemmaInference {
     actual fun generateResponseWithHistory(
         systemPrompt: String,
         currentPrompt: String
-    ): Flow<String> = generateResponse(systemPrompt+currentPrompt)
+    ): Flow<String> = generateResponse(systemPrompt + currentPrompt)
 
     actual fun isModelLoaded(): Boolean = isLoaded
 

@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import org.abma.offlinelai_kmp.domain.repository.LoadedModel
 import org.abma.offlinelai_kmp.inference.GemmaInference
+import org.abma.offlinelai_kmp.inference.formatPrompt
 import org.abma.offlinelai_kmp.tools.*
 
 sealed class ExecuteToolResult {
@@ -19,7 +20,6 @@ class ExecuteToolUseCase(
 ) {
     operator fun invoke(
         toolCall: ToolCall,
-        messagesForContext: List<Pair<String, Boolean>>,
         loadedModels: List<LoadedModel>,
         currentModelPath: String?
     ): Flow<ExecuteToolResult> = flow {
@@ -34,12 +34,7 @@ class ExecuteToolUseCase(
             val toolResult = toolRegistry.execute(toolCall, toolContext)
             val toolCallDisplay = "🔧 Calling ${toolCall.tool}...\n\n"
 
-            val toolResultPrompt = buildToolResultPrompt(toolCall, toolResult)
-            val followUpPrompt = formatPromptWithHistoryAndToolResult(
-                messagesForContext,
-                toolCall,
-                toolResultPrompt
-            )
+            val followUpPrompt = formatPrompt("Tool result: ${toolResult.result}")
 
             var naturalResponse = ""
             gemmaInference.generateResponse(followUpPrompt)

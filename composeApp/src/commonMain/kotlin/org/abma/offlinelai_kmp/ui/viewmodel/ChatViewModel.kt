@@ -155,17 +155,13 @@ class ChatViewModel : ViewModel() {
 
     private fun generateResponse(prompt: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            val messagesForContext = _uiState.value.messages
-                .takeLast(10)
-                .map { it.content to it.isFromUser }
-
             val aiMessage = ChatMessage.ai("", isStreaming = true)
             streamingMessageId = aiMessage.id
             _uiState.update { state ->
                 state.copy(messages = state.messages + aiMessage)
             }
 
-            generateResponseUseCase(systemPrompt, prompt, messagesForContext)
+            generateResponseUseCase(systemPrompt, prompt)
                 .collect { result ->
                     when (result) {
                         is GenerateResponseResult.Streaming -> {
@@ -173,7 +169,7 @@ class ChatViewModel : ViewModel() {
                         }
                         is GenerateResponseResult.Complete -> {
                             if (result.toolCall != null) {
-                                handleToolCall(result.toolCall, messagesForContext)
+                                handleToolCall(result.toolCall)
                             } else {
                                 finishStreaming()
                             }
@@ -186,16 +182,12 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    private fun handleToolCall(
-        toolCall: ToolCall,
-        messagesForContext: List<Pair<String, Boolean>>
-    ) {
+    private fun handleToolCall(toolCall: ToolCall) {
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isToolCallInProgress = true) }
 
             executeToolUseCase(
                 toolCall = toolCall,
-                messagesForContext = messagesForContext,
                 loadedModels = _uiState.value.loadedModels,
                 currentModelPath = _uiState.value.currentModelPath
             ).collect { result ->

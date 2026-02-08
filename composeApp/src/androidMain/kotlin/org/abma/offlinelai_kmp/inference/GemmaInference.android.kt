@@ -62,10 +62,6 @@ actual class GemmaInference {
         currentPrompt: String
     ): Flow<String> = generateResponse(systemPrompt + currentPrompt)
 
-    actual fun isModelLoaded(): Boolean = isLoaded
-
-    actual fun getLoadingProgress(): Float = loadingProgress
-
     actual fun close() {
         llmInference?.close()
         llmInference = null
