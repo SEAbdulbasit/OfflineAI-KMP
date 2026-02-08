@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import org.abma.offlinelai_kmp.domain.model.Attachment
 import org.abma.offlinelai_kmp.domain.model.ChatMessage
 import org.abma.offlinelai_kmp.domain.model.ModelConfig
 import org.abma.offlinelai_kmp.domain.model.ModelState
@@ -30,8 +29,6 @@ data class ChatUiState(
     val errorMessage: String? = null,
     val currentModelPath: String? = null,
     val loadedModels: List<LoadedModel> = emptyList(),
-    val pendingAttachments: List<Attachment> = emptyList(),
-    val isAttachmentLoading: Boolean = false,
     val isToolCallInProgress: Boolean = false
 )
 
@@ -49,7 +46,6 @@ class ChatViewModel : ViewModel() {
     private val executeToolUseCase = ExecuteToolUseCase(toolRegistry)
     private val getLoadedModelsUseCase = GetLoadedModelsUseCase(modelRepository)
     private val removeModelUseCase = RemoveModelUseCase(modelRepository)
-    private val buildPromptWithAttachmentsUseCase = BuildPromptWithAttachmentsUseCase()
 
     private val systemPrompt: String by lazy {
         buildSystemPrompt(toolRegistry.specs())
@@ -65,10 +61,6 @@ class ChatViewModel : ViewModel() {
             is ChatAction.RemoveModel -> removeLoadedModel(action.path)
             is ChatAction.UpdateInput -> updateInput(action.text)
             is ChatAction.SendMessage -> sendMessage()
-            is ChatAction.AddAttachment -> addAttachment(action.attachment)
-            is ChatAction.RemoveAttachment -> removeAttachment(action.attachmentId)
-            is ChatAction.ClearAttachments -> clearAttachments()
-            is ChatAction.SetAttachmentLoading -> setAttachmentLoading(action.isLoading)
             is ChatAction.ClearChat -> clearChat()
             is ChatAction.DismissError -> dismissError()
             is ChatAction.RefreshModels -> refreshLoadedModels()
@@ -125,48 +117,29 @@ class ChatViewModel : ViewModel() {
 
     private fun sendMessage() {
         val input = _uiState.value.currentInput.trim()
-        val attachments = _uiState.value.pendingAttachments
 
-        if (input.isEmpty() && attachments.isEmpty()) return
+        if (input.isEmpty()) return
         if (_uiState.value.modelState != ModelState.READY) return
 
-        val userMessage = ChatMessage.user(input, attachments)
+        val userMessage = ChatMessage.user(input)
 
         _uiState.update { state ->
             state.copy(
                 messages = state.messages + userMessage,
                 currentInput = "",
-                pendingAttachments = emptyList(),
                 modelState = ModelState.GENERATING
             )
         }
 
-        val promptWithAttachments = buildPromptWithAttachmentsUseCase(input, attachments)
-        generateResponse(promptWithAttachments)
+        generateResponse(input)
     }
 
-    private fun addAttachment(attachment: Attachment) {
-        _uiState.update { state ->
-            state.copy(pendingAttachments = state.pendingAttachments + attachment)
-        }
+    private fun clearChat() {
+        _uiState.update { it.copy(messages = emptyList()) }
     }
 
-    private fun removeAttachment(attachmentId: String) {
-        _uiState.update { state ->
-            state.copy(pendingAttachments = state.pendingAttachments.filter { it.id != attachmentId })
-        }
-    }
-
-    private fun clearAttachments() {
-        _uiState.update { state ->
-            state.copy(pendingAttachments = emptyList())
-        }
-    }
-
-    private fun setAttachmentLoading(loading: Boolean) {
-        _uiState.update { state ->
-            state.copy(isAttachmentLoading = loading)
-        }
+    private fun dismissError() {
+        _uiState.update { it.copy(errorMessage = null) }
     }
 
     private fun generateResponse(prompt: String) {
@@ -304,13 +277,6 @@ class ChatViewModel : ViewModel() {
         streamingMessageId = null
     }
 
-    private fun clearChat() {
-        _uiState.update { it.copy(messages = emptyList()) }
-    }
-
-    private fun dismissError() {
-        _uiState.update { it.copy(errorMessage = null) }
-    }
 
     override fun onCleared() {
         super.onCleared()

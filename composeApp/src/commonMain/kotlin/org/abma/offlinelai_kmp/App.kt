@@ -1,12 +1,7 @@
 package org.abma.offlinelai_kmp
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -14,6 +9,7 @@ import androidx.navigation.compose.rememberNavController
 import org.abma.offlinelai_kmp.ui.screens.ChatScreen
 import org.abma.offlinelai_kmp.ui.screens.SettingsScreen
 import org.abma.offlinelai_kmp.ui.theme.GemmaTheme
+import org.abma.offlinelai_kmp.ui.viewmodel.ChatAction
 import org.abma.offlinelai_kmp.ui.viewmodel.ChatViewModel
 
 @Composable
@@ -56,14 +52,14 @@ fun App() {
                     },
                     onLoadModel = { path, config ->
                         try {
-                            chatViewModel.loadModel(path, config)
+                            chatViewModel.onAction(ChatAction.LoadModel(path, config))
                         } catch (e: Exception) {
                             e.printStackTrace()
                         }
                     },
                     onRemoveModel = { path ->
                         try {
-                            chatViewModel.removeLoadedModel(path)
+                            chatViewModel.onAction(ChatAction.RemoveModel(path))
                         } catch (e: Exception) {
                             e.printStackTrace()
                         }

@@ -71,7 +71,7 @@ struct ChatView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if viewModel.modelState == "NOT_LOADED" {
+                if viewModel.modelState == ModelState.notLoaded {
                     EmptyStateView(
                         title: "No Model Loaded",
                         message: "Go to Settings to select and load a Gemma model",
@@ -79,9 +79,9 @@ struct ChatView: View {
                     ) {
                         showSettings = true
                     }
-                } else if viewModel.modelState == "LOADING" {
+                } else if viewModel.modelState == ModelState.loading {
                     LoadingView(progress: viewModel.loadingProgress)
-                } else if viewModel.modelState == "ERROR" {
+                } else if viewModel.modelState == ModelState.error {
                     EmptyStateView(
                         title: "Error",
                         message: viewModel.errorMessage ?? "Failed to load model",
@@ -95,7 +95,7 @@ struct ChatView: View {
 
                 ChatInputBar(
                     text: $viewModel.currentInput,
-                    isEnabled: viewModel.modelState == "READY",
+                    isEnabled: viewModel.modelState == ModelState.ready,
                     isGenerating: viewModel.isGenerating
                 ) {
                     viewModel.sendMessage()

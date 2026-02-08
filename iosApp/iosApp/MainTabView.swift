@@ -1,5 +1,5 @@
-import SwiftUI
 import ComposeApp
+import SwiftUI
 
 // Observable wrapper for Chat (uses the unified ChatViewModel)
 class GeneralChatObservable: ObservableObject {
@@ -30,7 +30,10 @@ class GeneralChatObservable: ObservableObject {
     }
 
     func loadModel(path: String) { wrapper.loadModel(modelPath: path) }
-    func sendMessage() { wrapper.sendMessage(text: currentInput); currentInput = "" }
+    func sendMessage() {
+        wrapper.sendMessage(text: currentInput)
+        currentInput = ""
+    }
     func clearChat() { wrapper.clearChat() }
     func dismissError() { wrapper.dismissError() }
     func removeModel(path: String) { wrapper.removeModel(path: path) }
@@ -67,7 +70,10 @@ class ActionsObservable: ObservableObject {
     }
 
     func loadModel(path: String) { wrapper.loadModel(modelPath: path) }
-    func sendMessage() { wrapper.sendMessage(text: currentInput); currentInput = "" }
+    func sendMessage() {
+        wrapper.sendMessage(text: currentInput)
+        currentInput = ""
+    }
     func clearChat() { wrapper.clearChat() }
     func dismissError() { wrapper.dismissError() }
     func removeModel(path: String) { wrapper.removeModel(path: path) }
@@ -202,7 +208,7 @@ struct ConversationView: View {
             HStack(spacing: 12) {
                 TextField(placeholder, text: $currentInput)
                     .textFieldStyle(.roundedBorder)
-                    .disabled(modelState != "READY")
+                    .disabled(modelState != ModelState.ready)
 
                 Button {
                     onSend()
@@ -215,7 +221,7 @@ struct ConversationView: View {
                             .font(.title2)
                     }
                 }
-                .disabled(currentInput.isEmpty || modelState != "READY" || isGenerating)
+                .disabled(currentInput.isEmpty || modelState != ModelState.ready || isGenerating)
             }
             .padding()
             .background(.bar)
@@ -224,13 +230,17 @@ struct ConversationView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button { onSettings() } label: {
+                Button {
+                    onSettings()
+                } label: {
                     Image(systemName: "gearshape.fill")
                 }
             }
             ToolbarItem(placement: .navigationBarLeading) {
                 if !messages.isEmpty {
-                    Button { onClear() } label: {
+                    Button {
+                        onClear()
+                    } label: {
                         Image(systemName: "trash")
                     }
                 }

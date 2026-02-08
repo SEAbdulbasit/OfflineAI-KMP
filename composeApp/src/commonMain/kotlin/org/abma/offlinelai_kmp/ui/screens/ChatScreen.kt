@@ -30,12 +30,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import org.abma.offlinelai_kmp.domain.model.Attachment
-import org.abma.offlinelai_kmp.domain.model.AttachmentType
 import org.abma.offlinelai_kmp.domain.model.ChatMessage
 import org.abma.offlinelai_kmp.domain.model.ModelState
-import org.abma.offlinelai_kmp.picker.AttachmentPickerType
-import org.abma.offlinelai_kmp.picker.rememberAttachmentPicker
 import org.abma.offlinelai_kmp.ui.components.EmptyStateType
 import org.abma.offlinelai_kmp.ui.components.EmptyStateView
 import org.abma.offlinelai_kmp.ui.components.LoadingIndicator
@@ -44,6 +40,7 @@ import org.abma.offlinelai_kmp.ui.theme.GradientPurple
 import org.abma.offlinelai_kmp.ui.theme.LocalThemeToggle
 import org.abma.offlinelai_kmp.ui.theme.SlateGray
 import org.abma.offlinelai_kmp.ui.theme.extendedColors
+import org.abma.offlinelai_kmp.ui.viewmodel.ChatAction
 import org.abma.offlinelai_kmp.ui.viewmodel.ChatUiState
 import org.abma.offlinelai_kmp.ui.viewmodel.ChatViewModel
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -58,28 +55,16 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Attachment picker
-    val launchAttachmentPicker = rememberAttachmentPicker(
-        type = AttachmentPickerType.IMAGES_AND_PDFS
-    ) { result ->
-        viewModel.setAttachmentLoading(false)
-        if (result != null) {
-            val attachment = Attachment.fromPath(result.path, result.mimeType)
-            viewModel.addAttachment(attachment)
-        }
-    }
-
     LaunchedEffect(uiState.messages.size) {
         if (uiState.messages.isNotEmpty()) {
             listState.animateScrollToItem(uiState.messages.size - 1)
         }
-
     }
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let { error ->
             snackbarHostState.showSnackbar(error)
-            viewModel.dismissError()
+            viewModel.onAction(ChatAction.DismissError)
         }
     }
 
@@ -88,17 +73,12 @@ fun ChatScreen(
         listState = listState,
         snackbarHostState = snackbarHostState,
         onNavigateToSettings = onNavigateToSettings,
-        onClearChat = { viewModel.clearChat() },
-        onInputChange = { viewModel.updateInput(it) },
-        onSend = { viewModel.sendMessage() },
+        onClearChat = { viewModel.onAction(ChatAction.ClearChat) },
+        onInputChange = { viewModel.onAction(ChatAction.UpdateInput(it)) },
+        onSend = { viewModel.onAction(ChatAction.SendMessage) },
         onStopGeneration = { /* TODO: Implement stop generation */ },
         onCopyMessage = { /* TODO: Implement copy */ },
-        onRegenerateMessage = { /* TODO: Implement regenerate */ },
-        onAttachmentClick = {
-            viewModel.setAttachmentLoading(true)
-            launchAttachmentPicker()
-        },
-        onRemoveAttachment = { viewModel.removeAttachment(it) }
+        onRegenerateMessage = { /* TODO: Implement regenerate */ }
     )
 }
 
@@ -115,8 +95,6 @@ fun ChatScreenContent(
     onStopGeneration: () -> Unit,
     onCopyMessage: (ChatMessage) -> Unit,
     onRegenerateMessage: (ChatMessage) -> Unit,
-    onAttachmentClick: () -> Unit = {},
-    onRemoveAttachment: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -240,10 +218,6 @@ fun ChatScreenContent(
                 enabled = uiState.modelState == ModelState.READY || uiState.modelState == ModelState.GENERATING,
                 isGenerating = uiState.modelState == ModelState.GENERATING,
                 onStopGeneration = onStopGeneration,
-                onAttachmentClick = onAttachmentClick,
-                pendingAttachments = uiState.pendingAttachments,
-                onRemoveAttachment = onRemoveAttachment,
-                isAttachmentLoading = uiState.isAttachmentLoading,
                 placeholder = when (uiState.modelState) {
                     ModelState.NOT_LOADED -> "Load a model to start..."
                     ModelState.LOADING -> "Loading model..."
@@ -498,16 +472,6 @@ private fun MessageBubble(
                             vertical = if (isUser) 10.dp else 12.dp
                         )
                     ) {
-                        // Display attachments if any
-                        if (message.attachments.isNotEmpty()) {
-                            MessageAttachments(
-                                attachments = message.attachments,
-                                isUser = isUser
-                            )
-                            if (message.content.isNotEmpty()) {
-                                Spacer(Modifier.height(8.dp))
-                            }
-                        }
 
                         if (message.isStreaming && message.content.isEmpty()) {
                             TypingDots()
@@ -664,139 +628,6 @@ private fun TypingDots(
     }
 }
 
-@Composable
-private fun AttachmentsPreview(
-    attachments: List<Attachment>,
-    onRemove: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        attachments.forEach { attachment ->
-            AttachmentChip(
-                attachment = attachment,
-                onRemove = { onRemove(attachment.id) }
-            )
-        }
-    }
-}
-
-@Composable
-private fun AttachmentChip(
-    attachment: Attachment,
-    onRemove: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-        )
-    ) {
-        Row(
-            modifier = Modifier.padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Icon based on attachment type
-            Icon(
-                imageVector = when (attachment.type) {
-                    AttachmentType.IMAGE -> Icons.Default.Image
-                    AttachmentType.PDF -> Icons.Default.PictureAsPdf
-                    AttachmentType.DOCUMENT -> Icons.Default.Description
-                },
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-
-            // File name
-            Text(
-                text = attachment.fileName.take(20) + if (attachment.fileName.length > 20) "..." else "",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1
-            )
-
-            // Remove button
-            IconButton(
-                onClick = onRemove,
-                modifier = Modifier.size(24.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Remove attachment",
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun MessageAttachments(
-    attachments: List<Attachment>,
-    isUser: Boolean,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        attachments.forEach { attachment ->
-            MessageAttachmentItem(
-                attachment = attachment,
-                isUser = isUser
-            )
-        }
-    }
-}
-
-@Composable
-private fun MessageAttachmentItem(
-    attachment: Attachment,
-    isUser: Boolean,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(
-                if (isUser) {
-                    Color.White.copy(alpha = 0.15f)
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                }
-            )
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Icon(
-            imageVector = when (attachment.type) {
-                AttachmentType.IMAGE -> Icons.Default.Image
-                AttachmentType.PDF -> Icons.Default.PictureAsPdf
-                AttachmentType.DOCUMENT -> Icons.Default.Description
-            },
-            contentDescription = null,
-            modifier = Modifier.size(16.dp),
-            tint = if (isUser) Color.White.copy(alpha = 0.8f) else MaterialTheme.colorScheme.primary
-        )
-
-        Text(
-            text = attachment.fileName.take(25) + if (attachment.fileName.length > 25) "..." else "",
-            style = MaterialTheme.typography.labelSmall,
-            color = if (isUser) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurface,
-            maxLines = 1
-        )
-    }
-}
 
 @Composable
 private fun ChatInputBar(
@@ -806,10 +637,6 @@ private fun ChatInputBar(
     enabled: Boolean,
     isGenerating: Boolean,
     onStopGeneration: () -> Unit,
-    onAttachmentClick: () -> Unit,
-    pendingAttachments: List<Attachment>,
-    onRemoveAttachment: (String) -> Unit,
-    isAttachmentLoading: Boolean,
     placeholder: String,
     modifier: Modifier = Modifier
 ) {
@@ -821,18 +648,6 @@ private fun ChatInputBar(
         tonalElevation = 0.dp
     ) {
         Column {
-            // Pending attachments preview
-            AnimatedVisibility(
-                visible = pendingAttachments.isNotEmpty(),
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                AttachmentsPreview(
-                    attachments = pendingAttachments,
-                    onRemove = onRemoveAttachment,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-            }
 
             // Divider
             Surface(
@@ -895,27 +710,6 @@ private fun ChatInputBar(
                             singleLine = false,
                             maxLines = 4
                         )
-
-                        // Attach button
-                        IconButton(
-                            onClick = onAttachmentClick,
-                            enabled = enabled && !isGenerating && !isAttachmentLoading,
-                            modifier = Modifier.padding(end = 4.dp, bottom = 4.dp)
-                        ) {
-                            if (isAttachmentLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Default.AttachFile,
-                                    contentDescription = "Attach file",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                )
-                            }
-                        }
                     }
                 }
 
