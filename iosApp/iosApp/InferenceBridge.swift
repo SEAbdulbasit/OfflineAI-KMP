@@ -23,60 +23,18 @@ import MediaPipeTasksGenAIC
         )
     }
 
-    @objc private func handleGenerateRequest(_ notification: Notification) {
-        guard let userInfo = notification.userInfo,
-            let prompt = userInfo["prompt"] as? String,
-            let modelPath = userInfo["modelPath"] as? String
-        else {
-            storeResponse("Error: Invalid request")
-            return
-        }
-
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self = self else { return }
-
-            // Load model if needed
-            if self.llmInference == nil || self.currentModelPath != modelPath {
-                guard self.loadModel(path: modelPath) else {
-                    self.storeResponse("Error: Failed to load model")
-                    return
-                }
-            }
-
-            // Generate response
-            self.storeResponse(self.generate(prompt: prompt))
-        }
+    private func handleGenerateRequest(_ notification: Notification) {
+        // TODO: Workshop Step 3 - Handle generation request from Kotlin
     }
 
     private func loadModel(path: String) -> Bool {
-        guard FileManager.default.fileExists(atPath: path) else {
-            print("InferenceBridge: File not found at \(path)")
-            return false
-        }
-
-        do {
-            let options = LlmInference.Options(modelPath: path)
-            options.maxTokens = 2048  // Increased to handle tool prompts
-            llmInference = try LlmInference(options: options)
-            currentModelPath = path
-            print("InferenceBridge: Model loaded from \(path) with maxTokens=2048")
-            return true
-        } catch {
-            print("InferenceBridge: Load failed - \(error.localizedDescription)")
-            return false
-        }
+        // TODO: Workshop Step 3 - Implement MediaPipe LLM loading
+        return false
     }
 
     private func generate(prompt: String) -> String {
-        guard let inference = llmInference else {
-            return "Error: Model not loaded"
-        }
-
-        do {
-            return try inference.generateResponse(inputText: prompt)
-        } catch {
-            return "Error: \(error.localizedDescription)"
-        }
+        // TODO: Workshop Step 3 - Implement MediaPipe LLM generation
+        return ""
     }
 
     private func storeResponse(_ response: String) {
