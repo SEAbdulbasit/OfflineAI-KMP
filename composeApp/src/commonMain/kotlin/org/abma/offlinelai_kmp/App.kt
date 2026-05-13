@@ -14,56 +14,23 @@ import org.abma.offlinelai_kmp.ui.viewmodel.ChatViewModel
 
 @Composable
 fun App() {
-    val systemDarkTheme = isSystemInDarkTheme()
-    var isDarkTheme by remember { mutableStateOf(systemDarkTheme) }
-
-    GemmaTheme(
-        darkTheme = isDarkTheme,
-        onToggleTheme = { isDarkTheme = !isDarkTheme }
-    ) {
+    GemmaTheme {
         val navController = rememberNavController()
         val chatViewModel: ChatViewModel = viewModel { ChatViewModel() }
         val uiState by chatViewModel.uiState.collectAsState()
 
-        NavHost(
-            navController = navController,
-            startDestination = "chat"
-        ) {
+        NavHost(navController = navController, startDestination = "chat") {
             composable("chat") {
                 ChatScreen(
-                    onNavigateToSettings = {
-                        try {
-                            navController.navigate("settings")
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    },
+                    onNavigateToSettings = { navController.navigate("settings") },
                     viewModel = chatViewModel
                 )
             }
             composable("settings") {
                 SettingsScreen(
-                    onNavigateBack = {
-                        try {
-                            navController.popBackStack()
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    },
-                    onLoadModel = { path, config ->
-                        try {
-                            chatViewModel.onAction(ChatAction.LoadModel(path, config))
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    },
-                    onRemoveModel = { path ->
-                        try {
-                            chatViewModel.onAction(ChatAction.RemoveModel(path))
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    },
+                    onNavigateBack = { navController.popBackStack() },
+                    onLoadModel = { path, config -> chatViewModel.onAction(ChatAction.LoadModel(path, config)) },
+                    onRemoveModel = { path -> chatViewModel.onAction(ChatAction.RemoveModel(path)) },
                     loadedModels = uiState.loadedModels,
                     currentModelPath = uiState.currentModelPath
                 )

@@ -1,7 +1,9 @@
 package org.abma.offlinelai_kmp.domain.repository
 
+import kotlinx.serialization.Serializable
 import org.abma.offlinelai_kmp.domain.model.ModelConfig
 
+@Serializable
 data class LoadedModel(
     val name: String,
     val path: String,
@@ -15,5 +17,4 @@ expect class ModelRepository() {
     fun getCurrentModelPath(): String?
     fun setCurrentModelPath(path: String)
     fun removeModel(path: String)
-    fun clearAll()
 }

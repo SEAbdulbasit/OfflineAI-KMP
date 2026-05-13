@@ -4,22 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.abma.offlinelai_kmp.domain.model.ChatMessage
 import org.abma.offlinelai_kmp.domain.model.ModelConfig
 import org.abma.offlinelai_kmp.domain.model.ModelState
 import org.abma.offlinelai_kmp.domain.repository.LoadedModel
 import org.abma.offlinelai_kmp.domain.repository.ModelRepository
-import org.abma.offlinelai_kmp.domain.usecase.*
 import org.abma.offlinelai_kmp.inference.GemmaInference
-import org.abma.offlinelai_kmp.tools.ToolCall
-import org.abma.offlinelai_kmp.tools.ToolRegistry
-import org.abma.offlinelai_kmp.tools.buildSystemPrompt
-import org.abma.offlinelai_kmp.tools.createDefaultToolRegistry
+import org.abma.offlinelai_kmp.tools.*
 
 data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(),
@@ -28,258 +21,148 @@ data class ChatUiState(
     val currentInput: String = "",
     val errorMessage: String? = null,
     val currentModelPath: String? = null,
-    val loadedModels: List<LoadedModel> = emptyList(),
-    val isToolCallInProgress: Boolean = false
+    val loadedModels: List<LoadedModel> = emptyList()
 )
+
+sealed interface ChatAction {
+    data class LoadModel(val path: String, val config: ModelConfig = ModelConfig()) : ChatAction
+    data class RemoveModel(val path: String) : ChatAction
+    data class UpdateInput(val text: String) : ChatAction
+    data object SendMessage : ChatAction
+    data object ClearChat : ChatAction
+    data object DismissError : ChatAction
+    data object RefreshModels : ChatAction
+}
 
 class ChatViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
-    private val gemmaInference = GemmaInference()
-    private val modelRepository = ModelRepository()
-    private val toolRegistry: ToolRegistry = createDefaultToolRegistry()
-    private var streamingMessageId: String? = null
-
-    private val loadModelUseCase = LoadModelUseCase(gemmaInference, modelRepository)
-    private val generateResponseUseCase = GenerateResponseUseCase(gemmaInference)
-    private val executeToolUseCase = ExecuteToolUseCase(toolRegistry)
-    private val getLoadedModelsUseCase = GetLoadedModelsUseCase(modelRepository)
-    private val removeModelUseCase = RemoveModelUseCase(modelRepository)
-
-    private val systemPrompt: String by lazy {
-        buildSystemPrompt(toolRegistry.specs())
-    }
+    private val gemma = GemmaInference()
+    private val repository = ModelRepository()
+    private val tools = createDefaultToolRegistry()
+    private var streamingId: String? = null
 
     init {
-        onAction(ChatAction.RefreshModels)
+        refreshModels()
     }
 
     fun onAction(action: ChatAction) {
         when (action) {
             is ChatAction.LoadModel -> loadModel(action.path, action.config)
-            is ChatAction.RemoveModel -> removeLoadedModel(action.path)
-            is ChatAction.UpdateInput -> updateInput(action.text)
+            is ChatAction.RemoveModel -> removeModel(action.path)
+            is ChatAction.UpdateInput -> _uiState.update { it.copy(currentInput = action.text) }
             is ChatAction.SendMessage -> sendMessage()
-            is ChatAction.ClearChat -> clearChat()
-            is ChatAction.DismissError -> dismissError()
-            is ChatAction.RefreshModels -> refreshLoadedModels()
+            is ChatAction.ClearChat -> _uiState.update { it.copy(messages = emptyList()) }
+            is ChatAction.DismissError -> _uiState.update { it.copy(errorMessage = null) }
+            is ChatAction.RefreshModels -> refreshModels()
         }
     }
 
-    private fun refreshLoadedModels() {
-        getLoadedModelsUseCase().onSuccess { models ->
-            val currentPath = modelRepository.getCurrentModelPath()
-            _uiState.update {
-                it.copy(
-                    loadedModels = models,
-                    currentModelPath = currentPath
-                )
+    private fun refreshModels() {
+        val models = repository.getLoadedModels()
+        val path = repository.getCurrentModelPath()
+        _uiState.update { it.copy(loadedModels = models, currentModelPath = path) }
+    }
+
+    private fun loadModel(path: String, config: ModelConfig) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState.update { it.copy(modelState = ModelState.LOADING, errorMessage = null) }
+            try {
+                gemma.loadModel(path, config)
+                repository.saveModel(LoadedModel("Gemma", path, config, 0L))
+                repository.setCurrentModelPath(path)
+                refreshModels()
+                _uiState.update { it.copy(modelState = ModelState.READY, loadingProgress = 1f) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(modelState = ModelState.ERROR, errorMessage = e.message) }
             }
         }
     }
 
-    private fun loadModel(modelPath: String, config: ModelConfig = ModelConfig()) {
-        viewModelScope.launch(Dispatchers.IO) {
-            _uiState.update { it.copy(modelState = ModelState.LOADING, errorMessage = null) }
-
-            loadModelUseCase(modelPath, config)
-                .onSuccess { loadedModel ->
-                    _uiState.update {
-                        it.copy(
-                            modelState = ModelState.READY,
-                            loadingProgress = 1f,
-                            currentModelPath = loadedModel.path,
-                            loadedModels = modelRepository.getLoadedModels()
-                        )
-                    }
-                }
-                .onFailure { exception ->
-                    _uiState.update {
-                        it.copy(
-                            modelState = ModelState.ERROR,
-                            errorMessage = exception.message ?: "Failed to load model",
-                            loadingProgress = 0f
-                        )
-                    }
-                }
-        }
-    }
-
-    private fun removeLoadedModel(path: String) {
-        removeModelUseCase(path)
-        refreshLoadedModels()
-    }
-
-    private fun updateInput(input: String) {
-        _uiState.update { it.copy(currentInput = input) }
+    private fun removeModel(path: String) {
+        repository.removeModel(path)
+        refreshModels()
     }
 
     private fun sendMessage() {
         val input = _uiState.value.currentInput.trim()
+        if (input.isEmpty() || _uiState.value.modelState != ModelState.READY) return
 
-        if (input.isEmpty()) return
-        if (_uiState.value.modelState != ModelState.READY) return
-
-        val userMessage = ChatMessage.user(input)
-
-        _uiState.update { state ->
-            state.copy(
-                messages = state.messages + userMessage,
-                currentInput = "",
-                modelState = ModelState.GENERATING
-            )
-        }
+        _uiState.update { it.copy(
+            messages = it.messages + ChatMessage.user(input),
+            currentInput = "",
+            modelState = ModelState.GENERATING
+        )}
 
         generateResponse(input)
     }
 
-    private fun clearChat() {
-        _uiState.update { it.copy(messages = emptyList()) }
-    }
-
-    private fun dismissError() {
-        _uiState.update { it.copy(errorMessage = null) }
-    }
-
     private fun generateResponse(prompt: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            val aiMessage = ChatMessage.ai("", isStreaming = true)
-            streamingMessageId = aiMessage.id
-            _uiState.update { state ->
-                state.copy(messages = state.messages + aiMessage)
-            }
+            val aiMsg = ChatMessage.ai("", isStreaming = true)
+            streamingId = aiMsg.id
+            _uiState.update { it.copy(messages = it.messages + aiMsg) }
 
-            generateResponseUseCase(systemPrompt, prompt)
-                .collect { result ->
-                    when (result) {
-                        is GenerateResponseResult.Streaming -> {
-                            updateStreamingMessage(result.partialResponse)
-                        }
-                        is GenerateResponseResult.Complete -> {
-                            if (result.toolCall != null) {
-                                handleToolCall(result.toolCall)
-                            } else {
-                                finishStreaming()
-                            }
-                        }
-                        is GenerateResponseResult.Error -> {
-                            handleError(result.exception)
-                        }
-                    }
+            val systemPrompt = buildSystemPrompt(tools.specs())
+            var fullResponse = ""
+
+            try {
+                gemma.generateResponseWithHistory(systemPrompt, prompt).collect { token ->
+                    fullResponse += token
+                    updateStreaming(fullResponse)
                 }
-        }
-    }
-
-    private fun handleToolCall(toolCall: ToolCall) {
-        viewModelScope.launch(Dispatchers.IO) {
-            _uiState.update { it.copy(isToolCallInProgress = true) }
-
-            executeToolUseCase(
-                toolCall = toolCall,
-                loadedModels = _uiState.value.loadedModels,
-                currentModelPath = _uiState.value.currentModelPath
-            ).collect { result ->
-                when (result) {
-                    is ExecuteToolResult.Executing -> {
-                        updateStreamingMessage("🔧 Calling ${result.toolName}...\n\n")
-                    }
-                    is ExecuteToolResult.Streaming -> {
-                        updateStreamingMessage(result.toolDisplay + result.partialResponse)
-                    }
-                    is ExecuteToolResult.Complete -> {
-                        updateStreamingMessage(result.toolDisplay + result.response)
-                        finishToolCall()
-                    }
-                    is ExecuteToolResult.Error -> {
-                        handleToolError(toolCall.tool, result.exception)
-                    }
+                
+                val toolCall = extractToolCall(fullResponse)
+                if (toolCall != null) {
+                    executeTool(toolCall)
+                } else {
+                    finishStreaming()
                 }
+            } catch (e: Exception) {
+                handleError(e)
             }
         }
     }
 
-    private fun updateStreamingMessage(content: String) {
+    private suspend fun executeTool(call: ToolCall) {
+        updateStreaming("🔧 Calling ${call.tool}...")
+        val result = tools.execute(call, ToolContext(_uiState.value.loadedModels, _uiState.value.currentModelPath))
+        updateStreaming("🔧 Tool Result (${call.tool}):\n${result.result}\n\n")
+        finishStreaming()
+    }
+
+    private fun updateStreaming(content: String) {
         _uiState.update { state ->
-            val updatedMessages = state.messages.map { msg ->
-                if (msg.id == streamingMessageId) msg.copy(content = content)
-                else msg
-            }
-            state.copy(messages = updatedMessages)
+            state.copy(messages = state.messages.map { 
+                if (it.id == streamingId) it.copy(content = content) else it 
+            })
         }
     }
 
     private fun finishStreaming() {
         _uiState.update { state ->
-            val updatedMessages = state.messages.map { msg ->
-                if (msg.id == streamingMessageId) msg.copy(isStreaming = false)
-                else msg
-            }
             state.copy(
-                messages = updatedMessages,
+                messages = state.messages.map { if (it.id == streamingId) it.copy(isStreaming = false) else it },
                 modelState = ModelState.READY
             )
         }
-        streamingMessageId = null
+        streamingId = null
     }
 
-    private fun finishToolCall() {
+    private fun handleError(e: Exception) {
         _uiState.update { state ->
-            val updatedMessages = state.messages.map { msg ->
-                if (msg.id == streamingMessageId) msg.copy(isStreaming = false)
-                else msg
-            }
             state.copy(
-                messages = updatedMessages,
-                modelState = ModelState.READY,
-                isToolCallInProgress = false
-            )
-        }
-        streamingMessageId = null
-    }
-
-    private fun handleError(exception: Exception) {
-        _uiState.update { state ->
-            val updatedMessages = state.messages.map { msg ->
-                if (msg.id == streamingMessageId) {
-                    msg.copy(
-                        content = "Error: ${exception.message}",
-                        isStreaming = false,
-                        isError = true
-                    )
-                } else msg
-            }
-            state.copy(
-                messages = updatedMessages,
+                messages = state.messages.map { 
+                    if (it.id == streamingId) it.copy(content = "Error: ${e.message}", isStreaming = false, isError = true) else it 
+                },
                 modelState = ModelState.READY
             )
         }
-        streamingMessageId = null
+        streamingId = null
     }
-
-    private fun handleToolError(toolName: String, exception: Exception) {
-        _uiState.update { state ->
-            val updatedMessages = state.messages.map { msg ->
-                if (msg.id == streamingMessageId) {
-                    msg.copy(
-                        content = "❌ Error executing $toolName: ${exception.message}",
-                        isStreaming = false,
-                        isError = true
-                    )
-                } else msg
-            }
-            state.copy(
-                messages = updatedMessages,
-                modelState = ModelState.READY,
-                isToolCallInProgress = false
-            )
-        }
-        streamingMessageId = null
-    }
-
 
     override fun onCleared() {
-        super.onCleared()
-        gemmaInference.close()
+        gemma.close()
     }
 }

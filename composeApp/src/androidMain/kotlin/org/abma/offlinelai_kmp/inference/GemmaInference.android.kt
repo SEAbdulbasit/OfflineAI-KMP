@@ -1,22 +1,27 @@
 package org.abma.offlinelai_kmp.inference
 
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.awaitClose
+import com.google.mediapipe.tasks.genai.llminference.LlmInference.LlmInferenceOptions
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.flow
 import org.abma.offlinelai_kmp.domain.model.ModelConfig
 
 actual class GemmaInference {
+    private var llmInference: LlmInference? = null
+
     actual suspend fun loadModel(modelPath: String, config: ModelConfig) {
-        // TODO: Workshop Step 2 - Implement Android LLM loading
+        val options = LlmInferenceOptions.builder()
+            .setModelPath(modelPath)
+            .setMaxTokens(config.maxTokens)
+            .build()
+
+        llmInference = LlmInference.createFromOptions(AndroidContextProvider.applicationContext, options)
     }
 
-    actual fun generateResponse(prompt: String): Flow<String> = callbackFlow {
-        // TODO: Workshop Step 2 - Implement Android LLM generation
-        close()
-        awaitClose { }
+    actual fun generateResponse(prompt: String): Flow<String> = flow {
+        val llm = llmInference ?: return@flow
+        val response = llm.generateResponse(prompt)
+        emit(response)
     }
 
     actual fun generateResponseWithHistory(
@@ -24,11 +29,12 @@ actual class GemmaInference {
         currentPrompt: String
     ): Flow<String> = generateResponse(systemPrompt + currentPrompt)
 
-    actual fun isModelLoaded(): Boolean = false
+    actual fun isModelLoaded(): Boolean = llmInference != null
 
-    actual fun getLoadingProgress(): Float = 0f
+    actual fun getLoadingProgress(): Float = if (isModelLoaded()) 1f else 0f
 
     actual fun close() {
-        // TODO: Workshop Step 2 - Implement cleanup
+        llmInference?.close()
+        llmInference = null
     }
 }
