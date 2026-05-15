@@ -8,36 +8,42 @@ private const val TOOL_CALL_END = ">>"
 private val json = Json {
     ignoreUnknownKeys = true
     encodeDefaults = true
+    isLenient = true
 }
 
+/**
+ * Build a concise system prompt for tool calling.
+ * Optimized for smaller models like Gemma 3n.
+ */
 fun buildSystemPrompt(specs: List<ToolSpec>): String {
     if (specs.isEmpty()) return ""
 
     return buildString {
-        appendLine("You are a helpful AI assistant with access to tools.")
-        appendLine("When you need to use a tool, output it in this EXACT format:")
-        appendLine("<<{\"tool\":\"tool_name\",\"arguments\":{\"param\":\"value\"}}>>")
+        appendLine("You have access to these tools:")
         appendLine()
-        appendLine("Available tools:")
 
         specs.forEach { spec ->
-            appendLine("• ${spec.name}: ${spec.description}")
-            extractParamDetails(spec.parametersSchemaJson).forEach { (name, desc) ->
-                appendLine("  - $name: $desc")
-            }
+            appendLine("- ${spec.name}: ${spec.description}")
         }
 
         appendLine()
+        appendLine("To use a tool, reply with ONLY:")
+        appendLine("<<{\"tool\":\"TOOL_NAME\",\"arguments\":{...}}>>")
+        appendLine()
         appendLine("Examples:")
-        appendLine("User: What time is it?")
-        appendLine("Assistant: <<{\"tool\":\"get_current_time\",\"arguments\":{}}>>")
+        appendLine("Q: What time is it?")
+        appendLine("A: <<{\"tool\":\"get_current_time\",\"arguments\":{}}>>")
         appendLine()
-        appendLine("User: Open google.com")
-        appendLine("Assistant: <<{\"tool\":\"open_url\",\"arguments\":{\"url\":\"https://google.com\"}}>>")
+        appendLine("Q: Open youtube")
+        appendLine("A: <<{\"tool\":\"open_url\",\"arguments\":{\"url\":\"youtube.com\"}}>>")
         appendLine()
-        appendLine("IMPORTANT:")
-        appendLine("- If you need a tool, output ONLY the tool call in << >> format")
-        appendLine("- If you don't need a tool, respond naturally")
+        appendLine("Q: Call 555-1234")
+        appendLine("A: <<{\"tool\":\"open_dialer\",\"arguments\":{\"phone_number\":\"555-1234\"}}>>")
+        appendLine()
+        appendLine("Q: Turn on flashlight")
+        appendLine("A: <<{\"tool\":\"toggle_torch\",\"arguments\":{\"enable\":true}}>>")
+        appendLine()
+        appendLine("If no tool needed, answer normally.")
     }
 }
 
@@ -55,8 +61,15 @@ private fun extractParamDetails(schemaJson: String): Map<String, String> {
 }
 
 fun extractToolCall(text: String): ToolCall? {
-    extractGemmaFunctionCall(text)?.let { return it }
+    println("🔍 Extracting tool call from: ${text.take(200)}${if (text.length > 200) "..." else ""}")
 
+    // Try Gemma native function call format first
+    extractGemmaFunctionCall(text)?.let {
+        println("✅ Found Gemma function call: ${it.tool}")
+        return it
+    }
+
+    // Try << >> format
     val start = text.indexOf(TOOL_CALL_START)
     if (start != -1) {
         val end = text.indexOf(TOOL_CALL_END, start + TOOL_CALL_START.length)
@@ -71,21 +84,47 @@ fun extractToolCall(text: String): ToolCall? {
         }
 
         payload?.let { p ->
-            parseToolCallJson(p)?.let { return it }
+            parseToolCallJson(p)?.let {
+                println("✅ Found << >> format tool call: ${it.tool}")
+                return it
+            }
         }
     }
 
-    val toolJsonPattern = """\{\s*"tool"\s*:\s*"([^"]+)"\s*,\s*"arguments"\s*:\s*(\{[^}]*\})?\s*\}?""".toRegex()
-    toolJsonPattern.find(text)?.let { match ->
-        val fullMatch = match.value
-        val jsonToTry = if (fullMatch.count { it == '{' } > fullMatch.count { it == '}' }) {
-            fullMatch + "}"
-        } else {
-            fullMatch
+    // Try to find raw JSON with "tool" field anywhere in the text
+    val toolJsonPatterns = listOf(
+        """\{\s*"tool"\s*:\s*"([^"]+)"\s*,\s*"arguments"\s*:\s*(\{[^}]*\})?\s*\}""".toRegex(),
+        """\{\s*"tool"\s*:\s*"([^"]+)"[^}]*\}""".toRegex(),
+        """tool["\s:]+([a-z_]+)""".toRegex(RegexOption.IGNORE_CASE)
+    )
+
+    for (pattern in toolJsonPatterns) {
+        pattern.find(text)?.let { match ->
+            val fullMatch = match.value
+
+            // If it looks like JSON, try to parse it
+            if (fullMatch.contains("{")) {
+                val jsonToTry = if (fullMatch.count { it == '{' } > fullMatch.count { it == '}' }) {
+                    fullMatch + "}"
+                } else {
+                    fullMatch
+                }
+                parseToolCallJson(jsonToTry)?.let {
+                    println("✅ Found JSON pattern tool call: ${it.tool}")
+                    return it
+                }
+            } else {
+                // Simple tool name match - try to create a basic tool call
+                val toolName = match.groupValues.getOrNull(1) ?: continue
+                if (toolName.isNotBlank() && toolName.contains("_")) {
+                    println("✅ Found simple tool reference: $toolName")
+                    return ToolCall(tool = toolName, arguments = JsonObject(emptyMap()))
+                }
+            }
         }
-        parseToolCallJson(jsonToTry)?.let { return it }
     }
 
+    println("❌ No tool call detected in response")
     return null
 }
 

@@ -108,10 +108,10 @@ class GenerateResponseUseCase(
         println("📤 SENDING TO LLM:")
         println("───────────────────────────────────────────────────────────")
         println("System Prompt (${systemPrompt.length} chars):")
-        println(systemPrompt.take(500))
-        if (systemPrompt.length > 500) println("... [truncated]")
+        println(systemPrompt)  // Full prompt, no truncation
         println("───────────────────────────────────────────────────────────")
-        println("User Prompt: $userPrompt")
+        println("Formatted Prompt:")
+        println(formattedPrompt)
         println("───────────────────────────────────────────────────────────")
         println("History Messages: ${messages.size}")
         println("═══════════════════════════════════════════════════════════")
