@@ -1,8 +1,8 @@
 # 🤖 Gemma Offline AI - KMP
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Kotlin-2.1.0-purple?logo=kotlin" alt="Kotlin">
-  <img src="https://img.shields.io/badge/Compose-1.7.3-blue?logo=jetpack-compose" alt="Compose Multiplatform">
+  <img src="https://img.shields.io/badge/Kotlin-2.4.0-purple?logo=kotlin" alt="Kotlin">
+  <img src="https://img.shields.io/badge/Compose-1.11.0-blue?logo=jetpack-compose" alt="Compose Multiplatform">
   <img src="https://img.shields.io/badge/Platform-Android%20%7C%20iOS-green" alt="Platforms">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
 </p>
@@ -108,10 +108,10 @@ composeApp/src/
 
 | Requirement | Version |
 |-------------|---------|
-| Android Studio | Ladybug (2024.2.1) or later |
-| Xcode | 15.0+ (for iOS) |
+| Android Studio | Meerkat (2025.1.1) or later |
+| Xcode | 16.0+ (for iOS) |
 | JDK | 17+ |
-| Kotlin | 2.1.0 |
+| Kotlin | 2.4.0 |
 
 ### 1. Clone the Repository
 
@@ -170,13 +170,13 @@ Then open `iosApp/iosApp.xcworkspace` in Xcode and run.
 
 | Platform | Minimum | Recommended | Notes |
 |----------|---------|-------------|-------|
-| **Android** | API 24 (7.0) | API 30+ | 4GB+ RAM, GPU support preferred |
-| **iOS** | iOS 15.0 | iOS 16+ | iPhone 12+ / iPad Pro for best performance |
+| **Android** | API 24 (7.0) | API 34+ | 4GB+ RAM, GPU support preferred |
+| **iOS** | iOS 16.0 | iOS 17+ | iPhone 12+ / iPad Pro for best performance |
 
 ### Device Recommendations
 
-- **Android**: Pixel 6+, Samsung Galaxy S21+, or equivalent
-- **iOS**: iPhone 12 or newer, iPad Pro (M1/M2)
+- **Android**: Pixel 7+, Samsung Galaxy S22+, or equivalent
+- **iOS**: iPhone 12 or newer, iPad Pro (M1/M2/M4)
 
 ---
 
@@ -204,24 +204,24 @@ The app automatically follows system theme preferences. Supports:
 
 | Library | Version | Purpose |
 |---------|---------|---------|
-| Compose Multiplatform | 1.7.3 | Shared UI framework |
-| MediaPipe Tasks GenAI | 0.10.24 | On-device LLM inference |
-| Kotlinx Coroutines | 1.9.0 | Async operations & Flow |
-| Kotlinx Serialization | 1.7.3 | JSON serialization |
-| Lifecycle ViewModel | 2.8.4 | MVVM architecture |
-| Navigation Compose | 2.8.0 | Screen navigation |
+| Compose Multiplatform | 1.11.0 | Shared UI framework |
+| MediaPipe Tasks GenAI | 0.10.36 | On-device LLM inference |
+| Kotlinx Coroutines | 1.11.0 | Async operations & Flow |
+| Kotlinx Serialization | 1.11.0 | JSON serialization |
+| Lifecycle ViewModel | 2.10.0 | MVVM architecture |
+| Navigation Compose | 2.10.0 | Screen navigation |
 
 ### iOS CocoaPods Setup
 
 The `Podfile` in `iosApp/` includes:
 
 ```ruby
-platform :ios, '15.0'
+platform :ios, '16.0'
 
 target 'iosApp' do
   use_frameworks!
-  pod 'MediaPipeTasksGenAI', '0.10.24'
-  pod 'MediaPipeTasksGenAIC', '0.10.24'
+  pod 'MediaPipeTasksGenAI', '0.10.36'
+  pod 'MediaPipeTasksGenAIC', '0.10.36'
 end
 ```
 

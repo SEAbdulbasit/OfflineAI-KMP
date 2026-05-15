@@ -32,10 +32,10 @@ class GeneralChatViewModel : BaseConversationViewModel() {
             )
         }
 
-        generateResponse(input)
+        generateResponse(input, _uiState.value.messages.dropLast(1))
     }
 
-    private fun generateResponse(prompt: String) {
+    private fun generateResponse(prompt: String, history: List<ChatMessage>) {
         viewModelScope.launch(Dispatchers.IO) {
             val aiMessage = ChatMessage.ai("", isStreaming = true)
             streamingMessageId = aiMessage.id
@@ -43,7 +43,7 @@ class GeneralChatViewModel : BaseConversationViewModel() {
                 state.copy(messages = state.messages + aiMessage)
             }
 
-            generateResponseUseCase(systemPrompt, prompt)
+            generateResponseUseCase(systemPrompt, history, prompt)
                 .collect { result ->
                     when (result) {
                         is GenerateResponseResult.Streaming -> {

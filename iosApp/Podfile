@@ -1,11 +1,12 @@
 source 'https://cdn.cocoapods.org'
 
-platform :ios, '15.0'
-use_frameworks!
+platform :ios, '16.0'
+use_frameworks! :linkage => :static
 
 target 'iosApp' do
   pod 'composeApp', :path => '../composeApp'
 
+  # MediaPipe GenAI for on-device LLM inference
   pod 'MediaPipeTasksGenAI', '0.10.24'
   pod 'MediaPipeTasksGenAIC', '0.10.24'
 end
@@ -13,10 +14,39 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
       config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
-      config.build_settings['SWIFT_VERSION'] = '5.0'
+      config.build_settings['SWIFT_VERSION'] = '5.10'
       config.build_settings['ENABLE_BITCODE'] = 'NO'
+
+      # Fix for framework linking issues with Xcode 26
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+
+      # Disable auto-linking to avoid UIUtilities error
+      config.build_settings['OTHER_LDFLAGS'] ||= ['$(inherited)']
+      config.build_settings['OTHER_LDFLAGS'] << '-Wl,-no_warn_duplicate_libraries'
+
+      # Exclude problematic auto-linked frameworks
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'x86_64'
+    end
+  end
+
+  # Fix for SwiftUICore linking issue - project level settings
+  installer.pods_project.build_configurations.each do |config|
+    config.build_settings['DEAD_CODE_STRIPPING'] = 'YES'
+  end
+
+  # Fix auto-linking behavior for the main target
+  installer.aggregate_targets.each do |target|
+    target.xcconfigs.each do |config_name, config_file|
+      # Remove problematic auto-link flags if present
+      if config_file.attributes['OTHER_LDFLAGS']
+        config_file.attributes['OTHER_LDFLAGS'] = config_file.attributes['OTHER_LDFLAGS']
+          .gsub(/-framework\s+"?UIUtilities"?/, '')
+          .gsub(/-framework\s+"?SwiftUICore"?/, '')
+      end
+
+      config_file.save_as(Pathname.new("#{target.xcconfig_path(config_name)}"))
     end
   end
 end

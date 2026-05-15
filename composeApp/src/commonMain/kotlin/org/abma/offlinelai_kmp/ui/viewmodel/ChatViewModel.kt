@@ -21,6 +21,20 @@ import org.abma.offlinelai_kmp.tools.ToolRegistry
 import org.abma.offlinelai_kmp.tools.buildSystemPrompt
 import org.abma.offlinelai_kmp.tools.createDefaultToolRegistry
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * WORKSHOP: UI State - Single Source of Truth
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * Compose observes this state and recomposes when it changes.
+ * All UI information is in ONE place - easy to reason about and debug.
+ *
+ * KEY FIELDS:
+ * - messages: The chat history (both user and AI messages)
+ * - modelState: Loading, ready, generating, error, etc.
+ * - currentInput: What the user is typing
+ * - errorMessage: For snackbar/error display
+ */
 data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(),
     val modelState: ModelState = ModelState.NOT_LOADED,
@@ -32,14 +46,66 @@ data class ChatUiState(
     val isToolCallInProgress: Boolean = false
 )
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * WORKSHOP: ChatViewModel - The Orchestrator
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * This ViewModel is the HEART of the app. It:
+ * 1. Holds the UI state (messages, model status, input)
+ * 2. Coordinates model loading
+ * 3. Handles message sending and streaming
+ * 4. Manages lifecycle (CRITICAL: closes GemmaInference in onCleared)
+ *
+ * ARCHITECTURE PATTERN: MVI (Model-View-Intent)
+ * - UI sends Actions (intents)
+ * - ViewModel processes actions
+ * - ViewModel updates State
+ * - UI recomposes based on new state
+ *
+ * KEY WORKSHOP CONCEPTS:
+ * 1. StateFlow for reactive UI updates
+ * 2. viewModelScope for coroutine lifecycle
+ * 3. Dispatchers.IO for background work
+ * 4. Streaming updates via updateStreamingMessage()
+ * 5. Resource cleanup in onCleared()
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
 class ChatViewModel : ViewModel() {
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // STATE MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /** Mutable state - internal only. Use _uiState.update { } for thread-safe updates. */
     private val _uiState = MutableStateFlow(ChatUiState())
+
+    /** Immutable state exposed to UI. Compose collects this as: val state by viewModel.uiState.collectAsState() */
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DEPENDENCIES
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /** The Gemma inference engine - platform-specific implementation via expect/actual */
     private val gemmaInference = GemmaInference()
+
+    /** Repository for tracking loaded models */
     private val modelRepository = ModelRepository()
+
+    /** Tool registry for function calling (advanced feature) */
     private val toolRegistry: ToolRegistry = createDefaultToolRegistry()
+
+    /**
+     * Track which message is currently streaming.
+     * When tokens arrive, we update THIS message's content.
+     */
     private var streamingMessageId: String? = null
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // USE CASES (Clean Architecture)
+    // ═══════════════════════════════════════════════════════════════════════════
 
     private val loadModelUseCase = LoadModelUseCase(gemmaInference, modelRepository)
     private val generateResponseUseCase = GenerateResponseUseCase(gemmaInference)
@@ -47,14 +113,28 @@ class ChatViewModel : ViewModel() {
     private val getLoadedModelsUseCase = GetLoadedModelsUseCase(modelRepository)
     private val removeModelUseCase = RemoveModelUseCase(modelRepository)
 
+    /** System prompt for AI persona - includes tool definitions */
     private val systemPrompt: String by lazy {
         buildSystemPrompt(toolRegistry.specs())
     }
 
     init {
+        // Load list of available models on startup
         onAction(ChatAction.RefreshModels)
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ACTION HANDLER (MVI Pattern)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Central action handler - all UI events go through here.
+     *
+     * WORKSHOP: Why this pattern?
+     * - Single entry point for all actions
+     * - Easy to log/debug
+     * - Clear mapping of intent to behavior
+     */
     fun onAction(action: ChatAction) {
         when (action) {
             is ChatAction.LoadModel -> loadModel(action.path, action.config)
@@ -66,6 +146,10 @@ class ChatViewModel : ViewModel() {
             is ChatAction.RefreshModels -> refreshLoadedModels()
         }
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // MODEL MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════════════════
 
     private fun refreshLoadedModels() {
         getLoadedModelsUseCase().onSuccess { models ->
@@ -79,6 +163,14 @@ class ChatViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Load a Gemma model.
+     *
+     * WORKSHOP: Key Points
+     * 1. Run on Dispatchers.IO (heavy I/O operation)
+     * 2. Update UI state to LOADING immediately
+     * 3. Handle success/failure with appropriate state updates
+     */
     private fun loadModel(modelPath: String, config: ModelConfig = ModelConfig()) {
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(modelState = ModelState.LOADING, errorMessage = null) }
@@ -111,18 +203,35 @@ class ChatViewModel : ViewModel() {
         refreshLoadedModels()
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CHAT INPUT HANDLING
+    // ═══════════════════════════════════════════════════════════════════════════
+
     private fun updateInput(input: String) {
         _uiState.update { it.copy(currentInput = input) }
     }
 
+    /**
+     * Send the current input as a message.
+     *
+     * WORKSHOP: The Message Flow
+     * 1. Validate input (not empty, model ready)
+     * 2. Create user message and add to UI immediately
+     * 3. Clear input field
+     * 4. Set state to GENERATING
+     * 5. Start generation (separate function)
+     */
     private fun sendMessage() {
         val input = _uiState.value.currentInput.trim()
 
+        // Guard clauses
         if (input.isEmpty()) return
         if (_uiState.value.modelState != ModelState.READY) return
 
+        // Create user message
         val userMessage = ChatMessage.user(input)
 
+        // Update UI: add message, clear input, set generating state
         _uiState.update { state ->
             state.copy(
                 messages = state.messages + userMessage,
@@ -131,7 +240,10 @@ class ChatViewModel : ViewModel() {
             )
         }
 
-        generateResponse(input)
+        // Start AI response generation
+        // Note: Pass history WITHOUT the message we just added (dropLast(1))
+        // because the user message is in the prompt itself
+        generateResponse(input, _uiState.value.messages.dropLast(1))
     }
 
     private fun clearChat() {
@@ -142,20 +254,49 @@ class ChatViewModel : ViewModel() {
         _uiState.update { it.copy(errorMessage = null) }
     }
 
-    private fun generateResponse(prompt: String) {
+    // ═══════════════════════════════════════════════════════════════════════════
+    // RESPONSE GENERATION - THE CORE STREAMING LOGIC
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Generate an AI response with streaming.
+     *
+     * WORKSHOP: Streaming Pattern
+     *
+     * 1. Create PLACEHOLDER message (empty, isStreaming=true)
+     * 2. Add placeholder to UI immediately
+     * 3. Store its ID for updates
+     * 4. Collect from generateResponseUseCase Flow
+     * 5. For each Streaming result: update placeholder's content
+     * 6. On Complete: mark as not streaming, set state READY
+     * 7. On Error: show error in message
+     *
+     * WHY THIS PATTERN?
+     * - User sees immediate feedback (typing indicator)
+     * - Content builds up smoothly
+     * - We only update ONE message in the list each time
+     * - Much better UX than waiting for complete response
+     */
+    private fun generateResponse(prompt: String, history: List<ChatMessage>) {
         viewModelScope.launch(Dispatchers.IO) {
+            // ═══ STEP 1: Create placeholder message ═══
             val aiMessage = ChatMessage.ai("", isStreaming = true)
             streamingMessageId = aiMessage.id
+
             _uiState.update { state ->
                 state.copy(messages = state.messages + aiMessage)
             }
 
-            generateResponseUseCase(systemPrompt, prompt)
+            // ═══ STEP 2: Collect streaming tokens ═══
+            generateResponseUseCase(systemPrompt, history, prompt)
                 .collect { result ->
                     when (result) {
+                        // ═══ STREAMING: Update message content ═══
                         is GenerateResponseResult.Streaming -> {
                             updateStreamingMessage(result.partialResponse)
                         }
+
+                        // ═══ COMPLETE: Finalize message ═══
                         is GenerateResponseResult.Complete -> {
                             if (result.toolCall != null) {
                                 handleToolCall(result.toolCall)
@@ -163,6 +304,8 @@ class ChatViewModel : ViewModel() {
                                 finishStreaming()
                             }
                         }
+
+                        // ═══ ERROR: Show error in message ═══
                         is GenerateResponseResult.Error -> {
                             handleError(result.exception)
                         }
@@ -170,6 +313,10 @@ class ChatViewModel : ViewModel() {
                 }
         }
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // TOOL CALLING (Advanced Feature)
+    // ═══════════════════════════════════════════════════════════════════════════
 
     private fun handleToolCall(toolCall: ToolCall) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -199,6 +346,19 @@ class ChatViewModel : ViewModel() {
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // MESSAGE UPDATE HELPERS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Update the currently streaming message's content.
+     *
+     * WORKSHOP: This is called for EVERY token!
+     *
+     * Since content is CUMULATIVE (full response so far),
+     * we just replace the message content entirely.
+     * Compose efficiently diffs and only re-renders what changed.
+     */
     private fun updateStreamingMessage(content: String) {
         _uiState.update { state ->
             val updatedMessages = state.messages.map { msg ->
@@ -209,6 +369,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
+    /** Mark streaming complete and set state to READY */
     private fun finishStreaming() {
         _uiState.update { state ->
             val updatedMessages = state.messages.map { msg ->
@@ -237,6 +398,10 @@ class ChatViewModel : ViewModel() {
         }
         streamingMessageId = null
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ERROR HANDLING
+    // ═══════════════════════════════════════════════════════════════════════════
 
     private fun handleError(exception: Exception) {
         _uiState.update { state ->
@@ -277,9 +442,30 @@ class ChatViewModel : ViewModel() {
         streamingMessageId = null
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // LIFECYCLE - CRITICAL!
+    // ═══════════════════════════════════════════════════════════════════════════
 
+    /**
+     * ⚠️ WORKSHOP CRITICAL: Resource Cleanup
+     *
+     * onCleared() is called when the ViewModel is destroyed.
+     * This happens when:
+     * - User navigates away from the screen
+     * - Configuration change (if not using SavedStateHandle)
+     * - App is killed by system
+     *
+     * WE MUST close GemmaInference here!
+     *
+     * If we don't:
+     * - 1.7GB of RAM stays allocated
+     * - Memory leak grows with each screen visit
+     * - Eventually: OutOfMemoryError crash
+     *
+     * This is the #1 mistake developers make with on-device AI.
+     */
     override fun onCleared() {
         super.onCleared()
-        gemmaInference.close()
+        gemmaInference.close()  // ← NEVER forget this!
     }
 }

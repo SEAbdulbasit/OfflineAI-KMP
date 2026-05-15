@@ -52,7 +52,10 @@ class ActionsViewModel : BaseConversationViewModel() {
                 state.copy(messages = state.messages + aiMessage)
             }
 
-            generateResponseUseCase(systemPrompt, prompt)
+            // Get conversation history (exclude the streaming message we just added)
+            val conversationHistory = _uiState.value.messages.filter { !it.isStreaming }
+
+            generateResponseUseCase(systemPrompt, conversationHistory, prompt)
                 .collect { result ->
                     when (result) {
                         is GenerateResponseResult.Streaming -> {

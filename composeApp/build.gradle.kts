@@ -12,7 +12,7 @@ plugins {
 kotlin {
     androidTarget {
         compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_11)
+            jvmTarget.set(JvmTarget.JVM_17)
         }
     }
 
@@ -24,7 +24,7 @@ kotlin {
         summary = "Offline AI KMP - Gemma on-device inference"
         homepage = "https://github.com/aspect-ai/OfflinelAI-KMP"
         version = "1.0"
-        ios.deploymentTarget = "15.0"
+        ios.deploymentTarget = "16.0"
         podfile = project.file("../iosApp/Podfile")
 
         framework {
@@ -94,8 +94,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 }
 
