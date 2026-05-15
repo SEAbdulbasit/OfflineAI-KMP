@@ -15,8 +15,12 @@ import org.abma.offlinelai_kmp.domain.model.ModelConfig
  * - "actual" provides HOW it works on each platform (GemmaInference.android.kt, etc.)
  *
  * WHY THIS PATTERN?
- * MediaPipe has different APIs on Android (Kotlin) vs iOS (Swift/ObjC).
+ * LiteRT-LM has different APIs on Android (Kotlin) vs iOS (Swift).
  * This abstraction lets our ViewModel use the same interface on both platforms.
+ *
+ * NOTE: This project uses LiteRT-LM for on-device LLM inference.
+ * LiteRT-LM replaces the deprecated MediaPipe LLM Inference API.
+ * https://ai.google.dev/edge/litert-lm/overview
  *
  * KEY METHODS:
  * - loadModel(): Load the Gemma model into memory (3-8 seconds)

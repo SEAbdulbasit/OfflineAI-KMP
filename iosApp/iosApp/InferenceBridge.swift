@@ -2,6 +2,11 @@ import Foundation
 import MediaPipeTasksGenAI
 import MediaPipeTasksGenAIC
 
+/// iOS Bridge for LLM Inference
+///
+/// NOTE: This uses MediaPipe LLM Inference API which is deprecated for mobile.
+/// Android has migrated to LiteRT-LM. iOS will migrate when LiteRT-LM iOS is available.
+/// See: https://ai.google.dev/edge/litert-lm/overview
 @objc public class InferenceBridge: NSObject {
 
     @objc public static let shared = InferenceBridge()

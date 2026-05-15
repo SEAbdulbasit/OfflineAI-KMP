@@ -7,7 +7,9 @@
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
 </p>
 
-A **Kotlin Multiplatform** (KMP) application that runs Google's **Gemma LLM** completely offline on Android and iOS devices. Built with Compose Multiplatform for a shared UI experience, powered by MediaPipe LLM Inference API for on-device AI.
+A **Kotlin Multiplatform** (KMP) application that runs Google's **Gemma LLM** completely offline on Android and iOS devices. Built with Compose Multiplatform for a shared UI experience, powered by **LiteRT-LM** (Android) and **MediaPipe** (iOS) for on-device AI inference.
+
+> ⚠️ **Migration Note**: Android has been migrated to LiteRT-LM (the successor to MediaPipe LLM Inference API). iOS will migrate to LiteRT-LM when it becomes available for iOS. See [LiteRT-LM Overview](https://ai.google.dev/edge/litert-lm/overview).
 
 <p align="center">
   <em>Your conversations stay private. No internet required. 100% on-device AI.</em>
@@ -26,7 +28,7 @@ A **Kotlin Multiplatform** (KMP) application that runs Google's **Gemma LLM** co
 | 🎨 **Modern UI** | Beautiful Material 3 design with dark/light theme support |
 | ⚙️ **Configurable** | Adjust temperature, max tokens, and top-p parameters |
 | 💾 **Model Management** | Import, load, and manage multiple models |
-| 🚀 **Native Performance** | Platform-specific optimizations via MediaPipe |
+| 🚀 **Native Performance** | Platform-specific optimizations via LiteRT-LM |
 
 ---
 
@@ -67,8 +69,8 @@ The app follows a clean architecture pattern with **expect/actual** mechanism fo
 ├────────────────────────┬────────────────────────────────────────┤
 │     Android (actual)   │           iOS (actual)                  │
 │  ┌──────────────────┐  │  ┌──────────────────────────────────┐  │
-│  │ MediaPipe SDK    │  │  │ MediaPipeTasksGenAI (CocoaPods)  │  │
-│  │ LlmInference     │  │  │ Swift Bridge                     │  │
+│  │ LiteRT-LM SDK    │  │  │ MediaPipeTasksGenAI (CocoaPods)  │  │
+│  │ Engine           │  │  │ Swift Bridge (until LiteRT-LM)   │  │
 │  └──────────────────┘  │  └──────────────────────────────────┘  │
 └────────────────────────┴────────────────────────────────────────┘
 ```
@@ -90,12 +92,12 @@ composeApp/src/
 │       └── viewmodel/             # ChatViewModel, ChatUiState
 │
 ├── androidMain/                   # Android-specific implementations
-│   ├── inference/                 # GemmaInference.android.kt (MediaPipe)
+│   ├── inference/                 # GemmaInference.android.kt (LiteRT-LM)
 │   ├── picker/                    # FilePicker.android.kt, AttachmentPicker.android.kt
 │   └── repository/                # ModelRepository.android.kt
 │
 └── iosMain/                       # iOS-specific implementations
-    ├── inference/                 # GemmaInference.ios.kt (MediaPipe via CocoaPods)
+    ├── inference/                 # GemmaInference.ios.kt (MediaPipe, pending LiteRT-LM)
     ├── picker/                    # FilePicker.ios.kt, AttachmentPicker.ios.kt
     └── repository/                # ModelRepository.ios.kt
 ```
@@ -202,14 +204,15 @@ The app automatically follows system theme preferences. Supports:
 
 ### Dependencies
 
-| Library | Version | Purpose |
-|---------|---------|---------|
-| Compose Multiplatform | 1.11.0 | Shared UI framework |
-| MediaPipe Tasks GenAI | 0.10.36 | On-device LLM inference |
-| Kotlinx Coroutines | 1.11.0 | Async operations & Flow |
-| Kotlinx Serialization | 1.11.0 | JSON serialization |
-| Lifecycle ViewModel | 2.10.0 | MVVM architecture |
-| Navigation Compose | 2.10.0 | Screen navigation |
+| Library | Version | Platform | Purpose |
+|---------|---------|----------|---------|
+| Compose Multiplatform | 1.11.0 | Both | Shared UI framework |
+| LiteRT-LM | 0.11.0 | Android | On-device LLM inference |
+| MediaPipe Tasks GenAI | 0.10.24 | iOS | On-device LLM inference (until LiteRT-LM iOS) |
+| Kotlinx Coroutines | 1.11.0 | Both | Async operations & Flow |
+| Kotlinx Serialization | 1.11.0 | Both | JSON serialization |
+| Lifecycle ViewModel | 2.10.0 | Both | MVVM architecture |
+| Navigation Compose | 2.10.0 | Both | Screen navigation |
 
 ### iOS CocoaPods Setup
 
@@ -220,8 +223,9 @@ platform :ios, '16.0'
 
 target 'iosApp' do
   use_frameworks!
-  pod 'MediaPipeTasksGenAI', '0.10.36'
-  pod 'MediaPipeTasksGenAIC', '0.10.36'
+  # MediaPipe (until LiteRT-LM iOS is available)
+  pod 'MediaPipeTasksGenAI', '0.10.24'
+  pod 'MediaPipeTasksGenAIC', '0.10.24'
 end
 ```
 
@@ -250,7 +254,8 @@ This project is open source under the MIT License. See [LICENSE](LICENSE) for de
 ## 🙏 Acknowledgments
 
 - [Google Gemma](https://ai.google.dev/gemma) - The on-device LLM
-- [MediaPipe](https://developers.google.com/mediapipe) - ML inference framework
+- [LiteRT-LM](https://ai.google.dev/edge/litert-lm/overview) - On-device ML inference framework (Android)
+- [MediaPipe](https://developers.google.com/mediapipe) - ML inference framework (iOS, until LiteRT-LM support)
 - [Kotlin Multiplatform](https://kotlinlang.org/docs/multiplatform.html) - Cross-platform development
 - [Compose Multiplatform](https://www.jetbrains.com/lp/compose-multiplatform/) - Shared UI framework
 - [Google AI Edge Gallery](https://github.com/google-ai-edge/gallery) - UI inspiration

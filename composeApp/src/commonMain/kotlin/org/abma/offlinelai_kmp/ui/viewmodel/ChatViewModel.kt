@@ -89,13 +89,13 @@ class ChatViewModel : ViewModel() {
     // ═══════════════════════════════════════════════════════════════════════════
 
     /** The Gemma inference engine - platform-specific implementation via expect/actual */
-    private val gemmaInference = GemmaInference()
+    private val gemmaInference by lazy { GemmaInference() }
 
     /** Repository for tracking loaded models */
-    private val modelRepository = ModelRepository()
+    private val modelRepository by lazy { ModelRepository() }
 
     /** Tool registry for function calling (advanced feature) */
-    private val toolRegistry: ToolRegistry = createDefaultToolRegistry()
+    private val toolRegistry: ToolRegistry by lazy { createDefaultToolRegistry() }
 
     /**
      * Track which message is currently streaming.
@@ -107,11 +107,11 @@ class ChatViewModel : ViewModel() {
     // USE CASES (Clean Architecture)
     // ═══════════════════════════════════════════════════════════════════════════
 
-    private val loadModelUseCase = LoadModelUseCase(gemmaInference, modelRepository)
-    private val generateResponseUseCase = GenerateResponseUseCase(gemmaInference)
-    private val executeToolUseCase = ExecuteToolUseCase(toolRegistry)
-    private val getLoadedModelsUseCase = GetLoadedModelsUseCase(modelRepository)
-    private val removeModelUseCase = RemoveModelUseCase(modelRepository)
+    private val loadModelUseCase by lazy { LoadModelUseCase(gemmaInference, modelRepository) }
+    private val generateResponseUseCase by lazy { GenerateResponseUseCase(gemmaInference) }
+    private val executeToolUseCase by lazy { ExecuteToolUseCase(toolRegistry) }
+    private val getLoadedModelsUseCase by lazy { GetLoadedModelsUseCase(modelRepository) }
+    private val removeModelUseCase by lazy { RemoveModelUseCase(modelRepository) }
 
     /** System prompt for AI persona - includes tool definitions */
     private val systemPrompt: String by lazy {

@@ -7,6 +7,9 @@ target 'iosApp' do
   pod 'composeApp', :path => '../composeApp'
 
   # MediaPipe GenAI for on-device LLM inference
+  # NOTE: MediaPipe LLM Inference API is deprecated for mobile.
+  # Android has migrated to LiteRT-LM. iOS will migrate when LiteRT-LM iOS is available.
+  # See: https://ai.google.dev/edge/litert-lm/overview
   pod 'MediaPipeTasksGenAI', '0.10.24'
   pod 'MediaPipeTasksGenAIC', '0.10.24'
 end

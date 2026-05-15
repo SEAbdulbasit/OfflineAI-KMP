@@ -27,7 +27,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.abma.offlinelai_kmp.domain.model.ModelConfig
 import org.abma.offlinelai_kmp.domain.repository.LoadedModel
-import org.abma.offlinelai_kmp.picker.rememberFilePicker
+import org.abma.offlinelai_kmp.picker.FilePickerStatus
+import org.abma.offlinelai_kmp.picker.rememberFilePickerWithStatus
 import org.abma.offlinelai_kmp.ui.theme.*
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import kotlin.time.Clock
@@ -46,13 +47,30 @@ fun SettingsScreen(
     var topP by remember { mutableFloatStateOf(0.9f) }
     var showAdvancedSettings by remember { mutableStateOf(false) }
     var pendingModelPath by remember { mutableStateOf<String?>(null) }
+    var isCopyingFile by remember { mutableStateOf(false) }
+    var copyError by remember { mutableStateOf<String?>(null) }
 
     val extendedColors = MaterialTheme.extendedColors
 
-    // File picker for importing new models
-    val launchFilePicker = rememberFilePicker { path ->
-        if (path != null) {
-            pendingModelPath = path
+    // File picker with status reporting for importing new models
+    val launchFilePicker = rememberFilePickerWithStatus { status ->
+        when (status) {
+            is FilePickerStatus.Idle -> {
+                isCopyingFile = false
+            }
+            is FilePickerStatus.Copying -> {
+                isCopyingFile = true
+                copyError = null
+            }
+            is FilePickerStatus.Success -> {
+                isCopyingFile = false
+                pendingModelPath = status.path
+                copyError = null
+            }
+            is FilePickerStatus.Error -> {
+                isCopyingFile = false
+                copyError = status.message
+            }
         }
     }
 
@@ -84,9 +102,26 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Browse Files Button (Dashed border style)
+            // Disable button while copying
             ImportModelButton(
-                onClick = { launchFilePicker() }
+                onClick = { launchFilePicker() },
+                enabled = !isCopyingFile
             )
+
+            // Show copying progress indicator
+            if (isCopyingFile) {
+                Spacer(modifier = Modifier.height(16.dp))
+                CopyingProgressCard()
+            }
+
+            // Show error if copy failed
+            copyError?.let { error ->
+                Spacer(modifier = Modifier.height(16.dp))
+                ErrorCard(
+                    message = error,
+                    onDismiss = { copyError = null }
+                )
+            }
 
             // Show pending model path if selected
             pendingModelPath?.let { path ->
@@ -224,17 +259,19 @@ private fun SectionHeader(
 
 @Composable
 private fun ImportModelButton(
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    enabled: Boolean = true
 ) {
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = if (enabled) 0.3f else 0.15f),
         border = BorderStroke(
             width = 2.dp,
-            color = MaterialTheme.colorScheme.outlineVariant
-        )
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (enabled) 1f else 0.5f)
+        ),
+        enabled = enabled
     ) {
         Column(
             modifier = Modifier
@@ -246,15 +283,106 @@ private fun ImportModelButton(
             Icon(
                 imageVector = Icons.Default.Folder,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (enabled) 0.6f else 0.3f),
                 modifier = Modifier.size(40.dp)
             )
             Text(
                 text = "Browse Files to Import Model",
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (enabled) 1f else 0.5f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun CopyingProgressCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(48.dp),
+                color = PrimaryBlue,
+                strokeWidth = 4.dp
+            )
+            Text(
+                text = "Copying model file...",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "This may take a few minutes for large models",
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+@Composable
+private fun ErrorCard(
+    message: String,
+    onDismiss: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Error,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(24.dp)
+                )
+                Column {
+                    Text(
+                        text = "Failed to import model",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
+                    )
+                }
+            }
+            IconButton(onClick = onDismiss) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Dismiss",
+                    tint = MaterialTheme.colorScheme.onErrorContainer
+                )
+            }
         }
     }
 }

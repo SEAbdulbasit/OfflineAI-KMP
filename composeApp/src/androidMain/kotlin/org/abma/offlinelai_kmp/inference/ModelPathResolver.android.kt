@@ -1,5 +1,6 @@
 package org.abma.offlinelai_kmp.inference
 
+import android.os.Environment
 import java.io.File
 
 /**
@@ -42,9 +43,9 @@ actual object ModelPathResolver {
      * WORKSHOP: Search order matters!
      * We prioritize:
      * 1. Developer location (/data/local/tmp/llm/) - easiest for testing
-     * 2. External files - where user might import
-     * 3. Internal files - app's private storage
-     * 4. Downloads - common user location
+     * 2. Downloads folder - where user downloads models
+     * 3. External files - where user might import
+     * 4. Internal files - app's private storage
      */
     actual fun getSearchPaths(modelPath: String): List<String> {
         if (modelPath.startsWith("/")) {
@@ -52,10 +53,16 @@ actual object ModelPathResolver {
         }
 
         val context = AndroidContextProvider.applicationContext
+        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+
         return listOf(
             // ═══ DEVELOPER: ADB push location ═══
             // adb push model.bin /data/local/tmp/llm/
             "/data/local/tmp/llm/$modelPath",
+
+            // ═══ DOWNLOADS: Where users typically download models ═══
+            // This is the most common location for model files
+            "${downloadsDir.absolutePath}/$modelPath",
 
             // ═══ APP EXTERNAL: User-visible app storage ═══
             // Usually: /storage/emulated/0/Android/data/<package>/files/
@@ -68,8 +75,6 @@ actual object ModelPathResolver {
             // ═══ CACHE: Temporary storage ═══
             "${context.cacheDir.absolutePath}/$modelPath",
 
-            // ═══ DOWNLOADS: Common user download location ═══
-            "/storage/emulated/0/Download/$modelPath",
 
             // ═══ FALLBACK: Raw path as-is ═══
             modelPath

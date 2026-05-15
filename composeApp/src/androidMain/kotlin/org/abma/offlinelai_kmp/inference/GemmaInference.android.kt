@@ -1,6 +1,14 @@
 package org.abma.offlinelai_kmp.inference
 
-import com.google.mediapipe.tasks.genai.llminference.LlmInference
+import android.util.Log
+import com.google.ai.edge.litertlm.Backend
+import com.google.ai.edge.litertlm.Engine
+import com.google.ai.edge.litertlm.EngineConfig
+import com.google.ai.edge.litertlm.InputData
+import com.google.ai.edge.litertlm.ResponseCallback
+import com.google.ai.edge.litertlm.SamplerConfig
+import com.google.ai.edge.litertlm.Session
+import com.google.ai.edge.litertlm.SessionConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -8,50 +16,64 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.withContext
 import org.abma.offlinelai_kmp.domain.model.ModelConfig
 
+private const val TAG = "GemmaInference"
+
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
  * WORKSHOP: Android Implementation of GemmaInference
  * ═══════════════════════════════════════════════════════════════════════════════
  *
- * This is the ACTUAL implementation for Android using Google's MediaPipe SDK.
+ * This is the ACTUAL implementation for Android using Google's LiteRT-LM SDK.
  *
- * MediaPipe does the heavy lifting:
+ * LiteRT-LM (replaces deprecated MediaPipe LLM Inference API) does the heavy lifting:
  * - Model loading and memory management
  * - Tokenization (converting text to numbers)
  * - GPU/CPU inference optimization
  * - Streaming token output
  *
  * WE just need to:
- * 1. Configure MediaPipe options
+ * 1. Configure LiteRT-LM options
  * 2. Bridge its callback API to Kotlin Flow
  * 3. Handle lifecycle (cleanup)
  *
- * KEY INSIGHT: MediaPipe uses callbacks, but Kotlin prefers Flows.
+ * KEY INSIGHT: LiteRT-LM uses callbacks (ResponseCallback), but Kotlin prefers Flows.
  * The `callbackFlow` builder bridges this gap beautifully.
+ *
+ * NOTE: LiteRT-LM replaces the deprecated MediaPipe LLM Inference API.
+ * Migration guide: https://ai.google.dev/edge/litert-lm/overview
  *
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 actual class GemmaInference {
 
-    // MediaPipe's inference engine - null when no model is loaded
-    private var llmInference: LlmInference? = null
+    // LiteRT-LM's inference engine - null when no model is loaded
+    private var engine: Engine? = null
+
+    // Current session for inference - recreated for each generation
+    private var currentSession: Session? = null
+
+    // Store config for creating sessions
+    private var currentModelConfig: ModelConfig? = null
 
     // Track loading state for UI
     private var isLoaded = false
     private var loadingProgress = 0f
 
+    // Track which backend is being used
+    private var currentBackend: String = "unknown"
+
     /**
-     * Load a Gemma model using MediaPipe.
+     * Load a Gemma model using LiteRT-LM.
      *
      * WORKSHOP NOTES:
      * - withContext(Dispatchers.IO): Model loading is heavy I/O, keep off main thread!
      * - loadingProgress: Update UI during the 3-8 second load time
      * - ModelPathResolver: Handles finding the model file in various locations
      *
-     * WHAT HAPPENS INSIDE MediaPipe:
-     * 1. Reads 1.4GB model file from disk
+     * WHAT HAPPENS INSIDE LiteRT-LM:
+     * 1. Reads ~1.4GB model file from disk
      * 2. Allocates GPU/CPU memory
-     * 3. Initializes inference session
+     * 3. Initializes the inference engine
      * 4. Performs optional warm-up
      */
     actual suspend fun loadModel(modelPath: String, config: ModelConfig) {
@@ -74,40 +96,115 @@ actual class GemmaInference {
                                 }"
                     )
 
-                // ═══ PHASE 2: Configure MediaPipe ═══
+                Log.d(TAG, "Loading model from: $resolvedPath")
+
+                // ═══ PHASE 2: Configure LiteRT-LM ═══
                 loadingProgress = 0.3f
 
-                // Build the inference options
-                // - setModelPath: Where the model file lives
-                // - setMaxTokens: Maximum response length (tokens ≈ words × 1.3)
-                // - setMaxTopK: Consider top K most likely tokens
-                val options = LlmInference.LlmInferenceOptions.builder()
-                    .setModelPath(resolvedPath)
-                    .setMaxTokens(config.maxTokens)
-                    .setMaxTopK(config.topK)
-                    .build()
+                // Store config for later session creation
+                currentModelConfig = config
 
-                // ═══ PHASE 3: Create inference engine ═══
-                loadingProgress = 0.6f
+                // ═══ PHASE 3: Try GPU first, fall back to CPU if needed ═══
+                loadingProgress = 0.5f
 
-                // THIS IS THE SLOW PART
-                // MediaPipe loads ~1.4GB model into ~1.7GB of RAM
-                // Takes 3-8 seconds depending on device speed
-                llmInference = LlmInference.createFromOptions(
-                    AndroidContextProvider.applicationContext,
-                    options
-                )
+                // Track errors from each backend attempt
+                var gpuError: String? = null
+                var cpuError: String? = null
+
+                val newEngine = tryLoadWithBackend(resolvedPath, config, Backend.GPU(), "GPU") { error ->
+                    gpuError = error
+                } ?: tryLoadWithBackend(resolvedPath, config, Backend.CPU(), "CPU") { error ->
+                    cpuError = error
+                }
+
+                if (newEngine == null) {
+                    val errorDetails = buildString {
+                        append("Failed to load model with both GPU and CPU backends.\n\n")
+                        append("Model: $resolvedPath\n\n")
+                        gpuError?.let { append("GPU Error: $it\n\n") }
+                        cpuError?.let { append("CPU Error: $it\n\n") }
+
+                        // Add troubleshooting hints
+                        if (gpuError?.contains("Permission denied") == true ||
+                            cpuError?.contains("Permission denied") == true) {
+                            append("⚠️ Permission issue detected.\n")
+                            append("Please grant 'All files access' permission in Settings.")
+                        }
+                    }
+                    throw RuntimeException(errorDetails)
+                }
+
+                engine = newEngine
 
                 // ═══ PHASE 4: Ready! ═══
                 loadingProgress = 1.0f
                 isLoaded = true
+                Log.i(TAG, "Model loaded successfully using $currentBackend backend")
 
             } catch (e: Exception) {
                 // Reset state on failure
                 isLoaded = false
                 loadingProgress = 0f
+                Log.e(TAG, "Failed to load model: ${e.message}", e)
                 throw e  // Re-throw so caller can handle (show error UI)
             }
+        }
+    }
+
+    /**
+     * Try to load the model with a specific backend.
+     * Returns null if the backend fails, allowing fallback to another backend.
+     * @param onError callback to report the error message if loading fails
+     */
+    private fun tryLoadWithBackend(
+        modelPath: String,
+        config: ModelConfig,
+        backend: Backend,
+        backendName: String,
+        onError: (String) -> Unit = {}
+    ): Engine? {
+        return try {
+            Log.d(TAG, "Attempting to load model with $backendName backend...")
+            Log.d(TAG, "Model path: $modelPath")
+
+            // Check if file exists and is readable
+            val modelFile = java.io.File(modelPath)
+            if (!modelFile.exists()) {
+                val error = "Model file does not exist: $modelPath"
+                Log.e(TAG, error)
+                onError(error)
+                return null
+            }
+            if (!modelFile.canRead()) {
+                val error = "Cannot read model file (permission denied): $modelPath"
+                Log.e(TAG, error)
+                onError(error)
+                return null
+            }
+            Log.d(TAG, "Model file exists and is readable, size: ${modelFile.length()} bytes")
+
+            val engineConfig = EngineConfig(
+                modelPath = modelPath,
+                backend = backend,
+                visionBackend = null,
+                audioBackend = null,
+                maxNumTokens = config.maxTokens,
+                maxNumImages = null,
+                cacheDir = AndroidContextProvider.applicationContext.cacheDir.absolutePath
+            )
+
+            val newEngine = Engine(engineConfig)
+            newEngine.initialize()
+
+            currentBackend = backendName
+            Log.i(TAG, "Successfully initialized with $backendName backend")
+            newEngine
+
+        } catch (e: Exception) {
+            val errorMsg = e.message ?: "Unknown error"
+            Log.e(TAG, "$backendName backend failed: $errorMsg", e)
+            onError(errorMsg)
+            null
         }
     }
 
@@ -116,14 +213,14 @@ actual class GemmaInference {
      *
      * WORKSHOP: Understanding callbackFlow
      *
-     * MediaPipe uses CALLBACKS: generateResponseAsync(prompt) { result, done -> ... }
+     * LiteRT-LM uses CALLBACKS: ResponseCallback { onNext, onDone, onError }
      * Kotlin prefers FLOWS: flow.collect { token -> ... }
      *
      * callbackFlow BRIDGES these two worlds:
      * 1. Start a callback-based operation
      * 2. Each callback invocation -> trySend(value) into the Flow
      * 3. When done -> close() the Flow
-     * 4. awaitClose keeps Flow alive until MediaPipe finishes
+     * 4. awaitClose keeps Flow alive until LiteRT-LM finishes
      *
      * WHY trySend instead of send?
      * - send is suspending, but callbacks can't suspend
@@ -132,28 +229,56 @@ actual class GemmaInference {
      */
     actual fun generateResponse(prompt: String): Flow<String> = callbackFlow {
         // Ensure model is loaded
-        val inference = llmInference
+        val currentEngine = engine
             ?: throw IllegalStateException("Model not loaded. Call loadModel() first.")
 
+        val config = currentModelConfig ?: ModelConfig()
+
         try {
-            // Start async generation with MediaPipe
+            // Create a new session for this generation
+            val samplerConfig = SamplerConfig(
+                topK = config.topK,
+                topP = 0.95,  // Default top-p
+                temperature = config.temperature.toDouble(),
+                seed = 0      // Random seed
+            )
+            val sessionConfig = SessionConfig(samplerConfig)
+            val session = currentEngine.createSession(sessionConfig)
+            currentSession = session
+
+            // Prepare input data
+            val inputData = listOf(InputData.Text(prompt))
+
+            // Start streaming generation with LiteRT-LM
             // This callback will fire for EACH token generated
-            inference.generateResponseAsync(prompt) { partialResult, done ->
-                // ═══ CALLBACK FIRES HERE ═══
-                // partialResult = the next token(s) generated
-                // done = true when generation is complete
+            session.generateContentStream(inputData, object : ResponseCallback {
+                override fun onNext(token: String) {
+                    // ═══ CALLBACK FIRES HERE ═══
+                    // token = the next token(s) generated
 
-                // Send token into the Flow channel
-                // trySend is non-blocking - safe to call from callback
-                trySend(partialResult)
+                    // Send token into the Flow channel
+                    // trySend is non-blocking - safe to call from callback
+                    trySend(token)
+                }
 
-                // When MediaPipe signals completion, close the Flow
-                if (done) {
+                override fun onDone() {
+                    // When LiteRT-LM signals completion, close the Flow
+                    currentSession?.close()
+                    currentSession = null
                     close()
                 }
-            }
+
+                override fun onError(error: Throwable) {
+                    // Close Flow with error - will be caught by .catch() operator
+                    currentSession?.close()
+                    currentSession = null
+                    close(error)
+                }
+            })
         } catch (e: Exception) {
             // Close Flow with error - will be caught by .catch() operator
+            currentSession?.close()
+            currentSession = null
             close(e)
         }
 
@@ -162,8 +287,10 @@ actual class GemmaInference {
         // the lambda above returns - but callbacks haven't fired yet!
         // awaitClose suspends until close() is called in the callback.
         awaitClose {
-            // Optional cleanup when Flow is cancelled
-            // Could cancel MediaPipe generation here if API supported it
+            // Cleanup when Flow is cancelled
+            currentSession?.cancelProcess()
+            currentSession?.close()
+            currentSession = null
         }
     }
 
@@ -173,7 +300,7 @@ actual class GemmaInference {
      * WORKSHOP NOTE: Simple concatenation works because:
      * - systemPrompt contains persona/instructions
      * - currentPrompt has the formatted conversation with turn tokens
-     * - MediaPipe tokenizes the combined string
+     * - LiteRT-LM tokenizes the combined string
      */
     actual fun generateResponseWithHistory(
         systemPrompt: String,
@@ -203,9 +330,12 @@ actual class GemmaInference {
      * ```
      */
     actual fun close() {
-        llmInference?.close()  // Release MediaPipe resources
-        llmInference = null    // Clear reference
-        isLoaded = false       // Reset state
+        currentSession?.close()
+        currentSession = null
+        engine?.close()       // Release LiteRT-LM resources
+        engine = null         // Clear reference
+        currentModelConfig = null
+        isLoaded = false      // Reset state
         loadingProgress = 0f
     }
 }

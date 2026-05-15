@@ -21,7 +21,7 @@ kotlin {
     iosSimulatorArm64()
 
     cocoapods {
-        summary = "Offline AI KMP - Gemma on-device inference"
+        summary = "Offline AI KMP - Gemma on-device inference with LiteRT-LM"
         homepage = "https://github.com/aspect-ai/OfflinelAI-KMP"
         version = "1.0"
         ios.deploymentTarget = "16.0"
@@ -29,11 +29,11 @@ kotlin {
 
         framework {
             baseName = "ComposeApp"
-            isStatic = true // Static framework - MediaPipe is used only in Swift layer
+            isStatic = true // Static framework - LiteRT-LM is used only in Swift layer
             binaryOption("bundleId", "org.abma.offlinelai_kmp.ComposeApp")
         }
 
-        // Note: MediaPipe pods are declared in the Podfile for Swift usage only
+        // Note: LiteRT-LM pods are declared in the Podfile for Swift usage only
         // They cannot be used directly from Kotlin/Native due to Swift runtime requirements
     }
 
@@ -42,7 +42,7 @@ kotlin {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
             implementation(libs.kotlinx.coroutines.android)
-            implementation(libs.mediapipe.llm)
+            implementation(libs.litert.lm)
         }
         commonMain.dependencies {
             implementation(compose.runtime)

@@ -4,9 +4,10 @@ This guide explains how to set up MediaPipe LLM Inference for iOS to run Gemma m
 
 ## Prerequisites
 
-- Xcode 15.0 or later
-- iOS 15.0+ deployment target
-- CocoaPods installed (`sudo gem install cocoapods`)
+- Xcode 26.0 or later
+- iOS 16.0+ deployment target
+- CocoaPods 1.16.2+ (`sudo gem install cocoapods`)
+- Ruby 3.0+
 
 ## Setup Steps
 
@@ -85,6 +86,64 @@ pod cache clean --all
 pod install
 ```
 
+### Xcode 26 Linker Errors
+
+#### "framework 'UIUtilities' not found"
+This is a MediaPipe auto-linking issue. Solutions:
+
+1. **Clean build folder**: `Cmd+Shift+K` then `Cmd+Shift+Opt+K`
+2. **Update CocoaPods**:
+   ```bash
+   sudo gem install cocoapods
+   cd iosApp
+   pod deintegrate
+   pod install
+   ```
+3. **Check Podfile** has static linkage:
+   ```ruby
+   use_frameworks! :linkage => :static
+   ```
+
+#### "SwiftUICore not found" / "not an allowed client"
+This is an Xcode 26 compatibility issue with private frameworks:
+
+1. **Update Xcode** to the latest version
+2. **Clean derived data**:
+   ```bash
+   rm -rf ~/Library/Developer/Xcode/DerivedData/*
+   ```
+3. **Rebuild**:
+   ```bash
+   cd iosApp
+   pod deintegrate
+   pod install
+   # Then rebuild in Xcode
+   ```
+
+#### "Undefined symbol: _LlmInferenceEngine_Session_*"
+This indicates MediaPipe framework isn't linking correctly:
+
+1. **Verify static library linking** in Xcode:
+   - Select your target → Build Phases
+   - Check "Link Binary With Libraries" includes MediaPipeTasksGenAI/C
+
+2. **Add force_load flag** (if needed):
+   In Xcode → Target → Build Settings → Other Linker Flags:
+   ```
+   -force_load $(PODS_ROOT)/MediaPipeTasksGenAIC/frameworks/genai_libraries/libMediaPipeTasksGenAIC_device.a
+   ```
+
+3. **Try device build** instead of simulator (some features are device-only)
+
+### "PBXFileSystemSynchronizedRootGroup unknown ISA" Error
+Your CocoaPods version doesn't support Xcode 26's new project format:
+
+```bash
+sudo gem install cocoapods
+# Verify version >= 1.16.2
+pod --version
+```
+
 ## Memory Requirements
 
 | Model | RAM Required | Storage |
@@ -94,8 +153,8 @@ pod install
 
 ## Device Compatibility
 
-- **Minimum**: iPhone 11, iPad (8th gen)
-- **Recommended**: iPhone 13+, iPad Pro M1+
+- **Minimum**: iPhone 12, iPad (9th gen)
+- **Recommended**: iPhone 14+, iPad Pro M1+
 
 ## Notes
 
@@ -103,3 +162,4 @@ pod install
 - Subsequent loads are faster due to caching
 - Keep the app in foreground during generation
 - Generation speed: ~10-30 tokens/second depending on device
+- **Simulator builds may have limited functionality** - test on device for full features
