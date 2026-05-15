@@ -14,15 +14,16 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-val GradientIndigo = Color(0xFF6366F1)
-val GradientPurple = Color(0xFF9333EA)
+val BrandIndigo = Color(0xFF6366F1)
+val BrandSlate = Color(0xFF475569)
 
-val EmeraldGreen = Color(0xFF10B981)
-val PrimaryBlue = Color(0xFF3B82F6)
-val SlateGray = Color(0xFF64748B)
+val EmeraldGreen = Color(0xFF059669)
+val PrimaryColor = Color(0xFF0F172A) // Slate 900
+val SecondaryColor = Color(0xFF64748B) // Slate 500
+val AccentColor = BrandIndigo
 
-val GradientStart = GradientIndigo
-val GradientEnd = GradientPurple
+val GradientStart = Color(0xFF1E293B)
+val GradientEnd = Color(0xFF334155)
 
 @Immutable
 data class ExtendedColors(
@@ -39,74 +40,74 @@ data class ExtendedColors(
 )
 
 private val LightExtendedColors = ExtendedColors(
-    chatBackground = Color(0xFFF8FAFC),
-    inputBackground = Color(0xFFF1F5F9),
-    bubbleUser = PrimaryBlue,
+    chatBackground = Color(0xFFFBFBFB),
+    inputBackground = Color(0xFFF3F4F6),
+    bubbleUser = Color(0xFF1E293B), // Slate 800
     bubbleAi = Color(0xFFFFFFFF),
-    bubbleAiBorder = Color(0xFFF1F5F9),
-    avatarAi = Color(0xFFE2E8F0),
+    bubbleAiBorder = Color(0xFFE5E7EB),
+    avatarAi = Color(0xFFF3F4F6),
     statusReady = EmeraldGreen,
-    statusLoading = Color(0xFF6366F1),
+    statusLoading = BrandIndigo,
     headerBackground = Color(0xFFFFFFFF),
-    headerBorder = Color(0xFFE2E8F0)
+    headerBorder = Color(0xFFF3F4F6)
 )
 
 private val DarkExtendedColors = ExtendedColors(
-    chatBackground = Color(0xFF0A0A0A),
-    inputBackground = Color(0xFF1E1E1E),
-    bubbleUser = PrimaryBlue,
-    bubbleAi = Color(0xFF1E1E1E),
-    bubbleAiBorder = Color(0xFF2D2D2D),
-    avatarAi = Color(0xFF1E1E1E),
+    chatBackground = Color(0xFF0F172A), // Slate 900
+    inputBackground = Color(0xFF1E293B), // Slate 800
+    bubbleUser = Color(0xFF3B82F6), // Blue 500
+    bubbleAi = Color(0xFF1E293B),
+    bubbleAiBorder = Color(0xFF334155),
+    avatarAi = Color(0xFF1E293B),
     statusReady = EmeraldGreen,
     statusLoading = Color(0xFF818CF8),
-    headerBackground = Color(0xFF121212),
-    headerBorder = Color(0xFF2D2D2D)
+    headerBackground = Color(0xFF0F172A),
+    headerBorder = Color(0xFF1E293B)
 )
 
 val LocalExtendedColors = staticCompositionLocalOf { LightExtendedColors }
 
 private val DarkColorScheme = darkColorScheme(
-    primary = PrimaryBlue,
+    primary = Color(0xFF3B82F6),
     onPrimary = Color.White,
-    primaryContainer = Color(0xFF1E3A5F),
-    onPrimaryContainer = Color(0xFFD1E4FF),
-    secondary = GradientPurple,
+    primaryContainer = Color(0xFF1E293B),
+    onPrimaryContainer = Color(0xFFBFDBFE),
+    secondary = Color(0xFF64748B),
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFF3D1F47),
-    onSecondaryContainer = Color(0xFFF2DAFF),
+    secondaryContainer = Color(0xFF1E293B),
+    onSecondaryContainer = Color(0xFFE2E8F0),
     tertiary = EmeraldGreen,
     onTertiary = Color.White,
-    tertiaryContainer = Color(0xFF1B4D2E),
-    onTertiaryContainer = Color(0xFFB8F5C9),
-    error = Color(0xFFCF6679),
-    onError = Color.Black,
-    errorContainer = Color(0xFF93000A),
-    onErrorContainer = Color(0xFFFFDAD6),
-    background = Color.Black,
+    tertiaryContainer = Color(0xFF064E3B),
+    onTertiaryContainer = Color(0xFFD1FAE5),
+    error = Color(0xFFF87171),
+    onError = Color.White,
+    errorContainer = Color(0xFF991B1B),
+    onErrorContainer = Color(0xFFFEE2E2),
+    background = Color(0xFF0F172A),
     onBackground = Color.White,
-    surface = Color(0xFF121212),
+    surface = Color(0xFF0F172A),
     onSurface = Color.White,
-    surfaceVariant = Color(0xFF1E1E1E),
-    onSurfaceVariant = Color(0xFFCAC4D0),
-    surfaceContainerHigh = Color(0xFF1E1E1E),
-    surfaceContainer = Color(0xFF121212),
+    surfaceVariant = Color(0xFF1E293B),
+    onSurfaceVariant = Color(0xFF94A3B8),
+    surfaceContainerHigh = Color(0xFF1E293B),
+    surfaceContainer = Color(0xFF0F172A),
     surfaceContainerLow = Color(0xFF0A0A0A),
-    outline = Color(0xFF938F99),
-    outlineVariant = Color(0xFF49454F),
-    inverseSurface = Color(0xFFE6E1E5),
-    inverseOnSurface = Color(0xFF1C1B1F)
+    outline = Color(0xFF475569),
+    outlineVariant = Color(0xFF334155),
+    inverseSurface = Color(0xFFF8FAFC),
+    inverseOnSurface = Color(0xFF0F172A)
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = PrimaryBlue,
+    primary = Color(0xFF2563EB),
     onPrimary = Color.White,
     primaryContainer = Color(0xFFDBEAFE),
-    onPrimaryContainer = Color(0xFF1E3A8A),
-    secondary = GradientPurple,
+    onPrimaryContainer = Color(0xFF1E40AF),
+    secondary = Color(0xFF475569),
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFF3E8FF),
-    onSecondaryContainer = Color(0xFF581C87),
+    secondaryContainer = Color(0xFFF1F5F9),
+    onSecondaryContainer = Color(0xFF1E293B),
     tertiary = EmeraldGreen,
     onTertiary = Color.White,
     tertiaryContainer = Color(0xFFD1FAE5),
@@ -114,18 +115,18 @@ private val LightColorScheme = lightColorScheme(
     error = Color(0xFFDC2626),
     onError = Color.White,
     errorContainer = Color(0xFFFEE2E2),
-    onErrorContainer = Color(0xFF7F1D1D),
-    background = Color(0xFFF8FAFC),
+    onErrorContainer = Color(0xFF991B1B),
+    background = Color(0xFFFBFBFB),
     onBackground = Color(0xFF0F172A),
     surface = Color(0xFFFFFFFF),
     onSurface = Color(0xFF0F172A),
-    surfaceVariant = Color(0xFFF1F5F9),
-    onSurfaceVariant = Color(0xFF64748B),
-    surfaceContainerHigh = Color(0xFFF1F5F9),
-    surfaceContainer = Color(0xFFF8FAFC),
-    surfaceContainerLow = Color(0xFFF8FAFC),
-    outline = Color(0xFFCBD5E1),
-    outlineVariant = Color(0xFFE2E8F0)
+    surfaceVariant = Color(0xFFF3F4F6),
+    onSurfaceVariant = Color(0xFF475569),
+    surfaceContainerHigh = Color(0xFFF3F4F6),
+    surfaceContainer = Color(0xFFFBFBFB),
+    surfaceContainerLow = Color(0xFFFBFBFB),
+    outline = Color(0xFFD1D5DB),
+    outlineVariant = Color(0xFFE5E7EB)
 )
 
 private val AppTypography = Typography(

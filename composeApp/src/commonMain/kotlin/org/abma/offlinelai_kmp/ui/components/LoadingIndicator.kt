@@ -35,8 +35,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import org.abma.offlinelai_kmp.ui.theme.GradientEnd
-import org.abma.offlinelai_kmp.ui.theme.GradientStart
+import org.abma.offlinelai_kmp.ui.theme.*
 
 @Composable
 fun LoadingIndicator(
@@ -54,14 +53,7 @@ fun LoadingIndicator(
             modifier = Modifier
                 .size(80.dp)
                 .clip(CircleShape)
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            GradientStart.copy(alpha = 0.15f),
-                            GradientEnd.copy(alpha = 0.15f)
-                        )
-                    )
-                ),
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
             contentAlignment = Alignment.Center
         ) {
             if (progress != null && progress > 0f) {

@@ -38,8 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.abma.offlinelai_kmp.domain.model.ChatMessage
-import org.abma.offlinelai_kmp.ui.theme.GradientEnd
-import org.abma.offlinelai_kmp.ui.theme.GradientStart
+import org.abma.offlinelai_kmp.ui.theme.*
 
 @Composable
 fun ChatBubble(
@@ -61,17 +60,13 @@ fun ChatBubble(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(GradientStart, GradientEnd)
-                        )
-                    ),
+                    .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.AutoAwesome,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.size(18.dp)
                 )
             }

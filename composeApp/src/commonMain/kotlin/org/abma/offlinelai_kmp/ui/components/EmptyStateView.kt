@@ -30,8 +30,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import org.abma.offlinelai_kmp.ui.theme.GradientEnd
-import org.abma.offlinelai_kmp.ui.theme.GradientStart
+import org.abma.offlinelai_kmp.ui.theme.*
 
 enum class EmptyStateType {
     NO_MODEL,
@@ -77,18 +76,11 @@ fun EmptyStateView(
             modifier = Modifier
                 .size(88.dp)
                 .clip(CircleShape)
-                .then(
+                .background(
                     if (iconBackgroundColor != null) {
-                        Modifier.background(iconBackgroundColor)
+                        iconBackgroundColor
                     } else {
-                        Modifier.background(
-                            Brush.linearGradient(
-                                listOf(
-                                    GradientStart.copy(alpha = 0.2f),
-                                    GradientEnd.copy(alpha = 0.2f)
-                                )
-                            )
-                        )
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
                     }
                 ),
             contentAlignment = Alignment.Center

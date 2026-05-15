@@ -3,6 +3,7 @@ package org.abma.offlinelai_kmp.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +22,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -74,7 +77,14 @@ fun SettingsScreen(
         }
     }
 
+    val focusManager = LocalFocusManager.current
+
     Scaffold(
+        modifier = Modifier.pointerInput(Unit) {
+            detectTapGestures(onTap = {
+                focusManager.clearFocus()
+            })
+        },
         topBar = {
             SettingsTopBar(
                 onNavigateBack = onNavigateBack,
@@ -91,8 +101,6 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
             // Import Model Section
             SectionHeader(
                 title = "Import Model",
@@ -222,7 +230,8 @@ private fun SettingsTopBar(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent
-                )
+                ),
+                windowInsets = WindowInsets(0, 0, 0, 0)
             )
             // Border divider
             Surface(
@@ -240,19 +249,29 @@ private fun SectionHeader(
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.padding(bottom = 8.dp)
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = PrimaryBlue,
-            modifier = Modifier.size(20.dp)
-        )
+        Surface(
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier.size(32.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            fontSize = 17.sp
+            fontWeight = FontWeight.ExtraBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            letterSpacing = (-0.2).sp
         )
     }
 }
@@ -314,7 +333,7 @@ private fun CopyingProgressCard() {
         ) {
             CircularProgressIndicator(
                 modifier = Modifier.size(48.dp),
-                color = PrimaryBlue,
+                color = MaterialTheme.colorScheme.primary,
                 strokeWidth = 4.dp
             )
             Text(
@@ -437,7 +456,7 @@ private fun PendingModelCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = PrimaryBlue
+                    containerColor = MaterialTheme.colorScheme.primary
                 )
             ) {
                 Icon(
@@ -470,22 +489,25 @@ private fun ModelCard(
             .then(
                 if (isActive) {
                     Modifier.shadow(
-                        elevation = 8.dp,
+                        elevation = 4.dp,
                         shape = RoundedCornerShape(20.dp),
-                        ambientColor = PrimaryBlue.copy(alpha = 0.15f),
-                        spotColor = PrimaryBlue.copy(alpha = 0.15f)
+                        ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
                     )
                 } else Modifier
             ),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = extendedColors.bubbleAi
+            containerColor = if (isActive) {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
+            } else {
+                extendedColors.bubbleAi
+            }
         ),
-        border = if (isActive) {
-            BorderStroke(2.dp, PrimaryBlue)
-        } else {
-            BorderStroke(1.dp, extendedColors.bubbleAiBorder)
-        }
+        border = BorderStroke(
+            width = if (isActive) 2.dp else 1.dp,
+            color = if (isActive) MaterialTheme.colorScheme.primary else extendedColors.bubbleAiBorder
+        )
     ) {
         Row(
             modifier = Modifier
@@ -501,17 +523,22 @@ private fun ModelCard(
                     .shadow(
                         elevation = if (isActive) 8.dp else 0.dp,
                         shape = RoundedCornerShape(16.dp),
-                        ambientColor = GradientIndigo.copy(alpha = 0.3f)
+                        ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
                     )
                     .clip(RoundedCornerShape(16.dp))
                     .background(
                         if (isActive) {
-                            Brush.linearGradient(listOf(GradientIndigo, GradientPurple))
+                            Brush.linearGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.secondary
+                                )
+                            )
                         } else {
                             Brush.linearGradient(
                                 listOf(
-                                    Color(0xFF76A1F8),
-                                    Color(0xFF76A1F8)
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    MaterialTheme.colorScheme.surfaceVariant
                                 )
                             )
                         }
@@ -548,7 +575,7 @@ private fun ModelCard(
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = "Active",
-                            tint = PrimaryBlue,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -598,7 +625,7 @@ private fun ModelCard(
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
                         contentDescription = "Load",
-                        tint = if (isActive) PrimaryBlue else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        tint = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                         modifier = Modifier.size(28.dp)
                     )
                 }
@@ -637,7 +664,7 @@ private fun AdvancedSettingsSection(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = extendedColors.bubbleAi
         ),
@@ -660,12 +687,20 @@ private fun AdvancedSettingsSection(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Tune,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        Surface(
+                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Tune,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.secondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
                         Column {
                             Text(
                                 text = "Advanced Settings",
@@ -710,8 +745,8 @@ private fun AdvancedSettingsSection(
                             description = "Controls randomness: lower is more focused, higher is more creative.",
                             value = temperature,
                             onValueChange = onTemperatureChange,
-                            valueRange = 0f..1f,
-                            displayValue = ((temperature * 10).toInt() / 10.0).toString()
+                            valueRange = 0f..2f,
+                            displayValue = temperature.toString().take(4)
                         )
 
                         // Max Tokens slider
@@ -723,16 +758,6 @@ private fun AdvancedSettingsSection(
                             valueRange = 256f..4096f,
                             displayValue = maxTokens.toString(),
                             steps = 15
-                        )
-
-                        // Top-p slider
-                        SettingSlider(
-                            title = "Top-p (Nucleus Sampling)",
-                            description = null,
-                            value = topP,
-                            onValueChange = onTopPChange,
-                            valueRange = 0f..1f,
-                            displayValue = ((topP * 100).toInt() / 100.0).toString()
                         )
                     }
                 }
@@ -751,7 +776,9 @@ private fun SettingSlider(
     displayValue: String,
     steps: Int = 0
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -759,15 +786,30 @@ private fun SettingSlider(
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    text = displayValue,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        description?.let {
             Text(
-                text = displayValue,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = PrimaryBlue
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 16.sp
             )
         }
 
@@ -778,21 +820,11 @@ private fun SettingSlider(
             steps = steps,
             modifier = Modifier.fillMaxWidth(),
             colors = SliderDefaults.colors(
-                thumbColor = PrimaryBlue,
-                activeTrackColor = PrimaryBlue,
-                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                thumbColor = MaterialTheme.colorScheme.primary,
+                activeTrackColor = MaterialTheme.colorScheme.primary,
+                inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant
             )
         )
-
-        if (description != null) {
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp,
-                lineHeight = 16.sp
-            )
-        }
     }
 }
 
@@ -802,9 +834,9 @@ private fun InfoCard() {
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = PrimaryBlue.copy(alpha = 0.05f)
+            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
         ),
-        border = BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.2f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
     ) {
         Row(
             modifier = Modifier.padding(24.dp),
@@ -813,7 +845,7 @@ private fun InfoCard() {
             Icon(
                 imageVector = Icons.Outlined.Info,
                 contentDescription = null,
-                tint = PrimaryBlue,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp)
             )
             Column {

@@ -3,6 +3,7 @@ package org.abma.offlinelai_kmp.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -25,6 +26,8 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -35,11 +38,7 @@ import org.abma.offlinelai_kmp.domain.model.ModelState
 import org.abma.offlinelai_kmp.ui.components.EmptyStateType
 import org.abma.offlinelai_kmp.ui.components.EmptyStateView
 import org.abma.offlinelai_kmp.ui.components.LoadingIndicator
-import org.abma.offlinelai_kmp.ui.theme.GradientIndigo
-import org.abma.offlinelai_kmp.ui.theme.GradientPurple
-import org.abma.offlinelai_kmp.ui.theme.LocalThemeToggle
-import org.abma.offlinelai_kmp.ui.theme.SlateGray
-import org.abma.offlinelai_kmp.ui.theme.extendedColors
+import org.abma.offlinelai_kmp.ui.theme.*
 import org.abma.offlinelai_kmp.ui.viewmodel.ChatAction
 import org.abma.offlinelai_kmp.ui.viewmodel.ChatUiState
 import org.abma.offlinelai_kmp.ui.viewmodel.ChatViewModel
@@ -97,8 +96,14 @@ fun ChatScreenContent(
     onRegenerateMessage: (ChatMessage) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val focusManager = LocalFocusManager.current
+
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.pointerInput(Unit) {
+            detectTapGestures(onTap = {
+                focusManager.clearFocus()
+            })
+        },
         topBar = {
             ChatTopBar(
                 modelState = uiState.modelState,
@@ -176,7 +181,7 @@ fun ChatScreenContent(
                         LazyColumn(
                             state = listState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = 16.dp),
+                            contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             // Today header
@@ -262,7 +267,10 @@ private fun ChatTopBar(
                                 .clip(CircleShape)
                                 .background(
                                     Brush.linearGradient(
-                                        listOf(GradientIndigo, GradientPurple)
+                                        listOf(
+                                            MaterialTheme.colorScheme.primary,
+                                            MaterialTheme.colorScheme.secondary
+                                        )
                                     )
                                 ),
                             contentAlignment = Alignment.Center
@@ -279,8 +287,9 @@ private fun ChatTopBar(
                             Text(
                                 text = "Gemma 2b",
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                letterSpacing = (-0.5).sp
                             )
                             StatusIndicator(modelState = modelState)
                         }
@@ -289,6 +298,7 @@ private fun ChatTopBar(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent
                 ),
+                windowInsets = WindowInsets(0, 0, 0, 0),
                 actions = {
                     IconButton(onClick = toggleTheme) {
                         Icon(
@@ -340,7 +350,7 @@ private fun StatusIndicator(
 ) {
     val extendedColors = MaterialTheme.extendedColors
     val (statusText, statusColor, showPulse) = when (modelState) {
-        ModelState.NOT_LOADED -> Triple("Not loaded", SlateGray, false)
+        ModelState.NOT_LOADED -> Triple("Not loaded", MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), false)
         ModelState.LOADING -> Triple("Loading...", extendedColors.statusLoading, true)
         ModelState.READY -> Triple("Ready • On-device", extendedColors.statusReady, true)
         ModelState.ERROR -> Triple("Error", MaterialTheme.colorScheme.error, false)
@@ -448,17 +458,17 @@ private fun MessageBubble(
                 // Message bubble
                 Surface(
                     shape = RoundedCornerShape(
-                        topStart = 16.dp,
-                        topEnd = 16.dp,
-                        bottomStart = if (isUser) 16.dp else 4.dp,
-                        bottomEnd = if (isUser) 4.dp else 16.dp
+                        topStart = 20.dp,
+                        topEnd = 20.dp,
+                        bottomStart = if (isUser) 20.dp else 4.dp,
+                        bottomEnd = if (isUser) 4.dp else 20.dp
                     ),
                     color = when {
                         message.isError -> MaterialTheme.colorScheme.errorContainer
-                        isUser -> extendedColors.bubbleUser
+                        isUser -> MaterialTheme.colorScheme.primary
                         else -> extendedColors.bubbleAi
                     },
-                    shadowElevation = if (isUser) 4.dp else 1.dp,
+                    shadowElevation = if (isUser) 2.dp else 1.dp,
                     border = if (!isUser && !message.isError) {
                         androidx.compose.foundation.BorderStroke(
                             1.dp,
@@ -681,7 +691,7 @@ private fun ChatInputBar(
                                 Text(
                                     text = placeholder,
                                     style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                 )
                             },
                             colors = TextFieldDefaults.colors(
@@ -708,7 +718,7 @@ private fun ChatInputBar(
                                 }
                             ),
                             singleLine = false,
-                            maxLines = 4
+                            maxLines = 6
                         )
                     }
                 }
