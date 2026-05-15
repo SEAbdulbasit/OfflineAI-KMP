@@ -18,6 +18,7 @@ actual class GemmaInference {
 
     actual suspend fun loadModel(modelPath: String, config: ModelConfig) {
         withContext(Dispatchers.IO) {
+            println("GemmaInference: Loading model from $modelPath")
             try {
                 loadingProgress = 0.1f
 
@@ -42,7 +43,9 @@ actual class GemmaInference {
 
                 loadingProgress = 1.0f
                 isLoaded = true
+                println("GemmaInference: Model loaded successfully at $resolvedPath")
             } catch (e: Exception) {
+                println("GemmaInference: Error loading model: ${e.message}")
                 isLoaded = false
                 loadingProgress = 0f
                 throw e
@@ -51,17 +54,30 @@ actual class GemmaInference {
     }
 
     actual fun generateResponse(prompt: String): Flow<String> = flow {
-        if (!isLoaded) throw IllegalStateException("Model not loaded")
+        println("GemmaInference: Generating response for prompt: ${prompt.take(50)}...")
+        if (!isLoaded) {
+            println("GemmaInference: Error - Model not loaded")
+            throw IllegalStateException("Model not loaded")
+        }
 
         NSUserDefaults.standardUserDefaults.removeObjectForKey(PREF_RESPONSE)
 
+        println("GemmaInference: Posting notification $NOTIFICATION_GENERATE with modelPath: ${resolvedModelPath ?: "NULL"}")
         NSNotificationCenter.defaultCenter.postNotificationName(
-            NOTIFICATION_GENERATE,
+            aName = NOTIFICATION_GENERATE,
             `object` = null,
-            userInfo = mapOf("prompt" to prompt, "modelPath" to (resolvedModelPath ?: ""))
+            userInfo = mapOf(
+                "prompt" to prompt,
+                "modelPath" to (resolvedModelPath ?: "")
+            )
         )
 
         val response = pollForResponse(timeoutMs = 60_000, intervalMs = 100)
+        if (response != null) {
+            println("GemmaInference: Received response of length ${response.length}")
+        } else {
+            println("GemmaInference: Generation timeout")
+        }
         emit(response ?: "Error: Generation timeout")
     }
 

@@ -10,8 +10,8 @@ target 'iosApp' do
   # NOTE: MediaPipe LLM Inference API is deprecated for mobile.
   # Android has migrated to LiteRT-LM. iOS will migrate when LiteRT-LM iOS is available.
   # See: https://ai.google.dev/edge/litert-lm/overview
-  pod 'MediaPipeTasksGenAI', '0.10.24'
-  pod 'MediaPipeTasksGenAIC', '0.10.24'
+  pod 'MediaPipeTasksGenAI', '0.10.14'
+  pod 'MediaPipeTasksGenAIC', '0.10.14'
 end
 
 post_install do |installer|

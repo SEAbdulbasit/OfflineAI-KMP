@@ -1,25 +1,29 @@
 import Foundation
+import UIKit
 import MediaPipeTasksGenAI
-import MediaPipeTasksGenAIC
 
 /// iOS Bridge for LLM Inference
-///
-/// NOTE: This uses MediaPipe LLM Inference API which is deprecated for mobile.
-/// Android has migrated to LiteRT-LM. iOS will migrate when LiteRT-LM iOS is available.
-/// See: https://ai.google.dev/edge/litert-lm/overview
-@objc public class InferenceBridge: NSObject {
+public class InferenceBridge: NSObject {
 
-    @objc public static let shared = InferenceBridge()
+    public static let shared = InferenceBridge()
 
     private var llmInference: LlmInference?
     private var currentModelPath: String?
 
     private override init() {
         super.init()
+        print("InferenceBridge: Initializing")
+        print("InferenceBridge: Init basic completed")
+    }
+
+    public func start() {
+        print("InferenceBridge: start() called")
         setupObserver()
+        print("InferenceBridge: start() completed")
     }
 
     private func setupObserver() {
+        print("InferenceBridge: Adding observer for GemmaGenerateRequest")
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleGenerateRequest(_:)),
@@ -29,66 +33,64 @@ import MediaPipeTasksGenAIC
     }
 
     @objc private func handleGenerateRequest(_ notification: Notification) {
-        guard let userInfo = notification.userInfo,
-            let prompt = userInfo["prompt"] as? String,
-            let modelPath = userInfo["modelPath"] as? String
+        print("InferenceBridge: handleGenerateRequest called")
+        guard let userInfo = notification.userInfo else {
+            print("InferenceBridge: Error - userInfo is nil")
+            storeResponse("Error: Invalid request (no userInfo)")
+            return
+        }
+        
+        print("InferenceBridge: userInfo keys: \(userInfo.keys)")
+
+        guard let prompt = userInfo["prompt"] as? String,
+              let modelPath = userInfo["modelPath"] as? String
         else {
-            storeResponse("Error: Invalid request")
+            print("InferenceBridge: Error - Invalid notification userInfo types or missing keys")
+            storeResponse("Error: Invalid request (missing keys)")
             return
         }
 
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self = self else { return }
-
-            // Load model if needed
-            if self.llmInference == nil || self.currentModelPath != modelPath {
-                guard self.loadModel(path: modelPath) else {
-                    self.storeResponse("Error: Failed to load model")
-                    return
-                }
+        print("InferenceBridge: Request received for prompt: \(prompt.prefix(20))...")
+        
+        // 1. (Re)Initialize Inference if model path changed
+        if llmInference == nil || modelPath != currentModelPath {
+            print("InferenceBridge: Initializing LlmInference with path: \(modelPath)")
+            do {
+                llmInference = try LlmInference(modelPath: modelPath)
+                currentModelPath = modelPath
+                print("InferenceBridge: LlmInference initialized successfully")
+            } catch {
+                print("InferenceBridge: Error initializing LlmInference: \(error.localizedDescription)")
+                storeResponse("Error: Failed to initialize model at \(modelPath)")
+                return
             }
-
-            // Generate response
-            self.storeResponse(self.generate(prompt: prompt))
-        }
-    }
-
-    private func loadModel(path: String) -> Bool {
-        guard FileManager.default.fileExists(atPath: path) else {
-            print("InferenceBridge: File not found at \(path)")
-            return false
         }
 
+        // 2. Generate Response
+        print("InferenceBridge: Starting generation...")
         do {
-            let options = LlmInference.Options(modelPath: path)
-            options.maxTokens = 2048  // Increased to handle tool prompts
-            llmInference = try LlmInference(options: options)
-            currentModelPath = path
-            print("InferenceBridge: Model loaded from \(path) with maxTokens=2048")
-            return true
+            // Using synchronous version for simplicity as it's already in a background-friendly way from Kotlin side
+            // and we want to ensure we return a full response to the polling Kotlin side.
+            if let response = try llmInference?.generateResponse(inputText: prompt) {
+                print("InferenceBridge: Generation completed, length: \(response.count)")
+                storeResponse(response)
+            } else {
+                print("InferenceBridge: Error - Generation returned nil")
+                storeResponse("Error: Empty response from model")
+            }
         } catch {
-            print("InferenceBridge: Load failed - \(error.localizedDescription)")
-            return false
-        }
-    }
-
-    private func generate(prompt: String) -> String {
-        guard let inference = llmInference else {
-            return "Error: Model not loaded"
-        }
-
-        do {
-            return try inference.generateResponse(inputText: prompt)
-        } catch {
-            return "Error: \(error.localizedDescription)"
+            print("InferenceBridge: Generation error: \(error.localizedDescription)")
+            storeResponse("Error: \(error.localizedDescription)")
         }
     }
 
     private func storeResponse(_ response: String) {
+        print("InferenceBridge: Storing response in UserDefaults")
         UserDefaults.standard.set(response, forKey: "gemma_response")
+        UserDefaults.standard.synchronize()
     }
 
-    @objc public func close() {
+    public func close() {
         llmInference = nil
         currentModelPath = nil
     }
