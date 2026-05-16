@@ -10,8 +10,10 @@ import com.google.ai.edge.litertlm.SamplerConfig
 import com.google.ai.edge.litertlm.Session
 import com.google.ai.edge.litertlm.SessionConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.withContext
 import org.abma.offlinelai_kmp.domain.model.ModelConfig
@@ -136,7 +138,22 @@ actual class GemmaInference {
 
                 engine = newEngine
 
-                // ═══ PHASE 4: Ready! ═══
+                // ═══ PHASE 4: Warm-up (Optional but recommended) ═══
+                loadingProgress = 0.95f
+                Log.d(TAG, "Warming up model...")
+                // Create a dummy session and run a tiny inference
+                // This ensures GPU shaders are compiled and memory is ready
+                try {
+                    val warmUpConfig = SessionConfig(SamplerConfig(topK = 1, topP = 0.95, temperature = 0.0))
+                    val warmUpSession = newEngine.createSession(warmUpConfig)
+                    warmUpSession.generateContent(listOf(InputData.Text("Warm up")))
+                    warmUpSession.close()
+                    Log.d(TAG, "Warm-up complete")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Warm-up failed (ignoring): ${e.message}")
+                }
+
+                // ═══ PHASE 5: Ready! ═══
                 loadingProgress = 1.0f
                 isLoaded = true
                 Log.i(TAG, "Model loaded successfully using $currentBackend backend")
@@ -188,7 +205,7 @@ actual class GemmaInference {
                 backend = backend,
                 visionBackend = null,
                 audioBackend = null,
-                maxNumTokens = config.maxTokens,
+                maxNumTokens = 4096, // Increased from config.maxTokens for better context handling
                 maxNumImages = null,
                 cacheDir = AndroidContextProvider.applicationContext.cacheDir.absolutePath
             )
@@ -233,66 +250,63 @@ actual class GemmaInference {
             ?: throw IllegalStateException("Model not loaded. Call loadModel() first.")
 
         val config = currentModelConfig ?: ModelConfig()
+        var activeSession: Session? = null
 
         try {
+            Log.d(TAG, "Starting generation for prompt: ${prompt.take(50)}...")
+            
             // Create a new session for this generation
             val samplerConfig = SamplerConfig(
                 topK = config.topK,
-                topP = 0.95,  // Default top-p
+                topP = 0.95,
                 temperature = config.temperature.toDouble(),
-                seed = 0      // Random seed
+                seed = 0
             )
             val sessionConfig = SessionConfig(samplerConfig)
-            val session = currentEngine.createSession(sessionConfig)
-            currentSession = session
+            activeSession = currentEngine.createSession(sessionConfig)
+            
+            // Store in property only for external cancellation (like close())
+            currentSession = activeSession
 
             // Prepare input data
             val inputData = listOf(InputData.Text(prompt))
 
-            // Start streaming generation with LiteRT-LM
-            // This callback will fire for EACH token generated
-            session.generateContentStream(inputData, object : ResponseCallback {
+            // Start streaming generation
+            activeSession.generateContentStream(inputData, object : ResponseCallback {
                 override fun onNext(token: String) {
-                    // ═══ CALLBACK FIRES HERE ═══
-                    // token = the next token(s) generated
-
-                    // Send token into the Flow channel
-                    // trySend is non-blocking - safe to call from callback
-                    trySend(token)
+                    Log.v(TAG, "onNext: token received (${token.length} chars)")
+                    // Use trySend and log if it fails (channel full)
+                    val result = trySend(token)
+                    if (result.isFailure) {
+                        Log.w(TAG, "onNext: failed to send token (channel full/closed)")
+                    }
                 }
 
                 override fun onDone() {
-                    // When LiteRT-LM signals completion, close the Flow
-                    currentSession?.close()
-                    currentSession = null
+                    Log.d(TAG, "onDone: generation completed")
                     close()
                 }
 
                 override fun onError(error: Throwable) {
-                    // Close Flow with error - will be caught by .catch() operator
-                    currentSession?.close()
-                    currentSession = null
+                    Log.e(TAG, "onError: generation failed", error)
                     close(error)
                 }
             })
         } catch (e: Exception) {
-            // Close Flow with error - will be caught by .catch() operator
-            currentSession?.close()
-            currentSession = null
+            Log.e(TAG, "Error starting generation", e)
             close(e)
         }
 
-        // ═══ CRITICAL: Keep Flow alive ═══
-        // Without awaitClose, the Flow completes immediately after
-        // the lambda above returns - but callbacks haven't fired yet!
-        // awaitClose suspends until close() is called in the callback.
+        // Keep flow alive until close() is called
         awaitClose {
-            // Cleanup when Flow is cancelled
-            currentSession?.cancelProcess()
-            currentSession?.close()
-            currentSession = null
+            Log.d(TAG, "awaitClose: cleaning up session")
+            activeSession?.cancelProcess()
+            activeSession?.close()
+            if (currentSession == activeSession) {
+                currentSession = null
+            }
         }
-    }
+    }.buffer(capacity = 64) // Add buffer to handle rapid token bursts without blocking the collector
 
     /**
      * Generate with system prompt prepended.
