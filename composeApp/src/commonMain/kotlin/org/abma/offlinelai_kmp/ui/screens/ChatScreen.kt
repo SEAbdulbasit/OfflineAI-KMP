@@ -27,14 +27,17 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 import org.abma.offlinelai_kmp.domain.model.ChatMessage
 import org.abma.offlinelai_kmp.domain.model.ModelState
+import org.abma.offlinelai_kmp.platform.toClipEntry
 import org.abma.offlinelai_kmp.ui.components.EmptyStateType
 import org.abma.offlinelai_kmp.ui.components.EmptyStateView
 import org.abma.offlinelai_kmp.ui.components.LoadingIndicator
@@ -53,6 +56,9 @@ fun ChatScreen(
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val clipBoardSnackBarHostState = remember { SnackbarHostState() }
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(uiState.messages.size) {
         if (uiState.messages.isNotEmpty()) {
@@ -67,18 +73,41 @@ fun ChatScreen(
         }
     }
 
-    ChatScreenContent(
-        uiState = uiState,
-        listState = listState,
-        snackbarHostState = snackbarHostState,
-        onNavigateToSettings = onNavigateToSettings,
-        onClearChat = { viewModel.onAction(ChatAction.ClearChat) },
-        onInputChange = { viewModel.onAction(ChatAction.UpdateInput(it)) },
-        onSend = { viewModel.onAction(ChatAction.SendMessage) },
-        onStopGeneration = { /* TODO: Implement stop generation */ },
-        onCopyMessage = { /* TODO: Implement copy */ },
-        onRegenerateMessage = { /* TODO: Implement regenerate */ }
-    )
+    val onCopyMessage = { chatMessage: ChatMessage ->
+        scope.launch {
+            clipboard.setClipEntry(chatMessage.content.toClipEntry())
+            clipBoardSnackBarHostState.showSnackbar("Message copied")
+        }
+        Unit
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        ChatScreenContent(
+            uiState = uiState,
+            listState = listState,
+            snackbarHostState = snackbarHostState,
+            onNavigateToSettings = onNavigateToSettings,
+            onClearChat = { viewModel.onAction(ChatAction.ClearChat) },
+            onInputChange = { viewModel.onAction(ChatAction.UpdateInput(it)) },
+            onSend = { viewModel.onAction(ChatAction.SendMessage) },
+            onStopGeneration = { /* TODO: Implement stop generation */ },
+            onCopyMessage = onCopyMessage,
+            onRegenerateMessage = { /* TODO: Implement regenerate */ }
+        )
+
+        // Dedicated snackbar for clipboard copy confirmation
+        SnackbarHost(
+            clipBoardSnackBarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp)
+        ) { data ->
+            Snackbar(
+                snackbarData = data,
+                shape = RoundedCornerShape(12.dp),
+                containerColor = MaterialTheme.colorScheme.onBackground,
+                contentColor = MaterialTheme.colorScheme.background
+            )
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -499,6 +528,41 @@ private fun MessageBubble(
                                 }
                             )
                         }
+                    }
+                }
+
+                // Copy Icon Button
+                val showCopyIcon =
+                    message.content.isNotEmpty() && !message.isStreaming && !message.isError
+                AnimatedVisibility(
+                    visible = showCopyIcon,
+                    enter = fadeIn(animationSpec = tween(230, 500)) + scaleIn(
+                        initialScale = 0.85f,
+                        animationSpec = tween(230, 500)
+                    ),
+                    exit = fadeOut(animationSpec = tween(120)) + scaleOut(
+                        targetScale = 0.85f,
+                        animationSpec = tween(120)
+                    ),
+                    modifier = Modifier
+                        .padding(top = 5.dp)
+                        .size(24.dp)
+                        .align(Alignment.End)
+                ) {
+                    IconButton(
+                        onClick = {
+                            onCopy()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = "Copy message",
+                            tint = when {
+                                message.isError -> MaterialTheme.colorScheme.onErrorContainer
+                                else -> MaterialTheme.colorScheme.onSurface
+                            },
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
             }
