@@ -675,7 +675,8 @@ private fun TypingDots(
 
     Row(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         repeat(3) { index ->
             val offsetY by infiniteTransition.animateFloat(
@@ -683,8 +684,8 @@ private fun TypingDots(
                 targetValue = -4f,
                 animationSpec = infiniteRepeatable(
                     animation = tween(
-                        durationMillis = 400,
-                        delayMillis = index * 150,
+                        durationMillis = 450,
+                        delayMillis = index * 180,
                         easing = LinearEasing
                     ),
                     repeatMode = RepeatMode.Reverse
@@ -695,6 +696,7 @@ private fun TypingDots(
             Box(
                 modifier = Modifier
                     .size(6.dp)
+                    .offset(y = offsetY.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
             )
