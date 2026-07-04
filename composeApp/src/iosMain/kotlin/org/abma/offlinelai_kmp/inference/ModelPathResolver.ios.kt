@@ -22,10 +22,9 @@ actual object ModelPathResolver {
         ).firstOrNull() as? String ?: ""
         val homeDir = NSHomeDirectory()
 
-        val bundlePath = NSBundle.mainBundle.pathForResource(
-            modelPath.removeSuffix(".bin").removeSuffix(".task"),
-            ofType = if (modelPath.endsWith(".bin")) "bin" else "task"
-        ) ?: ""
+        val fileName = modelPath.substringBeforeLast('.', modelPath)
+        val fileExtension = modelPath.substringAfterLast('.', "").ifEmpty { null }
+        val bundlePath = NSBundle.mainBundle.pathForResource(fileName, ofType = fileExtension) ?: ""
 
         return listOfNotNull(
             "$documentsDir/$modelPath",

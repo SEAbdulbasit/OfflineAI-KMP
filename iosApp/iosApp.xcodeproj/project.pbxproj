@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		8FE6AA5DF72BCD5FC88BEA4F /* Pods_iosApp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ED8468F9AE4DEB706624155C /* Pods_iosApp.framework */; };
+		C3D4E5F607182930A4B5C6D7 /* LiteRTLM in Frameworks */ = {isa = PBXBuildFile; productRef = D4E5F607182930A4B5C6D7E8 /* LiteRTLM */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -51,6 +52,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8FE6AA5DF72BCD5FC88BEA4F /* Pods_iosApp.framework in Frameworks */,
+				C3D4E5F607182930A4B5C6D7 /* LiteRTLM in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -115,6 +117,9 @@
 				E07C6FB9365BA132BD88ED7C /* iosApp */,
 			);
 			name = iosApp;
+			packageProductDependencies = (
+				D4E5F607182930A4B5C6D7E8 /* LiteRTLM */,
+			);
 			productName = iosApp;
 			productReference = 3D6767D042C4CF9F7B0C7E5D /* offlinelai_kmp.app */;
 			productType = "com.apple.product-type.application";
@@ -143,6 +148,9 @@
 			);
 			mainGroup = 09AE8118A4DCE7239B8E6EAD;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				6E66C9F82FF9229A0019221B /* XCLocalSwiftPackageReference "LiteRTWrapper" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B07EF8AA5629F971EAF36034 /* Products */;
 			projectDirPath = "";
@@ -441,6 +449,21 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		6E66C9F82FF9229A0019221B /* XCLocalSwiftPackageReference "LiteRTWrapper" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = LiteRTWrapper;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		D4E5F607182930A4B5C6D7E8 /* LiteRTLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6E66C9F82FF9229A0019221B /* XCLocalSwiftPackageReference "LiteRTWrapper" */;
+			productName = LiteRTLM;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = C7B4ED5A369E061AD548854B /* Project object */;
 }

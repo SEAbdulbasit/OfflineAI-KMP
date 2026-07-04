@@ -7,9 +7,7 @@
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
 </p>
 
-A **Kotlin Multiplatform** (KMP) application that runs Google's **Gemma LLM** completely offline on Android and iOS devices. Built with Compose Multiplatform for a shared UI experience, powered by **LiteRT-LM** (Android) and **MediaPipe** (iOS) for on-device AI inference.
-
-> ⚠️ **Migration Note**: Android has been migrated to LiteRT-LM (the successor to MediaPipe LLM Inference API). iOS will migrate to LiteRT-LM when it becomes available for iOS. See [LiteRT-LM Overview](https://ai.google.dev/edge/litert-lm/overview).
+A **Kotlin Multiplatform** (KMP) application that runs Google's **Gemma LLM** completely offline on Android and iOS devices. Built with Compose Multiplatform for a shared UI experience, powered by **LiteRT-LM** on both platforms for unified on-device AI inference.
 
 <p align="center">
   <em>Your conversations stay private. No internet required. 100% on-device AI.</em>
@@ -69,8 +67,8 @@ The app follows a clean architecture pattern with **expect/actual** mechanism fo
 ├────────────────────────┬────────────────────────────────────────┤
 │     Android (actual)   │           iOS (actual)                  │
 │  ┌──────────────────┐  │  ┌──────────────────────────────────┐  │
-│  │ LiteRT-LM SDK    │  │  │ MediaPipeTasksGenAI (CocoaPods)  │  │
-│  │ Engine           │  │  │ Swift Bridge (until LiteRT-LM)   │  │
+│  │ LiteRT-LM SDK    │  │  │ LiteRT-LM Swift SDK (SPM)        │  │
+│  │ Engine           │  │  │ Native Swift Bridge              │  │
 │  └──────────────────┘  │  └──────────────────────────────────┘  │
 └────────────────────────┴────────────────────────────────────────┘
 ```
@@ -97,10 +95,52 @@ composeApp/src/
 │   └── repository/                # ModelRepository.android.kt
 │
 └── iosMain/                       # iOS-specific implementations
-    ├── inference/                 # GemmaInference.ios.kt (MediaPipe, pending LiteRT-LM)
+    ├── inference/                 # GemmaInference.ios.kt (LiteRT-LM)
     ├── picker/                    # FilePicker.ios.kt, AttachmentPicker.ios.kt
     └── repository/                # ModelRepository.ios.kt
 ```
+
+---
+
+## ✅ Why LiteRT-LM over MediaPipe?
+
+LiteRT-LM is now the inference layer for **both Android and iOS**, replacing MediaPipe completely across the project.
+
+### Unified SDK
+
+- Single inference stack across Android (Kotlin) and iOS (Swift)
+- No more platform divergence in the AI layer
+- Shared concepts, model handling, and streaming behavior across both apps
+
+### Performance improvements
+
+- **Multi-Token Prediction (MTP)** for speculative decoding and faster token generation
+- **GPU acceleration** with OpenCL on Android and Metal on iOS
+- **NPU support** on devices with neural processing units
+- **Smarter caching** for faster subsequent model load times
+
+### Modern API design
+
+- **Android**: First-class Kotlin coroutine `Flow` support for streaming with minimal bridging
+- **iOS**: Native Swift `async/await` and `AsyncStream` support
+- True push-based token streaming with no polling workarounds
+
+### Multi-modal support
+
+- Text, image, and audio inputs supported out of the box
+
+### Tool use / Function calling
+
+- Models can call defined Kotlin or Swift functions directly
+
+### Active development
+
+- MediaPipe LLM Inference API is superseded by LiteRT-LM
+- LiteRT-LM receives ongoing updates and platform improvements
+
+### Consistent model format
+
+- `.litertlm` models work across both Android and iOS
 
 ---
 
@@ -124,12 +164,14 @@ cd OfflineAI-KMP
 
 ### 2. Download a Gemma Model
 
-Download a compatible model from [Kaggle](https://www.kaggle.com/models/google/gemma) or [Hugging Face](https://huggingface.co/google):
+Download a compatible model from [Kaggle](https://www.kaggle.com/models/google/gemma) or [Hugging Face](https://huggingface.co/google).
+
+> **Recommended:** Use `.litertlm` models when available for the best cross-platform LiteRT-LM experience. `.bin` models are also supported.
 
 | Model | Size | Recommended For |
 |-------|------|-----------------|
 | `gemma-2b-it-gpu-int4.bin` | ~1.4 GB | Most devices |
-| `gemma-3n-E2B-it.task` | ~1.8 GB | Newer devices |
+| `gemma-3n-E2B-it.litertlm` | ~1.8 GB | Newer devices |
 | `gemma-7b-it-gpu-int4.bin` | ~4.5 GB | High-end devices |
 
 ### 3. Build & Run
@@ -163,7 +205,7 @@ Then open `iosApp/iosApp.xcworkspace` in Xcode and run.
 1. Launch the app
 2. Go to **Settings** (gear icon)
 3. Tap **"Browse Files to Import Model"**
-4. Select your downloaded `.bin` or `.task` file
+4. Select your downloaded `.litertlm` or `.bin` file
 5. The model will be copied to app storage and loaded
 
 ---
@@ -208,24 +250,32 @@ The app automatically follows system theme preferences. Supports:
 |---------|---------|----------|---------|
 | Compose Multiplatform | 1.11.0 | Both | Shared UI framework |
 | LiteRT-LM | 0.11.0 | Android | On-device LLM inference |
-| MediaPipe Tasks GenAI | 0.10.24 | iOS | On-device LLM inference (until LiteRT-LM iOS) |
+| LiteRT-LM Swift | 0.13.1+ | iOS | On-device LLM inference (GPU/Metal, streaming) |
 | Kotlinx Coroutines | 1.11.0 | Both | Async operations & Flow |
 | Kotlinx Serialization | 1.11.0 | Both | JSON serialization |
 | Lifecycle ViewModel | 2.10.0 | Both | MVVM architecture |
 | Navigation Compose | 2.10.0 | Both | Screen navigation |
 
-### iOS CocoaPods Setup
+### iOS Setup
 
-The `Podfile` in `iosApp/` includes:
+LiteRT-LM is declared directly in `iosApp.xcodeproj/project.pbxproj` via **Swift Package Manager** — no manual Xcode steps required. When you open `iosApp.xcworkspace`, Xcode resolves and downloads LiteRT-LM automatically.
+
+```
+Package: https://github.com/google-ai-edge/LiteRT-LM
+Version:  from 0.13.1 (upToNextMajorVersion)
+Product:  LiteRTLM
+```
+
+CocoaPods is still used only for integrating the `composeApp` Kotlin framework. The `Podfile` no longer includes MediaPipe dependencies:
 
 ```ruby
+source 'https://cdn.cocoapods.org'
+
 platform :ios, '16.0'
+use_frameworks! :linkage => :static
 
 target 'iosApp' do
-  use_frameworks!
-  # MediaPipe (until LiteRT-LM iOS is available)
-  pod 'MediaPipeTasksGenAI', '0.10.24'
-  pod 'MediaPipeTasksGenAIC', '0.10.24'
+  pod 'composeApp', :path => '../composeApp'
 end
 ```
 
@@ -254,8 +304,7 @@ This project is open source under the MIT License. See [LICENSE](LICENSE) for de
 ## 🙏 Acknowledgments
 
 - [Google Gemma](https://ai.google.dev/gemma) - The on-device LLM
-- [LiteRT-LM](https://ai.google.dev/edge/litert-lm/overview) - On-device ML inference framework (Android)
-- [MediaPipe](https://developers.google.com/mediapipe) - ML inference framework (iOS, until LiteRT-LM support)
+- [LiteRT-LM](https://ai.google.dev/edge/litert-lm/overview) - On-device ML inference framework (Android & iOS)
 - [Kotlin Multiplatform](https://kotlinlang.org/docs/multiplatform.html) - Cross-platform development
 - [Compose Multiplatform](https://www.jetbrains.com/lp/compose-multiplatform/) - Shared UI framework
 - [Google AI Edge Gallery](https://github.com/google-ai-edge/gallery) - UI inspiration

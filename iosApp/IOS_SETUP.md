@@ -1,6 +1,6 @@
 # iOS Setup for Gemma Offline AI
 
-This guide explains how to set up MediaPipe LLM Inference for iOS to run Gemma models offline.
+This guide explains how to run Gemma offline on iOS with Kotlin Multiplatform, CocoaPods for the shared `composeApp` framework, and LiteRT-LM via Swift Package Manager.
 
 ## Prerequisites
 
@@ -8,6 +8,7 @@ This guide explains how to set up MediaPipe LLM Inference for iOS to run Gemma m
 - iOS 16.0+ deployment target
 - CocoaPods 1.16.2+ (`sudo gem install cocoapods`)
 - Ruby 3.0+
+- A physical iOS device is strongly recommended for model testing
 
 ## Setup Steps
 
@@ -20,65 +21,100 @@ pod install
 
 ### 2. Open the Workspace
 
-**Important**: Always open `iosApp.xcworkspace` (NOT `iosApp.xcodeproj`)
+Always open `iosApp.xcworkspace` so Xcode can load both CocoaPods and the shared KMP framework.
 
 ```bash
 open iosApp.xcworkspace
 ```
 
-### 3. Download the Gemma Model
+### 3. LiteRT-LM — No Manual Step Required
 
-Download the Gemma model from Kaggle:
+LiteRT-LM is already declared in `iosApp.xcodeproj/project.pbxproj` as a Swift Package Manager dependency. Xcode resolves and downloads it automatically when you open `iosApp.xcworkspace`.
 
-1. Go to [Kaggle Gemma Models](https://www.kaggle.com/models/google/gemma/tfLite/)
-2. Download the appropriate model:
-   - **For CPU (recommended for compatibility)**: `gemma-2b-it-cpu-int4.task`
-   - **For GPU (better performance)**: `gemma-2b-it-gpu-int4.bin`
+```
+Package: https://github.com/google-ai-edge/LiteRT-LM
+Version:  from 0.13.1 (upToNextMajorVersion)
+Product:  LiteRTLM
+```
 
-### 4. Add Model to App
+If you ever need to refresh it manually: **File > Packages > Resolve Package Versions**.
 
-#### Option A: Add to App Bundle (for development)
-1. Drag the model file into Xcode project navigator
-2. Ensure "Copy items if needed" is checked
-3. Add to the iosApp target
+### 4. Download a Gemma Model
 
-#### Option B: Download to Documents (for production)
-The app will look for models in:
-- `Documents/` directory
-- `Documents/models/` directory
-- App bundle
-- Caches directory
+LiteRT-LM works best with `.litertlm` packages. `.bin` models are also supported when compatible with the runtime.
 
-You can implement a download manager to fetch models on first launch.
+Recommended approach:
+- Prefer `.litertlm` for new iOS deployments
+- Keep filenames simple and exact, for example:
+  - `gemma-3n-E2B-it-int4.litertlm`
+  - `gemma-2b-it-gpu-int4.bin`
 
-### 5. Configure the Model Path
+### 5. Add the Model to the App
 
-In your Settings screen, use the model filename:
-- `gemma-2b-it-cpu-int4.task` (CPU version)
-- `gemma-2b-it-gpu-int4.bin` (GPU version)
+#### Option A: Finder file sharing (recommended)
 
-## Model Locations (Search Order)
+1. Connect the iPhone or iPad to your Mac
+2. Open **Finder** and select the device
+3. Open the **Files** tab
+4. Drag the model file into this app's folder
 
-The iOS implementation searches for models in this order:
-1. `{Documents}/{modelPath}`
-2. `{Documents}/models/{modelPath}`
-3. App Bundle
-4. `{Caches}/{modelPath}`
-5. Direct path
+#### Option B: Add to the app bundle (development only)
+
+1. Drag the model file into the Xcode project navigator
+2. Check **Copy items if needed**
+3. Add it to the `iosApp` target
+
+### 6. Configure the Model Path in the App
+
+Use either:
+- The absolute path returned by your own file picker / downloader, or
+- The model filename if the file is in a searched app directory
+
+Examples:
+- `gemma-3n-E2B-it-int4.litertlm`
+- `gemma-2b-it-gpu-int4.bin`
+
+## Model Search Order
+
+The KMP iOS resolver checks these locations in order when you pass a relative filename:
+
+1. `Documents/{modelPath}`
+2. `Documents/models/{modelPath}`
+3. `Caches/{modelPath}`
+4. App bundle
+5. Raw `modelPath`
+6. `{AppHome}/Documents/{modelPath}`
+
+Absolute paths are used directly.
+
+## How iOS Inference Works
+
+- Kotlin posts `GemmaGenerateRequest` through `NSNotificationCenter`
+- Swift listens, initializes LiteRT-LM if needed, and starts streaming
+- Swift sends tokens back with `GemmaTokenResponse`
+- Swift posts `GemmaGenerationDone` on completion
+- Swift posts `GemmaGenerationError` if initialization or generation fails
+
+This replaces the old `UserDefaults` polling bridge and enables token streaming on iOS.
 
 ## Troubleshooting
 
 ### "Model file not found"
-- Ensure the model is in one of the searched locations
-- Check the filename matches exactly (case-sensitive)
-- Verify the file was properly copied to the app
 
-### "Failed to load model"
-- Ensure you have enough device storage
-- Try with a smaller model first
-- Check device compatibility (A12 chip or later recommended)
+- Verify the filename matches exactly
+- Confirm the model exists in one of the searched locations
+- If using a bundled file, make sure it is added to the `iosApp` target
+- If using a direct path, make sure it is absolute and readable
 
-### Build Errors with CocoaPods
+### "Failed to initialize model" / generation errors
+
+- Confirm the LiteRT-LM package is added to the `iosApp` target
+- Verify the model format is supported by your LiteRT-LM version
+- Ensure the model path points to a complete, uncorrupted file
+- Try restarting the app after changing models so the engine can reinitialize cleanly
+
+### CocoaPods setup issues
+
 ```bash
 cd iosApp
 pod deintegrate
@@ -86,80 +122,38 @@ pod cache clean --all
 pod install
 ```
 
-### Xcode 26 Linker Errors
+### Package resolution issues in Xcode
 
-#### "framework 'UIUtilities' not found"
-This is a MediaPipe auto-linking issue. Solutions:
+- In Xcode, use **File > Packages > Reset Package Caches**
+- Then use **File > Packages > Resolve Package Versions**
+- Clean the build folder with `Cmd+Shift+K` and rebuild
 
-1. **Clean build folder**: `Cmd+Shift+K` then `Cmd+Shift+Opt+K`
-2. **Update CocoaPods**:
-   ```bash
-   sudo gem install cocoapods
-   cd iosApp
-   pod deintegrate
-   pod install
-   ```
-3. **Check Podfile** has static linkage:
-   ```ruby
-   use_frameworks! :linkage => :static
-   ```
+### Simulator limitations
 
-#### "SwiftUICore not found" / "not an allowed client"
-This is an Xcode 26 compatibility issue with private frameworks:
+- Keep `EXCLUDED_ARCHS[sdk=iphonesimulator*] = x86_64` in the Podfile settings
+- Simulator support can differ from device behavior for large local models
+- If inference fails on simulator, test on a real device before debugging the model itself
 
-1. **Update Xcode** to the latest version
-2. **Clean derived data**:
-   ```bash
-   rm -rf ~/Library/Developer/Xcode/DerivedData/*
-   ```
-3. **Rebuild**:
-   ```bash
-   cd iosApp
-   pod deintegrate
-   pod install
-   # Then rebuild in Xcode
-   ```
+### "PBXFileSystemSynchronizedRootGroup unknown ISA" error
 
-#### "Undefined symbol: _LlmInferenceEngine_Session_*"
-This indicates MediaPipe framework isn't linking correctly:
-
-1. **Verify static library linking** in Xcode:
-   - Select your target → Build Phases
-   - Check "Link Binary With Libraries" includes MediaPipeTasksGenAI/C
-
-2. **Add force_load flag** (if needed):
-   In Xcode → Target → Build Settings → Other Linker Flags:
-   ```
-   -force_load $(PODS_ROOT)/MediaPipeTasksGenAIC/frameworks/genai_libraries/libMediaPipeTasksGenAIC_device.a
-   ```
-
-3. **Try device build** instead of simulator (some features are device-only)
-
-### "PBXFileSystemSynchronizedRootGroup unknown ISA" Error
-Your CocoaPods version doesn't support Xcode 26's new project format:
+Your CocoaPods version is too old for newer Xcode project formats:
 
 ```bash
 sudo gem install cocoapods
-# Verify version >= 1.16.2
 pod --version
 ```
 
-## Memory Requirements
+Use CocoaPods `1.16.2` or later.
 
-| Model | RAM Required | Storage |
-|-------|-------------|---------|
-| Gemma 2B INT4 | ~2.5 GB | ~1.5 GB |
-| Gemma 7B INT4 | ~5 GB | ~4.5 GB |
+## Memory and Performance Notes
 
-## Device Compatibility
-
-- **Minimum**: iPhone 12, iPad (9th gen)
-- **Recommended**: iPhone 14+, iPad Pro M1+
+- First initialization can take noticeable time, especially on large models
+- Reusing the same model path avoids unnecessary engine reinitialization
+- Large Gemma models require multiple GB of free storage and significant RAM
+- Streaming responses should begin before the full answer is complete
 
 ## Notes
 
-- First model load may take 30-60 seconds
-- Subsequent loads are faster due to caching
-- Keep the app in foreground during generation
-- Generation speed: ~10-30 tokens/second depending on device
-- **Simulator builds may have limited functionality** - test on device for full features
+- Test on a physical device for the most reliable results
+- Keep the app in the foreground during long generations
+- If you switch model files, the iOS bridge will recreate the LiteRT-LM engine automatically

@@ -1,29 +1,25 @@
 import Foundation
-import UIKit
-import MediaPipeTasksGenAI
+import LiteRTLM
 
-/// iOS Bridge for LLM Inference
 public class InferenceBridge: NSObject {
-
     public static let shared = InferenceBridge()
 
-    private var llmInference: LlmInference?
+    private var engine: Engine?
     private var currentModelPath: String?
+    private var generationTask: Task<Void, Never>?
+    private var isObserving = false
 
     private override init() {
         super.init()
-        print("InferenceBridge: Initializing")
-        print("InferenceBridge: Init basic completed")
     }
 
     public func start() {
-        print("InferenceBridge: start() called")
         setupObserver()
-        print("InferenceBridge: start() completed")
     }
 
     private func setupObserver() {
-        print("InferenceBridge: Adding observer for GemmaGenerateRequest")
+        guard !isObserving else { return }
+        isObserving = true
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleGenerateRequest(_:)),
@@ -33,65 +29,122 @@ public class InferenceBridge: NSObject {
     }
 
     @objc private func handleGenerateRequest(_ notification: Notification) {
-        print("InferenceBridge: handleGenerateRequest called")
-        guard let userInfo = notification.userInfo else {
-            print("InferenceBridge: Error - userInfo is nil")
-            storeResponse("Error: Invalid request (no userInfo)")
-            return
-        }
-        
-        print("InferenceBridge: userInfo keys: \(userInfo.keys)")
-
-        guard let prompt = userInfo["prompt"] as? String,
-              let modelPath = userInfo["modelPath"] as? String
+        guard let userInfo = notification.userInfo,
+            let prompt = userInfo["prompt"] as? String,
+            let modelPath = userInfo["modelPath"] as? String,
+            !prompt.isEmpty,
+            !modelPath.isEmpty
         else {
-            print("InferenceBridge: Error - Invalid notification userInfo types or missing keys")
-            storeResponse("Error: Invalid request (missing keys)")
+            postError("Invalid request")
             return
         }
 
-        print("InferenceBridge: Request received for prompt: \(prompt.prefix(20))...")
-        
-        // 1. (Re)Initialize Inference if model path changed
-        if llmInference == nil || modelPath != currentModelPath {
-            print("InferenceBridge: Initializing LlmInference with path: \(modelPath)")
-            do {
-                llmInference = try LlmInference(modelPath: modelPath)
-                currentModelPath = modelPath
-                print("InferenceBridge: LlmInference initialized successfully")
-            } catch {
-                print("InferenceBridge: Error initializing LlmInference: \(error.localizedDescription)")
-                storeResponse("Error: Failed to initialize model at \(modelPath)")
-                return
-            }
-        }
-
-        // 2. Generate Response
-        print("InferenceBridge: Starting generation...")
-        do {
-            // Using synchronous version for simplicity as it's already in a background-friendly way from Kotlin side
-            // and we want to ensure we return a full response to the polling Kotlin side.
-            if let response = try llmInference?.generateResponse(inputText: prompt) {
-                print("InferenceBridge: Generation completed, length: \(response.count)")
-                storeResponse(response)
-            } else {
-                print("InferenceBridge: Error - Generation returned nil")
-                storeResponse("Error: Empty response from model")
-            }
-        } catch {
-            print("InferenceBridge: Generation error: \(error.localizedDescription)")
-            storeResponse("Error: \(error.localizedDescription)")
+        generationTask?.cancel()
+        generationTask = Task { [weak self] in
+            await self?.generateResponse(prompt: prompt, modelPath: modelPath)
         }
     }
 
-    private func storeResponse(_ response: String) {
-        print("InferenceBridge: Storing response in UserDefaults")
-        UserDefaults.standard.set(response, forKey: "gemma_response")
-        UserDefaults.standard.synchronize()
+    private func generateResponse(prompt: String, modelPath: String) async {
+        do {
+            try Task.checkCancellation()
+            try await initializeEngineIfNeeded(modelPath: modelPath)
+            try Task.checkCancellation()
+
+            guard let engine else {
+                throw NSError(
+                    domain: "InferenceBridge",
+                    code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: "Inference engine is unavailable"]
+                )
+            }
+
+            let conversation = try await engine.createConversation()
+            let message = Message(prompt)
+
+            for try await chunk in conversation.sendMessageStream(message) {
+                try Task.checkCancellation()
+                postToken(chunk.toString)
+            }
+
+            postDone()
+        } catch is CancellationError {
+            postError("Generation cancelled")
+        } catch {
+            postError(error.localizedDescription)
+        }
+    }
+
+    private func initializeEngineIfNeeded(modelPath: String) async throws {
+        guard engine == nil || currentModelPath != modelPath else { return }
+
+        engine = nil
+        currentModelPath = nil
+
+        guard FileManager.default.fileExists(atPath: modelPath) else {
+            throw NSError(
+                domain: "InferenceBridge",
+                code: -2,
+                userInfo: [NSLocalizedDescriptionKey: "Model file not found at \(modelPath)"]
+            )
+        }
+
+        let config = try EngineConfig(
+            modelPath: modelPath,
+            backend: .gpu,
+            cacheDir: try cacheDirectoryPath()
+        )
+        let newEngine = Engine(engineConfig: config)
+        try await newEngine.initialize()
+
+        engine = newEngine
+        currentModelPath = modelPath
+    }
+
+    private func cacheDirectoryPath() throws -> String {
+        guard let cachesDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            throw NSError(
+                domain: "InferenceBridge",
+                code: -3,
+                userInfo: [NSLocalizedDescriptionKey: "Unable to resolve cache directory"]
+            )
+        }
+
+        let cacheURL = cachesDirectory.appendingPathComponent("LiteRTLM", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: cacheURL,
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
+        return cacheURL.path
+    }
+
+    private func postToken(_ token: String) {
+        postNotification(name: "GemmaTokenResponse", userInfo: ["token": token])
+    }
+
+    private func postDone() {
+        postNotification(name: "GemmaGenerationDone", userInfo: nil)
+    }
+
+    private func postError(_ error: String) {
+        postNotification(name: "GemmaGenerationError", userInfo: ["error": error])
+    }
+
+    private func postNotification(name: String, userInfo: [AnyHashable: Any]?) {
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: NSNotification.Name(name),
+                object: nil,
+                userInfo: userInfo
+            )
+        }
     }
 
     public func close() {
-        llmInference = nil
+        generationTask?.cancel()
+        generationTask = nil
+        engine = nil
         currentModelPath = nil
     }
 

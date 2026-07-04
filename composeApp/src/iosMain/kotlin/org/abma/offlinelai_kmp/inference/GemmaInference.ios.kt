@@ -2,14 +2,13 @@ package org.abma.offlinelai_kmp.inference
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.buffer
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.withContext
 import org.abma.offlinelai_kmp.domain.model.ModelConfig
 import platform.Foundation.NSNotificationCenter
-import platform.Foundation.NSUserDefaults
-
 
 actual class GemmaInference {
     private var isLoaded = false
@@ -37,10 +36,6 @@ actual class GemmaInference {
 
                 loadingProgress = 0.5f
                 resolvedModelPath = resolvedPath
-
-                NSUserDefaults.standardUserDefaults.setObject(resolvedPath, forKey = PREF_MODEL_PATH)
-                NSUserDefaults.standardUserDefaults.synchronize()
-
                 loadingProgress = 1.0f
                 isLoaded = true
                 println("GemmaInference: Model loaded successfully at $resolvedPath")
@@ -53,46 +48,55 @@ actual class GemmaInference {
         }
     }
 
-    actual fun generateResponse(prompt: String): Flow<String> = flow {
-        println("GemmaInference: Generating response for prompt: ${prompt.take(50)}...")
+    actual fun generateResponse(prompt: String): Flow<String> = callbackFlow {
         if (!isLoaded) {
-            println("GemmaInference: Error - Model not loaded")
             throw IllegalStateException("Model not loaded")
         }
 
-        NSUserDefaults.standardUserDefaults.removeObjectForKey(PREF_RESPONSE)
+        val modelPath = resolvedModelPath ?: throw IllegalStateException("Model path not resolved")
+        val center = NSNotificationCenter.defaultCenter
 
-        println("GemmaInference: Posting notification $NOTIFICATION_GENERATE with modelPath: ${resolvedModelPath ?: "NULL"}")
-        NSNotificationCenter.defaultCenter.postNotificationName(
+        val tokenObserver = center.addObserverForName(
+            name = NOTIFICATION_TOKEN,
+            `object` = null,
+            queue = null
+        ) { notification ->
+            val token = notification?.userInfo?.get("token") as? String ?: return@addObserverForName
+            trySend(token)
+        }
+
+        val doneObserver = center.addObserverForName(
+            name = NOTIFICATION_DONE,
+            `object` = null,
+            queue = null
+        ) {
+            close()
+        }
+
+        val errorObserver = center.addObserverForName(
+            name = NOTIFICATION_ERROR,
+            `object` = null,
+            queue = null
+        ) { notification ->
+            val message = notification?.userInfo?.get("error") as? String ?: "Generation failed"
+            close(IllegalStateException(message))
+        }
+
+        center.postNotificationName(
             aName = NOTIFICATION_GENERATE,
             `object` = null,
             userInfo = mapOf(
                 "prompt" to prompt,
-                "modelPath" to (resolvedModelPath ?: "")
+                "modelPath" to modelPath
             )
         )
 
-        val response = pollForResponse(timeoutMs = 60_000, intervalMs = 100)
-        if (response != null) {
-            println("GemmaInference: Received response of length ${response.length}")
-        } else {
-            println("GemmaInference: Generation timeout")
+        awaitClose {
+            center.removeObserver(tokenObserver)
+            center.removeObserver(doneObserver)
+            center.removeObserver(errorObserver)
         }
-        emit(response ?: "Error: Generation timeout")
-    }
-
-    private suspend fun pollForResponse(timeoutMs: Long, intervalMs: Long): String? {
-        val maxAttempts = (timeoutMs / intervalMs).toInt()
-        repeat(maxAttempts) {
-            delay(intervalMs)
-            NSUserDefaults.standardUserDefaults.stringForKey(PREF_RESPONSE)?.let { response ->
-                NSUserDefaults.standardUserDefaults.removeObjectForKey(PREF_RESPONSE)
-                NSUserDefaults.standardUserDefaults.synchronize()
-                return response
-            }
-        }
-        return null
-    }
+    }.buffer(capacity = 64)
 
     actual fun generateResponseWithHistory(
         systemPrompt: String,
@@ -104,20 +108,15 @@ actual class GemmaInference {
     actual fun getLoadingProgress(): Float = loadingProgress
 
     actual fun close() {
-        listOf(PREF_MODEL_PATH, PREF_PROMPT, PREF_RESPONSE).forEach {
-            NSUserDefaults.standardUserDefaults.removeObjectForKey(it)
-        }
-        NSUserDefaults.standardUserDefaults.synchronize()
-
         isLoaded = false
         loadingProgress = 0f
         resolvedModelPath = null
     }
 
     companion object {
-        private const val PREF_MODEL_PATH = "gemma_model_path"
-        private const val PREF_PROMPT = "gemma_current_prompt"
-        private const val PREF_RESPONSE = "gemma_response"
         private const val NOTIFICATION_GENERATE = "GemmaGenerateRequest"
+        private const val NOTIFICATION_TOKEN = "GemmaTokenResponse"
+        private const val NOTIFICATION_DONE = "GemmaGenerationDone"
+        private const val NOTIFICATION_ERROR = "GemmaGenerationError"
     }
 }
