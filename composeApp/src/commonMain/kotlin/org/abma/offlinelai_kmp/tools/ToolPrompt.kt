@@ -23,7 +23,14 @@ fun buildSystemPrompt(specs: List<ToolSpec>): String {
         appendLine()
 
         specs.forEach { spec ->
-            appendLine("- ${spec.name}: ${spec.description}")
+            val params = extractParamDetails(spec.parametersSchemaJson)
+            if (params.isEmpty()) {
+                appendLine("- ${spec.name}: ${spec.description}")
+            } else {
+                appendLine("- ${spec.name}: ${spec.description}")
+                val paramList = params.entries.joinToString(", ") { (name, desc) -> "$name ($desc)" }
+                appendLine("  params: $paramList")
+            }
         }
 
         appendLine()
@@ -39,6 +46,12 @@ fun buildSystemPrompt(specs: List<ToolSpec>): String {
         appendLine()
         appendLine("Q: Call 555-1234")
         appendLine("A: <<{\"tool\":\"open_dialer\",\"arguments\":{\"phone_number\":\"555-1234\"}}>>")
+        appendLine()
+        appendLine("Q: Email john@example.com about the meeting")
+        appendLine("A: <<{\"tool\":\"open_email\",\"arguments\":{\"to\":\"john@example.com\",\"subject\":\"Meeting\",\"body\":\"\"}}>>")
+        appendLine()
+        appendLine("Q: Find coffee shops near me")
+        appendLine("A: <<{\"tool\":\"open_maps\",\"arguments\":{\"query\":\"coffee shops near me\"}}>>")
         appendLine()
         appendLine("Q: Turn on flashlight")
         appendLine("A: <<{\"tool\":\"toggle_torch\",\"arguments\":{\"enable\":true}}>>")
@@ -147,9 +160,8 @@ private fun extractJsonObject(text: String): String? {
                 return sb.toString()
             }
         }
-        // Stop if we hit a newline after starting (incomplete JSON)
         if (started && char == '\n' && braceCount > 0) {
-            return sb.toString() + "}" // Try to complete it
+            return sb.toString() + "}".repeat(braceCount)
         }
     }
     return if (started) sb.toString() else null
@@ -160,16 +172,11 @@ private fun parseToolCallJson(payload: String): ToolCall? {
 
     return try {
         var cleaned = payload.trim()
-        if (!cleaned.endsWith("}")) {
-            cleaned = cleaned + "}"
-        }
-        if (cleaned.contains("\"arguments\":{}") || cleaned.contains("\"arguments\": {}")) {
-        } else if (cleaned.contains("\"arguments\":{") && !cleaned.contains("\"arguments\":{}")) {
-            val argsStart = cleaned.indexOf("\"arguments\":{")
-            val afterArgs = cleaned.substring(argsStart)
-            if (afterArgs.count { it == '{' } > afterArgs.count { it == '}' }) {
-                cleaned = cleaned.trimEnd('}') + "}}"
-            }
+        // Balance any unclosed braces
+        val openCount = cleaned.count { it == '{' }
+        val closeCount = cleaned.count { it == '}' }
+        if (openCount > closeCount) {
+            cleaned += "}".repeat(openCount - closeCount)
         }
 
         val obj = json.parseToJsonElement(cleaned).jsonObject

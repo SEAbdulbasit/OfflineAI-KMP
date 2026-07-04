@@ -1,10 +1,13 @@
 package org.abma.offlinelai_kmp.tools
 
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import org.abma.offlinelai_kmp.domain.repository.LoadedModel
 import kotlin.time.Clock
+
+/** Safe string accessor — avoids ClassCastException if the model passes a non-primitive value. */
+private fun JsonObject.str(key: String): String? = (this[key] as? JsonPrimitive)?.contentOrNull
 
 data class ToolSpec(
     val name: String,
@@ -64,7 +67,7 @@ class OpenUrlTool : ToolHandler {
     )
 
     override suspend fun execute(arguments: JsonObject, context: ToolContext): ToolResult {
-        val url = arguments["url"]?.jsonPrimitive?.contentOrNull
+        val url = arguments.str("url")
             ?: return ToolResult(spec.name, "Error: url parameter is required")
 
         val success = AppActionsProvider.openUrl(url)
@@ -84,7 +87,7 @@ class OpenDialerTool : ToolHandler {
     )
 
     override suspend fun execute(arguments: JsonObject, context: ToolContext): ToolResult {
-        val phoneNumber = arguments["phone_number"]?.jsonPrimitive?.contentOrNull
+        val phoneNumber = arguments.str("phone_number")
             ?: return ToolResult(spec.name, "Error: phone_number parameter is required")
 
         val success = AppActionsProvider.openDialer(phoneNumber)
@@ -100,10 +103,10 @@ class OpenEmailTool : ToolHandler {
     )
 
     override suspend fun execute(arguments: JsonObject, context: ToolContext): ToolResult {
-        val to = arguments["to"]?.jsonPrimitive?.contentOrNull
+        val to = arguments.str("to")
             ?: return ToolResult(spec.name, "Error: 'to' parameter is required")
-        val subject = arguments["subject"]?.jsonPrimitive?.contentOrNull ?: ""
-        val body = arguments["body"]?.jsonPrimitive?.contentOrNull ?: ""
+        val subject = arguments.str("subject") ?: ""
+        val body = arguments.str("body") ?: ""
 
         val success = AppActionsProvider.openEmail(to, subject, body)
         return ToolResult(spec.name, if (success) "Opened email composer for $to" else "Failed to open email")
@@ -118,7 +121,7 @@ class OpenMapsTool : ToolHandler {
     )
 
     override suspend fun execute(arguments: JsonObject, context: ToolContext): ToolResult {
-        val query = arguments["query"]?.jsonPrimitive?.contentOrNull
+        val query = arguments.str("query")
             ?: return ToolResult(spec.name, "Error: query parameter is required")
 
         val success = AppActionsProvider.openMaps(query)
@@ -134,9 +137,9 @@ class ShareTextTool : ToolHandler {
     )
 
     override suspend fun execute(arguments: JsonObject, context: ToolContext): ToolResult {
-        val text = arguments["text"]?.jsonPrimitive?.contentOrNull
+        val text = arguments.str("text")
             ?: return ToolResult(spec.name, "Error: text parameter is required")
-        val title = arguments["title"]?.jsonPrimitive?.contentOrNull ?: ""
+        val title = arguments.str("title") ?: ""
 
         val success = AppActionsProvider.shareText(text, title)
         return ToolResult(spec.name, if (success) "Opened share dialog" else "Failed to share")
@@ -151,7 +154,7 @@ class CopyToClipboardTool : ToolHandler {
     )
 
     override suspend fun execute(arguments: JsonObject, context: ToolContext): ToolResult {
-        val text = arguments["text"]?.jsonPrimitive?.contentOrNull
+        val text = arguments.str("text")
             ?: return ToolResult(spec.name, "Error: text parameter is required")
 
         val success = AppActionsProvider.copyToClipboard(text)
@@ -180,7 +183,7 @@ class ToggleTorchTool : ToolHandler {
     )
 
     override suspend fun execute(arguments: JsonObject, context: ToolContext): ToolResult {
-        val enableStr = arguments["enable"]?.jsonPrimitive?.contentOrNull
+        val enableStr = arguments.str("enable")
         val enable = enableStr?.lowercase() == "true" || enableStr == "1"
 
         val success = AppActionsProvider.toggleTorch(enable)

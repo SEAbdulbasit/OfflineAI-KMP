@@ -184,14 +184,11 @@ actual object AppActionsProvider {
     }
 
     private fun encodeUrlComponent(value: String): String {
-        // Simple URL encoding for common characters
-        return value
-            .replace("%", "%25")
-            .replace(" ", "%20")
-            .replace("&", "%26")
-            .replace("=", "%3D")
-            .replace("?", "%3F")
-            .replace("#", "%23")
-            .replace("\n", "%0A")
+        val nsString = value as NSString
+        // Unreserved characters per RFC 3986: letters, digits, - _ . ~
+        val allowedChars = NSCharacterSet.characterSetWithCharactersInString(
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~"
+        )
+        return nsString.stringByAddingPercentEncodingWithAllowedCharacters(allowedChars) ?: value
     }
 }
