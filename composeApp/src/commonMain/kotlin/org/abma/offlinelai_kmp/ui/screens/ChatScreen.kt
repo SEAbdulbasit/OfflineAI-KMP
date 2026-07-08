@@ -35,6 +35,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.abma.offlinelai_kmp.domain.model.ChatMessage
 import org.abma.offlinelai_kmp.domain.model.ModelState
 import org.abma.offlinelai_kmp.platform.toClipEntry
@@ -126,7 +129,6 @@ fun ChatScreenContent(
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
-
     Scaffold(
         modifier = modifier.pointerInput(Unit) {
             detectTapGestures(onTap = {
@@ -151,7 +153,8 @@ fun ChatScreenContent(
                 )
             }
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -219,13 +222,17 @@ fun ChatScreenContent(
                                     modifier = Modifier.fillMaxWidth(),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        text = "TODAY",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        letterSpacing = 1.sp
-                                    )
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.surfaceContainer
+                                    ) {
+                                        Text(
+                                            text = "Today",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.outline,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                                        )
+                                    }
                                 }
                             }
 
@@ -274,54 +281,35 @@ private fun ChatTopBar(
     modifier: Modifier = Modifier
 ) {
     val extendedColors = MaterialTheme.extendedColors
-    val toggleTheme = LocalThemeToggle.current
+    val isDark = LocalIsDarkTheme.current
 
     Surface(
-        modifier = modifier,
-        color = extendedColors.headerBackground.copy(alpha = 0.8f),
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp
     ) {
-        Column {
+        Column(modifier = Modifier.statusBarsPadding()) {
             TopAppBar(
                 title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.padding(start = 4.dp)
                     ) {
-                        // Gradient avatar
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .shadow(8.dp, CircleShape)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(
-                                            MaterialTheme.colorScheme.primary,
-                                            MaterialTheme.colorScheme.secondary
-                                        )
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.Memory,
+                            contentDescription = null,
+                            tint = if (isDark) Color.White else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
 
-                        Column {
-                            Text(
-                                text = "Gemma 2b",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                letterSpacing = (-0.5).sp
-                            )
-                            StatusIndicator(modelState = modelState)
-                        }
+                        Text(
+                            text = "LocalIntelligence",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) Color.White else MaterialTheme.colorScheme.primary,
+                            letterSpacing = (-0.5).sp
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -329,45 +317,58 @@ private fun ChatTopBar(
                 ),
                 windowInsets = WindowInsets(0, 0, 0, 0),
                 actions = {
-                    IconButton(onClick = toggleTheme) {
-                        Icon(
-                            imageVector = Icons.Default.Contrast,
-                            contentDescription = "Toggle theme",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    AnimatedVisibility(
-                        visible = hasMessages,
-                        enter = fadeIn() + scaleIn(),
-                        exit = fadeOut() + scaleOut()
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(end = 8.dp)
                     ) {
-                        IconButton(onClick = onClearChat) {
+                        // Model Badge
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFF1A1A1A),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                Color.White.copy(alpha = 0.15f)
+                            ),
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                val statusColor = Color(0xFF22C55E)
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(statusColor)
+                                )
+
+                                Text(
+                                    text = "Model: Llama 3",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFFA1A1A1)
+                                )
+                            }
+                        }
+
+                        IconButton(onClick = onNavigateToSettings) {
                             Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "Clear chat",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Settings",
+                                tint = if (isDark) Color.White.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                    }
-
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                     }
                 }
             )
 
-            // Border divider
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp),
-                color = extendedColors.headerBorder
-            ) {}
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                thickness = 1.dp
+            )
         }
     }
 }
@@ -442,148 +443,90 @@ private fun MessageBubble(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 20.dp),
         horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
     ) {
-        Row(
-            verticalAlignment = Alignment.Top,
-            horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
-            modifier = Modifier.fillMaxWidth()
+        Column(
+            modifier = Modifier.widthIn(max = 320.dp),
+            horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
         ) {
-            if (!isUser) {
-                // AI Avatar
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(extendedColors.avatarAi),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AutoAwesome,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
+            // Message bubble
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = when {
+                    message.isError -> MaterialTheme.colorScheme.errorContainer
+                    isUser -> Color(0xFF2563EB)
+                    else -> Color(0xFF1A1A1A)
+                },
+                border = if (!isUser && !message.isError) {
+                    androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        Color.White.copy(alpha = 0.1f)
                     )
-                }
-                Spacer(Modifier.width(12.dp))
-            }
-
-            Column(
-                modifier = Modifier.widthIn(max = 300.dp),
-                horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
+                } else null
             ) {
-                // Sender label for AI
-                if (!isUser) {
-                    Text(
-                        text = "Gemma",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                Column(
+                    modifier = Modifier.padding(
+                        horizontal = 16.dp,
+                        vertical = 12.dp
                     )
-                }
-
-                // Message bubble
-                Surface(
-                    shape = RoundedCornerShape(
-                        topStart = 20.dp,
-                        topEnd = 20.dp,
-                        bottomStart = if (isUser) 20.dp else 4.dp,
-                        bottomEnd = if (isUser) 4.dp else 20.dp
-                    ),
-                    color = when {
-                        message.isError -> MaterialTheme.colorScheme.errorContainer
-                        isUser -> MaterialTheme.colorScheme.primary
-                        else -> extendedColors.bubbleAi
-                    },
-                    shadowElevation = if (isUser) 2.dp else 1.dp,
-                    border = if (!isUser && !message.isError) {
-                        androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            extendedColors.bubbleAiBorder
-                        )
-                    } else null
                 ) {
-                    Column(
-                        modifier = Modifier.padding(
-                            horizontal = if (isUser) 16.dp else 14.dp,
-                            vertical = if (isUser) 10.dp else 12.dp
-                        )
-                    ) {
-
-                        if (message.isStreaming && message.content.isEmpty()) {
-                            TypingDots()
-                        } else if (message.content.isNotEmpty()) {
-                            Text(
-                                text = message.content,
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    lineHeight = 22.sp
-                                ),
-                                fontWeight = if (isUser) FontWeight.Medium else FontWeight.Normal,
-                                color = when {
-                                    message.isError -> MaterialTheme.colorScheme.onErrorContainer
-                                    isUser -> Color.White
-                                    else -> MaterialTheme.colorScheme.onSurface
-                                }
-                            )
-                        }
-                    }
-                }
-
-                // Copy Icon Button
-                val showCopyIcon =
-                    message.content.isNotEmpty() && !message.isStreaming && !message.isError
-                AnimatedVisibility(
-                    visible = showCopyIcon,
-                    enter = fadeIn(animationSpec = tween(230, 500)) + scaleIn(
-                        initialScale = 0.85f,
-                        animationSpec = tween(230, 500)
-                    ),
-                    exit = fadeOut(animationSpec = tween(120)) + scaleOut(
-                        targetScale = 0.85f,
-                        animationSpec = tween(120)
-                    ),
-                    modifier = Modifier
-                        .padding(top = 5.dp)
-                        .size(24.dp)
-                        .align(Alignment.End)
-                ) {
-                    IconButton(
-                        onClick = {
-                            onCopy()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ContentCopy,
-                            contentDescription = "Copy message",
-                            tint = when {
+                    if (message.isStreaming && message.content.isEmpty()) {
+                        TypingDots()
+                    } else if (message.content.isNotEmpty()) {
+                        Text(
+                            text = message.content,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                lineHeight = 20.sp
+                            ),
+                            color = when {
                                 message.isError -> MaterialTheme.colorScheme.onErrorContainer
+                                isUser -> MaterialTheme.colorScheme.onPrimary
                                 else -> MaterialTheme.colorScheme.onSurface
-                            },
-                            modifier = Modifier.size(16.dp)
+                            }
                         )
                     }
                 }
             }
 
-            if (isUser) {
-                Spacer(Modifier.width(12.dp))
-                // User Avatar
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(extendedColors.bubbleUser),
-                    contentAlignment = Alignment.Center
-                ) {
+            // Timestamp and Actions
+            Row(
+                modifier = Modifier.padding(top = 6.dp, start = if (isUser) 0.dp else 4.dp, end = if (isUser) 4.dp else 0.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (!isUser && message.content.isNotEmpty() && !message.isStreaming && !message.isError) {
                     Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = "Copy message",
+                        tint = Color(0xFF525252),
+                        modifier = Modifier.size(18.dp).pointerInput(Unit) {
+                            detectTapGestures(onTap = { onCopy() })
+                        }
                     )
+                    Spacer(Modifier.width(16.dp))
+                    Icon(
+                        imageVector = Icons.Default.ThumbUp,
+                        contentDescription = "Like",
+                        tint = Color(0xFF525252),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(16.dp))
                 }
+
+                val timestampText = remember(message.timestamp) {
+                    val instant = Instant.fromEpochMilliseconds(message.timestamp)
+                    val localDateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
+                    val hour = localDateTime.hour.toString().padStart(2, '0')
+                    val minute = localDateTime.minute.toString().padStart(2, '0')
+                    "$hour:$minute"
+                }
+
+                Text(
+                    text = timestampText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF525252),
+                    fontSize = 11.sp
+                )
             }
         }
     }
@@ -717,151 +660,105 @@ private fun ChatInputBar(
     modifier: Modifier = Modifier
 ) {
     val extendedColors = MaterialTheme.extendedColors
+    val isDark = LocalIsDarkTheme.current
 
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 0.dp
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Color.Transparent)
+            .padding(horizontal = 20.dp, vertical = 24.dp)
     ) {
-        Column {
-
-            // Divider
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp),
-                color = extendedColors.headerBorder.copy(alpha = 0.5f)
-            ) {}
-
+        Surface(
+            shape = RoundedCornerShape(32.dp),
+            color = Color(0xFF0A0A0A),
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                Color.White.copy(alpha = 0.15f)
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.Bottom,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Input field
-                Surface(
+                IconButton(
+                    onClick = { /* TODO: Implement more actions */ },
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add",
+                        tint = Color(0xFFA1A1A1),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                TextField(
+                    value = value,
+                    onValueChange = onValueChange,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(24.dp),
-                    color = extendedColors.inputBackground
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        TextField(
-                            value = value,
-                            onValueChange = onValueChange,
-                            modifier = Modifier.weight(1f),
-                            placeholder = {
-                                Text(
-                                    text = placeholder,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                )
-                            },
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                disabledContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent,
-                                disabledIndicatorColor = Color.Transparent,
-                                cursorColor = MaterialTheme.colorScheme.primary
-                            ),
-                            enabled = enabled && !isGenerating,
-                            textStyle = MaterialTheme.typography.bodyLarge.copy(
-                                color = MaterialTheme.colorScheme.onSurface
-                            ),
-                            keyboardOptions = KeyboardOptions(
-                                imeAction = ImeAction.Send
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onSend = {
-                                    if (value.isNotBlank() && enabled && !isGenerating) {
-                                        onSend()
-                                    }
-                                }
-                            ),
-                            singleLine = false,
-                            maxLines = 6
+                    placeholder = {
+                        Text(
+                            text = "Message Gemma...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xFF525252)
                         )
-                    }
-                }
-
-                // Send/Stop button
-                AnimatedVisibility(
-                    visible = isGenerating,
-                    enter = fadeIn() + scaleIn(),
-                    exit = fadeOut() + scaleOut()
-                ) {
-                    FilledIconButton(
-                        onClick = onStopGeneration,
-                        modifier = Modifier.size(46.dp),
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.error
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Stop,
-                            contentDescription = "Stop generation",
-                            tint = MaterialTheme.colorScheme.onError,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-
-                AnimatedVisibility(
-                    visible = !isGenerating,
-                    enter = fadeIn() + scaleIn(),
-                    exit = fadeOut() + scaleOut()
-                ) {
-                    FilledIconButton(
-                        onClick = onSend,
-                        enabled = enabled && value.isNotBlank(),
-                        modifier = Modifier
-                            .size(46.dp)
-                            .shadow(
-                                elevation = if (enabled && value.isNotBlank()) 8.dp else 0.dp,
-                                shape = CircleShape,
-                                ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                            ),
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "Send message",
-                            tint = if (enabled && value.isNotBlank()) {
-                                MaterialTheme.colorScheme.onPrimary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                            },
-                            modifier = Modifier
-                                .size(22.dp)
-                                .rotate(-45f)
-                        )
-                    }
-                }
-            }
-
-            // Home indicator bar (iOS style)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(128.dp)
-                        .height(5.dp)
-                        .clip(RoundedCornerShape(2.5.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                    },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent,
+                        cursorColor = Color.White
+                    ),
+                    enabled = enabled && !isGenerating,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                        color = Color.White
+                    ),
+                    maxLines = 4
                 )
+
+                Box(modifier = Modifier.padding(4.dp)) {
+                    if (isGenerating) {
+                        FilledIconButton(
+                            onClick = onStopGeneration,
+                            shape = RoundedCornerShape(14.dp),
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            ),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Stop,
+                                contentDescription = "Stop",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    } else {
+                        FilledIconButton(
+                            onClick = onSend,
+                            enabled = enabled && value.isNotBlank(),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = Color(0xFF3B82F6),
+                                disabledContainerColor = Color(0xFF262626)
+                            ),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowUpward,
+                                contentDescription = "Send",
+                                tint = if (enabled && value.isNotBlank()) Color.White else Color.White.copy(alpha = 0.3f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -1026,4 +923,5 @@ fun ChatScreenPreviewLongConversation() {
         )
     )
 }
+
 

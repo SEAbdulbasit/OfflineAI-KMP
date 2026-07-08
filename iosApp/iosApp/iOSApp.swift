@@ -11,8 +11,8 @@ struct iOSApp: App {
     var body: some Scene {
         WindowGroup {
             ComposeView()
+                .ignoresSafeArea(.all)
                 .onAppear {
-                    print("iOSApp: ComposeView appeared - starting bridge")
                     InferenceBridge.shared.start()
                 }
         }

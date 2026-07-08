@@ -50,6 +50,15 @@ fun App() {
                             e.printStackTrace()
                         }
                     },
+                    onNavigateToChat = {
+                        try {
+                            navController.navigate("chat") {
+                                popUpTo("chat") { inclusive = true }
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    },
                     onLoadModel = { path, config ->
                         try {
                             chatViewModel.onAction(ChatAction.LoadModel(path, config))

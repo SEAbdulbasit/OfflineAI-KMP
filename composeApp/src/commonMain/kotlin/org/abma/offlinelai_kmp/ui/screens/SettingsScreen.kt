@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -41,14 +42,13 @@ import kotlin.time.Clock
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onLoadModel: (String, ModelConfig) -> Unit,
+    onNavigateToChat: () -> Unit = {},
     onRemoveModel: (String) -> Unit = {},
     loadedModels: List<LoadedModel> = emptyList(),
     currentModelPath: String? = null
 ) {
     var maxTokens by remember { mutableIntStateOf(2048) }
     var temperature by remember { mutableFloatStateOf(0.7f) }
-    var topP by remember { mutableFloatStateOf(0.9f) }
-    var showAdvancedSettings by remember { mutableStateOf(false) }
     var pendingModelPath by remember { mutableStateOf<String?>(null) }
     var isCopyingFile by remember { mutableStateOf(false) }
     var copyError by remember { mutableStateOf<String?>(null) }
@@ -92,7 +92,8 @@ fun SettingsScreen(
                 headerBorder = extendedColors.headerBorder
             )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -101,6 +102,8 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
         ) {
+            Spacer(modifier = Modifier.height(20.dp))
+
             // Import Model Section
             SectionHeader(
                 title = "Import Model",
@@ -180,20 +183,6 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Advanced Settings Section
-            AdvancedSettingsSection(
-                expanded = showAdvancedSettings,
-                onToggle = { showAdvancedSettings = !showAdvancedSettings },
-                temperature = temperature,
-                onTemperatureChange = { temperature = it },
-                maxTokens = maxTokens,
-                onMaxTokensChange = { maxTokens = it },
-                topP = topP,
-                onTopPChange = { topP = it }
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
             // Info Card
             InfoCard()
 
@@ -209,13 +198,23 @@ private fun SettingsTopBar(
     headerBackground: Color,
     headerBorder: Color
 ) {
+    val isDark = LocalIsDarkTheme.current
+    val extendedColors = MaterialTheme.extendedColors
+
     Surface(
-        color = headerBackground.copy(alpha = 0.8f),
-        tonalElevation = 0.dp
+        color = Color.Black,
+        tonalElevation = 0.dp,
+        modifier = Modifier.statusBarsPadding()
     ) {
         Column {
             TopAppBar(
                 title = {
+                    Text(
+                        text = "Settings",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
                 },
                 navigationIcon = {
                     IconButton(
@@ -224,7 +223,50 @@ private fun SettingsTopBar(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+                },
+                actions = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.padding(end = 12.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFF1A1A1A),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                Color.White.copy(alpha = 0.15f)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF22C55E))
+                                )
+                                Text(
+                                    text = "Offline",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFFA1A1A1)
+                                )
+                            }
+                        }
+
+                        Icon(
+                            imageVector = Icons.Default.SensorsOff,
+                            contentDescription = "Offline",
+                            tint = Color(0xFF3B82F6),
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 },
@@ -233,11 +275,10 @@ private fun SettingsTopBar(
                 ),
                 windowInsets = WindowInsets(0, 0, 0, 0)
             )
-            // Border divider
-            Surface(
-                modifier = Modifier.fillMaxWidth().height(1.dp),
-                color = headerBorder
-            ) {}
+            HorizontalDivider(
+                color = Color.White.copy(alpha = 0.1f),
+                thickness = 1.dp
+            )
         }
     }
 }
@@ -249,11 +290,11 @@ private fun SectionHeader(
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier.padding(bottom = 8.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.padding(bottom = 12.dp)
     ) {
         Surface(
-            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+            color = Color(0xFF1E3A8A).copy(alpha = 0.4f),
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier.size(32.dp)
         ) {
@@ -261,17 +302,16 @@ private fun SectionHeader(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = Color(0xFF3B82F6),
                     modifier = Modifier.size(18.dp)
                 )
             }
         }
         Text(
             text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            letterSpacing = (-0.2).sp
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
         )
     }
 }
@@ -285,31 +325,31 @@ private fun ImportModelButton(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = if (enabled) 0.3f else 0.15f),
+        color = Color(0xFF0A0A0A),
         border = BorderStroke(
-            width = 2.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (enabled) 1f else 0.5f)
+            width = 1.dp,
+            color = Color.White.copy(alpha = 0.15f)
         ),
         enabled = enabled
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 40.dp),
+                .padding(vertical = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.Folder,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (enabled) 0.6f else 0.3f),
-                modifier = Modifier.size(40.dp)
+                tint = Color(0xFF525252),
+                modifier = Modifier.size(48.dp)
             )
             Text(
                 text = "Browse Files to Import Model",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (enabled) 1f else 0.5f)
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFFA1A1A1)
             )
         }
     }
@@ -481,32 +521,14 @@ private fun ModelCard(
     onLoad: () -> Unit,
     onRemove: () -> Unit
 ) {
-    val extendedColors = MaterialTheme.extendedColors
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(
-                if (isActive) {
-                    Modifier.shadow(
-                        elevation = 4.dp,
-                        shape = RoundedCornerShape(20.dp),
-                        ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                    )
-                } else Modifier
-            ),
+    Surface(
+        onClick = onLoad,
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isActive) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
-            } else {
-                extendedColors.bubbleAi
-            }
-        ),
+        color = Color(0xFF0A0A0A),
         border = BorderStroke(
             width = if (isActive) 2.dp else 1.dp,
-            color = if (isActive) MaterialTheme.colorScheme.primary else extendedColors.bubbleAiBorder
+            color = if (isActive) Color(0xFF2563EB) else Color.White.copy(alpha = 0.1f)
         )
     ) {
         Row(
@@ -519,29 +541,12 @@ private fun ModelCard(
             // Model Icon
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .shadow(
-                        elevation = if (isActive) 8.dp else 0.dp,
-                        shape = RoundedCornerShape(16.dp),
-                        ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                    )
-                    .clip(RoundedCornerShape(16.dp))
+                    .size(44.dp)
+                    .clip(CircleShape)
                     .background(
-                        if (isActive) {
-                            Brush.linearGradient(
-                                listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    MaterialTheme.colorScheme.secondary
-                                )
-                            )
-                        } else {
-                            Brush.linearGradient(
-                                listOf(
-                                    MaterialTheme.colorScheme.surfaceVariant,
-                                    MaterialTheme.colorScheme.surfaceVariant
-                                )
-                            )
-                        }
+                        Brush.linearGradient(
+                            listOf(Color(0xFF2563EB), Color(0xFF1D4ED8))
+                        )
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -560,14 +565,10 @@ private fun ModelCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = model.name.take(15) + if (model.name.length > 15) "..." else "",
-                        style = MaterialTheme.typography.titleSmall,
+                        text = model.name,
+                        style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
-                        color = if (isActive) {
-                            MaterialTheme.colorScheme.onSurface
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                        color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -575,294 +576,92 @@ private fun ModelCard(
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = "Active",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
+                            tint = Color(0xFF2563EB),
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
-                // On-device badge
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = Color(0xFF262626)
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Bolt,
-                                contentDescription = null,
-                                modifier = Modifier.size(11.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "ON-DEVICE",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Outlined.Bolt,
+                            contentDescription = null,
+                            modifier = Modifier.size(10.dp),
+                            tint = Color(0xFFA1A1A1)
+                        )
+                        Text(
+                            text = "ON-DEVICE",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFA1A1A1)
+                        )
                     }
                 }
             }
 
             // Action buttons
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                IconButton(
-                    onClick = onLoad,
-                    modifier = Modifier.size(40.dp)
-                ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconButton(onClick = onLoad, modifier = Modifier.size(32.dp)) {
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
                         contentDescription = "Load",
-                        tint = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-                IconButton(
-                    onClick = onRemove,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Remove",
-                        tint = if (isActive) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
-                        },
+                        tint = Color(0xFF525252),
                         modifier = Modifier.size(24.dp)
                     )
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AdvancedSettingsSection(
-    expanded: Boolean,
-    onToggle: () -> Unit,
-    temperature: Float,
-    onTemperatureChange: (Float) -> Unit,
-    maxTokens: Int,
-    onMaxTokensChange: (Int) -> Unit,
-    topP: Float,
-    onTopPChange: (Float) -> Unit
-) {
-    val extendedColors = MaterialTheme.extendedColors
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = extendedColors.bubbleAi
-        ),
-        border = BorderStroke(1.dp, extendedColors.bubbleAiBorder)
-    ) {
-        Column {
-            // Header (clickable)
-            Surface(
-                onClick = onToggle,
-                color = Color.Transparent
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Tune,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.secondary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                        Column {
-                            Text(
-                                text = "Advanced Settings",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "Customize generation parameters",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
+                IconButton(onClick = onRemove, modifier = Modifier.size(32.dp)) {
                     Icon(
-                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Remove",
+                        tint = Color(0xFFEF4444).copy(alpha = 0.8f),
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
-
-            // Expandable content
-            AnimatedVisibility(
-                visible = expanded,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                Column {
-                    HorizontalDivider(
-                        color = extendedColors.bubbleAiBorder,
-                        thickness = 1.dp
-                    )
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(24.dp)
-                    ) {
-                        // Temperature slider
-                        SettingSlider(
-                            title = "Temperature",
-                            description = "Controls randomness: lower is more focused, higher is more creative.",
-                            value = temperature,
-                            onValueChange = onTemperatureChange,
-                            valueRange = 0f..2f,
-                            displayValue = temperature.toString().take(4)
-                        )
-
-                        // Max Tokens slider
-                        SettingSlider(
-                            title = "Max Tokens",
-                            description = "The maximum number of tokens to generate in a single response.",
-                            value = maxTokens.toFloat(),
-                            onValueChange = { onMaxTokensChange(it.toInt()) },
-                            valueRange = 256f..4096f,
-                            displayValue = maxTokens.toString(),
-                            steps = 15
-                        )
-                    }
-                }
-            }
         }
-    }
-}
-
-@Composable
-private fun SettingSlider(
-    title: String,
-    description: String?,
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    valueRange: ClosedFloatingPointRange<Float>,
-    displayValue: String,
-    steps: Int = 0
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Surface(
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(
-                    text = displayValue,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-
-        description?.let {
-            Text(
-                text = it,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 16.sp
-            )
-        }
-
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = valueRange,
-            steps = steps,
-            modifier = Modifier.fillMaxWidth(),
-            colors = SliderDefaults.colors(
-                thumbColor = MaterialTheme.colorScheme.primary,
-                activeTrackColor = MaterialTheme.colorScheme.primary,
-                inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant
-            )
-        )
     }
 }
 
 @Composable
 private fun InfoCard() {
-    Card(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
-        ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+        shape = RoundedCornerShape(20.dp),
+        color = Color(0xFF0A0A0A),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
     ) {
         Row(
-            modifier = Modifier.padding(24.dp),
+            modifier = Modifier.padding(20.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Icon(
                 imageVector = Icons.Outlined.Info,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = Color(0xFF3B82F6),
                 modifier = Modifier.size(24.dp)
             )
             Column {
                 Text(
                     text = "How to add model files",
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 15.sp
+                    color = Color.White
                 )
                 Spacer(Modifier.height(12.dp))
 
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    InfoStep(
-                        number = "1",
-                        text = "Download a Gemma model ("
-                    )
+                    InfoStep(number = "1", text = "Download a Gemma model (")
                     InfoStep(number = "2", text = "Tap 'Browse Files' above")
                     InfoStep(number = "3", text = "Select the model from your device storage")
                     InfoStep(number = "4", text = "The model will be imported and ready to use")
@@ -871,10 +670,8 @@ private fun InfoCard() {
                 Spacer(Modifier.height(16.dp))
                 Text(
                     text = "Supported: Gemma 2B/7B, GPU/CPU variants",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Normal
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF525252)
                 )
             }
         }
@@ -890,19 +687,15 @@ private fun InfoStep(
         Text(
             text = "$number.",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.Medium,
-            fontSize = 13.sp
+            color = Color(0xFFA1A1A1),
+            fontWeight = FontWeight.Medium
         )
-        Row {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Medium,
-                fontSize = 13.sp
-            )
-        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = Color(0xFFA1A1A1),
+            fontWeight = FontWeight.Medium
+        )
     }
 }
 
@@ -1035,4 +828,3 @@ fun SettingsScreenPreviewMultipleModelsNoActive() {
         currentModelPath = null
     )
 }
-
