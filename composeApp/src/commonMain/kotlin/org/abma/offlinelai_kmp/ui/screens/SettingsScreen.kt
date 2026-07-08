@@ -1,6 +1,5 @@
 package org.abma.offlinelai_kmp.ui.screens
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -19,7 +18,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -42,7 +40,6 @@ import kotlin.time.Clock
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onLoadModel: (String, ModelConfig) -> Unit,
-    onNavigateToChat: () -> Unit = {},
     onRemoveModel: (String) -> Unit = {},
     loadedModels: List<LoadedModel> = emptyList(),
     currentModelPath: String? = null

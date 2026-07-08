@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -103,6 +104,9 @@ class ChatViewModel : ViewModel() {
      */
     private var streamingMessageId: String? = null
 
+    /** Active generation coroutine job - cancelled on stop */
+    private var generationJob: Job? = null
+
     // ═══════════════════════════════════════════════════════════════════════════
     // USE CASES (Clean Architecture)
     // ═══════════════════════════════════════════════════════════════════════════
@@ -141,6 +145,7 @@ class ChatViewModel : ViewModel() {
             is ChatAction.RemoveModel -> removeLoadedModel(action.path)
             is ChatAction.UpdateInput -> updateInput(action.text)
             is ChatAction.SendMessage -> sendMessage()
+            is ChatAction.StopGeneration -> stopGeneration()
             is ChatAction.ClearChat -> clearChat()
             is ChatAction.DismissError -> dismissError()
             is ChatAction.RefreshModels -> refreshLoadedModels()
@@ -254,6 +259,13 @@ class ChatViewModel : ViewModel() {
         _uiState.update { it.copy(errorMessage = null) }
     }
 
+    /** Cancel the current generation and finalize the streaming message */
+    private fun stopGeneration() {
+        generationJob?.cancel()
+        generationJob = null
+        finishStreaming()
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // RESPONSE GENERATION - THE CORE STREAMING LOGIC
     // ═══════════════════════════════════════════════════════════════════════════
@@ -278,7 +290,7 @@ class ChatViewModel : ViewModel() {
      * - Much better UX than waiting for complete response
      */
     private fun generateResponse(prompt: String, history: List<ChatMessage>) {
-        viewModelScope.launch(Dispatchers.IO) {
+        generationJob = viewModelScope.launch(Dispatchers.IO) {
             // ═══ STEP 1: Create placeholder message ═══
             val aiMessage = ChatMessage.ai("", isStreaming = true)
             streamingMessageId = aiMessage.id

@@ -12,6 +12,14 @@ import org.abma.offlinelai_kmp.ui.theme.GemmaTheme
 import org.abma.offlinelai_kmp.ui.viewmodel.ChatAction
 import org.abma.offlinelai_kmp.ui.viewmodel.ChatViewModel
 
+/**
+ * Navigation route constants for type-safe navigation.
+ */
+private object Routes {
+    const val CHAT = "chat"
+    const val SETTINGS = "settings"
+}
+
 @Composable
 fun App() {
     val systemDarkTheme = isSystemInDarkTheme()
@@ -27,51 +35,26 @@ fun App() {
 
         NavHost(
             navController = navController,
-            startDestination = "chat"
+            startDestination = Routes.CHAT
         ) {
-            composable("chat") {
+            composable(Routes.CHAT) {
                 ChatScreen(
                     onNavigateToSettings = {
-                        try {
-                            navController.navigate("settings")
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
+                        navController.navigate(Routes.SETTINGS)
                     },
                     viewModel = chatViewModel
                 )
             }
-            composable("settings") {
+            composable(Routes.SETTINGS) {
                 SettingsScreen(
                     onNavigateBack = {
-                        try {
-                            navController.popBackStack()
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    },
-                    onNavigateToChat = {
-                        try {
-                            navController.navigate("chat") {
-                                popUpTo("chat") { inclusive = true }
-                            }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
+                        navController.popBackStack()
                     },
                     onLoadModel = { path, config ->
-                        try {
-                            chatViewModel.onAction(ChatAction.LoadModel(path, config))
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
+                        chatViewModel.onAction(ChatAction.LoadModel(path, config))
                     },
                     onRemoveModel = { path ->
-                        try {
-                            chatViewModel.onAction(ChatAction.RemoveModel(path))
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
+                        chatViewModel.onAction(ChatAction.RemoveModel(path))
                     },
                     loadedModels = uiState.loadedModels,
                     currentModelPath = uiState.currentModelPath

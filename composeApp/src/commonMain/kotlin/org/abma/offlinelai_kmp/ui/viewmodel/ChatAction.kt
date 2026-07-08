@@ -37,6 +37,9 @@ sealed interface ChatAction {
     /** User pressed send button */
     data object SendMessage : ChatAction
 
+    /** User wants to stop the current generation */
+    data object StopGeneration : ChatAction
+
     /** User wants to clear chat history */
     data object ClearChat : ChatAction
 

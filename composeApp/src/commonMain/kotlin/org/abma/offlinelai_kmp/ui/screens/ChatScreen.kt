@@ -1,6 +1,5 @@
 package org.abma.offlinelai_kmp.ui.screens
 
-import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -11,26 +10,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -93,7 +84,7 @@ fun ChatScreen(
             onClearChat = { viewModel.onAction(ChatAction.ClearChat) },
             onInputChange = { viewModel.onAction(ChatAction.UpdateInput(it)) },
             onSend = { viewModel.onAction(ChatAction.SendMessage) },
-            onStopGeneration = { /* TODO: Implement stop generation */ },
+            onStopGeneration = { viewModel.onAction(ChatAction.StopGeneration) },
             onCopyMessage = onCopyMessage,
             onRegenerateMessage = { /* TODO: Implement regenerate */ }
         )
@@ -138,6 +129,7 @@ fun ChatScreenContent(
         topBar = {
             ChatTopBar(
                 modelState = uiState.modelState,
+                currentModelPath = uiState.currentModelPath,
                 hasMessages = uiState.messages.isNotEmpty(),
                 onClearChat = onClearChat,
                 onNavigateToSettings = onNavigateToSettings
@@ -275,13 +267,28 @@ fun ChatScreenContent(
 @Composable
 private fun ChatTopBar(
     modelState: ModelState,
+    currentModelPath: String?,
     hasMessages: Boolean,
     onClearChat: () -> Unit,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val extendedColors = MaterialTheme.extendedColors
     val isDark = LocalIsDarkTheme.current
+
+    // Derive model display name from path
+    val modelDisplayName = currentModelPath
+        ?.substringAfterLast("/")
+        ?.substringBeforeLast(".")
+        ?: "No model"
+
+    // Derive status color and label from model state
+    val (statusColor, statusLabel) = when (modelState) {
+        ModelState.READY -> Color(0xFF22C55E) to modelDisplayName
+        ModelState.GENERATING -> Color(0xFF3B82F6) to "Generating..."
+        ModelState.LOADING -> Color(0xFFFACC15) to "Loading..."
+        ModelState.ERROR -> Color(0xFFEF4444) to "Error"
+        ModelState.NOT_LOADED -> Color(0xFF525252) to "No model"
+    }
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -337,7 +344,6 @@ private fun ChatTopBar(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                val statusColor = Color(0xFF22C55E)
                                 Box(
                                     modifier = Modifier
                                         .size(8.dp)
@@ -346,10 +352,11 @@ private fun ChatTopBar(
                                 )
 
                                 Text(
-                                    text = "Model: Llama 3",
+                                    text = statusLabel,
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFFA1A1A1)
+                                    color = Color(0xFFA1A1A1),
+                                    maxLines = 1
                                 )
                             }
                         }
@@ -373,62 +380,6 @@ private fun ChatTopBar(
     }
 }
 
-@Composable
-private fun StatusIndicator(
-    modelState: ModelState,
-    modifier: Modifier = Modifier
-) {
-    val extendedColors = MaterialTheme.extendedColors
-    val (statusText, statusColor, showPulse) = when (modelState) {
-        ModelState.NOT_LOADED -> Triple("Not loaded", MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), false)
-        ModelState.LOADING -> Triple("Loading...", extendedColors.statusLoading, true)
-        ModelState.READY -> Triple("Ready • On-device", extendedColors.statusReady, true)
-        ModelState.ERROR -> Triple("Error", MaterialTheme.colorScheme.error, false)
-        ModelState.GENERATING -> Triple("Generating...", extendedColors.statusLoading, true)
-    }
-
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        // Animated pulse dot
-        if (showPulse) {
-            val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-            val alpha by infiniteTransition.animateFloat(
-                initialValue = 1f,
-                targetValue = 0.3f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(1000, easing = LinearEasing),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "pulse_alpha"
-            )
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .alpha(alpha)
-                    .clip(CircleShape)
-                    .background(statusColor)
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(statusColor)
-            )
-        }
-
-        Text(
-            text = statusText,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            letterSpacing = 0.5.sp
-        )
-    }
-}
 
 @Composable
 private fun MessageBubble(
@@ -532,83 +483,6 @@ private fun MessageBubble(
     }
 }
 
-@Composable
-private fun ActionChip(
-    text: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = modifier.height(28.dp),
-        shape = RoundedCornerShape(14.dp),
-        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
-        colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-        ),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant
-        )
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Medium
-        )
-    }
-}
-
-@Composable
-private fun TypingIndicatorBubble(
-    modifier: Modifier = Modifier
-) {
-    val extendedColors = MaterialTheme.extendedColors
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        // AI Avatar
-        Box(
-            modifier = Modifier
-                .size(32.dp)
-                .clip(CircleShape)
-                .background(extendedColors.avatarAi),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.AutoAwesome,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp)
-            )
-        }
-        Spacer(Modifier.width(12.dp))
-
-        Surface(
-            shape = RoundedCornerShape(
-                topStart = 16.dp,
-                topEnd = 16.dp,
-                bottomStart = 4.dp,
-                bottomEnd = 16.dp
-            ),
-            color = extendedColors.bubbleAi,
-            shadowElevation = 1.dp,
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp,
-                extendedColors.bubbleAiBorder
-            )
-        ) {
-            TypingDots(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
-            )
-        }
-    }
-}
 
 @Composable
 private fun TypingDots(
@@ -701,7 +575,7 @@ private fun ChatInputBar(
                     modifier = Modifier.weight(1f),
                     placeholder = {
                         Text(
-                            text = "Message Gemma...",
+                            text = placeholder,
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color(0xFF525252)
                         )
@@ -923,5 +797,3 @@ fun ChatScreenPreviewLongConversation() {
         )
     )
 }
-
-
