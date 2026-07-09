@@ -332,10 +332,10 @@ private fun ChatTopBar(
                         // Model Badge
                         Surface(
                             shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFF1A1A1A),
+                            color = if (isDark) Color(0xFF1A1A1A) else MaterialTheme.colorScheme.surfaceContainerHigh,
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
-                                Color.White.copy(alpha = 0.15f)
+                                if (isDark) Color.White.copy(alpha = 0.15f) else MaterialTheme.colorScheme.outlineVariant
                             ),
                             modifier = Modifier.padding(vertical = 4.dp)
                         ) {
@@ -355,7 +355,7 @@ private fun ChatTopBar(
                                     text = statusLabel,
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFFA1A1A1),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1
                                 )
                             }
@@ -390,6 +390,7 @@ private fun MessageBubble(
 ) {
     val isUser = message.isFromUser
     val extendedColors = MaterialTheme.extendedColors
+    val isDark = LocalIsDarkTheme.current
 
     Column(
         modifier = modifier
@@ -406,13 +407,13 @@ private fun MessageBubble(
                 shape = RoundedCornerShape(20.dp),
                 color = when {
                     message.isError -> MaterialTheme.colorScheme.errorContainer
-                    isUser -> Color(0xFF2563EB)
-                    else -> Color(0xFF1A1A1A)
+                    isUser -> extendedColors.bubbleUser
+                    else -> extendedColors.bubbleAi
                 },
                 border = if (!isUser && !message.isError) {
                     androidx.compose.foundation.BorderStroke(
                         1.dp,
-                        Color.White.copy(alpha = 0.1f)
+                        if (isDark) Color.White.copy(alpha = 0.1f) else extendedColors.bubbleAiBorder
                     )
                 } else null
             ) {
@@ -449,7 +450,7 @@ private fun MessageBubble(
                     Icon(
                         imageVector = Icons.Default.ContentCopy,
                         contentDescription = "Copy message",
-                        tint = Color(0xFF525252),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         modifier = Modifier.size(18.dp).pointerInput(Unit) {
                             detectTapGestures(onTap = { onCopy() })
                         }
@@ -458,7 +459,7 @@ private fun MessageBubble(
                     Icon(
                         imageVector = Icons.Default.ThumbUp,
                         contentDescription = "Like",
-                        tint = Color(0xFF525252),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(Modifier.width(16.dp))
@@ -475,7 +476,7 @@ private fun MessageBubble(
                 Text(
                     text = timestampText,
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF525252),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     fontSize = 11.sp
                 )
             }
@@ -533,7 +534,6 @@ private fun ChatInputBar(
     placeholder: String,
     modifier: Modifier = Modifier
 ) {
-    val extendedColors = MaterialTheme.extendedColors
     val isDark = LocalIsDarkTheme.current
 
     Column(
@@ -544,10 +544,10 @@ private fun ChatInputBar(
     ) {
         Surface(
             shape = RoundedCornerShape(32.dp),
-            color = Color(0xFF0A0A0A),
+            color = if (isDark) Color(0xFF0A0A0A) else MaterialTheme.colorScheme.surfaceContainerHigh,
             border = androidx.compose.foundation.BorderStroke(
                 1.dp,
-                Color.White.copy(alpha = 0.15f)
+                if (isDark) Color.White.copy(alpha = 0.15f) else MaterialTheme.colorScheme.outlineVariant
             ),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -564,7 +564,7 @@ private fun ChatInputBar(
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = "Add",
-                        tint = Color(0xFFA1A1A1),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -577,7 +577,7 @@ private fun ChatInputBar(
                         Text(
                             text = placeholder,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFF525252)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     },
                     colors = TextFieldDefaults.colors(
@@ -587,11 +587,11 @@ private fun ChatInputBar(
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
                         disabledIndicatorColor = Color.Transparent,
-                        cursorColor = Color.White
+                        cursorColor = MaterialTheme.colorScheme.primary
                     ),
                     enabled = enabled && !isGenerating,
                     textStyle = MaterialTheme.typography.bodyMedium.copy(
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onSurface
                     ),
                     maxLines = 4
                 )
@@ -619,15 +619,15 @@ private fun ChatInputBar(
                             enabled = enabled && value.isNotBlank(),
                             shape = RoundedCornerShape(14.dp),
                             colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = Color(0xFF3B82F6),
-                                disabledContainerColor = Color(0xFF262626)
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                disabledContainerColor = if (isDark) Color(0xFF262626) else MaterialTheme.colorScheme.surfaceVariant
                             ),
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ArrowUpward,
                                 contentDescription = "Send",
-                                tint = if (enabled && value.isNotBlank()) Color.White else Color.White.copy(alpha = 0.3f),
+                                tint = if (enabled && value.isNotBlank()) Color.White else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
                                 modifier = Modifier.size(20.dp)
                             )
                         }

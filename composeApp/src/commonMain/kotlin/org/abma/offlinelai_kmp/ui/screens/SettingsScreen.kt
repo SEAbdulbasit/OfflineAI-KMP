@@ -2,6 +2,7 @@ package org.abma.offlinelai_kmp.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -31,7 +33,8 @@ import org.abma.offlinelai_kmp.domain.model.ModelConfig
 import org.abma.offlinelai_kmp.domain.repository.LoadedModel
 import org.abma.offlinelai_kmp.picker.FilePickerStatus
 import org.abma.offlinelai_kmp.picker.rememberFilePickerWithStatus
-import org.abma.offlinelai_kmp.ui.theme.*
+import org.abma.offlinelai_kmp.ui.theme.GemmaTheme
+import org.abma.offlinelai_kmp.ui.theme.LocalIsDarkTheme
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import kotlin.time.Clock
 
@@ -50,7 +53,6 @@ fun SettingsScreen(
     var isCopyingFile by remember { mutableStateOf(false) }
     var copyError by remember { mutableStateOf<String?>(null) }
 
-    val extendedColors = MaterialTheme.extendedColors
 
     // File picker with status reporting for importing new models
     val launchFilePicker = rememberFilePickerWithStatus { status ->
@@ -58,15 +60,18 @@ fun SettingsScreen(
             is FilePickerStatus.Idle -> {
                 isCopyingFile = false
             }
+
             is FilePickerStatus.Copying -> {
                 isCopyingFile = true
                 copyError = null
             }
+
             is FilePickerStatus.Success -> {
                 isCopyingFile = false
                 pendingModelPath = status.path
                 copyError = null
             }
+
             is FilePickerStatus.Error -> {
                 isCopyingFile = false
                 copyError = status.message
@@ -84,9 +89,7 @@ fun SettingsScreen(
         },
         topBar = {
             SettingsTopBar(
-                onNavigateBack = onNavigateBack,
-                headerBackground = extendedColors.headerBackground,
-                headerBorder = extendedColors.headerBorder
+                onNavigateBack = onNavigateBack
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -191,15 +194,12 @@ fun SettingsScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsTopBar(
-    onNavigateBack: () -> Unit,
-    headerBackground: Color,
-    headerBorder: Color
+    onNavigateBack: () -> Unit
 ) {
     val isDark = LocalIsDarkTheme.current
-    val extendedColors = MaterialTheme.extendedColors
 
     Surface(
-        color = Color.Black,
+        color = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
         modifier = Modifier.statusBarsPadding()
     ) {
@@ -210,7 +210,7 @@ private fun SettingsTopBar(
                         text = "Settings",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 },
                 navigationIcon = {
@@ -221,7 +221,7 @@ private fun SettingsTopBar(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color.White
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 },
@@ -233,10 +233,10 @@ private fun SettingsTopBar(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFF1A1A1A),
+                            color = if (isDark) Color(0xFF1A1A1A) else MaterialTheme.colorScheme.surfaceContainerHigh,
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
-                                Color.White.copy(alpha = 0.15f)
+                                if (isDark) Color.White.copy(alpha = 0.15f) else MaterialTheme.colorScheme.outlineVariant
                             )
                         ) {
                             Row(
@@ -254,7 +254,7 @@ private fun SettingsTopBar(
                                     text = "Offline",
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFFA1A1A1)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -262,7 +262,7 @@ private fun SettingsTopBar(
                         Icon(
                             imageVector = Icons.Default.SensorsOff,
                             contentDescription = "Offline",
-                            tint = Color(0xFF3B82F6),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -273,7 +273,7 @@ private fun SettingsTopBar(
                 windowInsets = WindowInsets(0, 0, 0, 0)
             )
             HorizontalDivider(
-                color = Color.White.copy(alpha = 0.1f),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
                 thickness = 1.dp
             )
         }
@@ -291,7 +291,7 @@ private fun SectionHeader(
         modifier = Modifier.padding(bottom = 12.dp)
     ) {
         Surface(
-            color = Color(0xFF1E3A8A).copy(alpha = 0.4f),
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier.size(32.dp)
         ) {
@@ -299,7 +299,7 @@ private fun SectionHeader(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = Color(0xFF3B82F6),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -308,7 +308,7 @@ private fun SectionHeader(
             text = title,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            color = Color.White
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
@@ -318,14 +318,16 @@ private fun ImportModelButton(
     onClick: () -> Unit,
     enabled: Boolean = true
 ) {
+    val isDark = LocalIsDarkTheme.current
+
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        color = Color(0xFF0A0A0A),
+        color = if (isDark) Color(0xFF0A0A0A) else MaterialTheme.colorScheme.surfaceContainerHigh,
         border = BorderStroke(
             width = 1.dp,
-            color = Color.White.copy(alpha = 0.15f)
+            color = if (isDark) Color.White.copy(alpha = 0.15f) else MaterialTheme.colorScheme.outlineVariant
         ),
         enabled = enabled
     ) {
@@ -339,14 +341,14 @@ private fun ImportModelButton(
             Icon(
                 imageVector = Icons.Default.Folder,
                 contentDescription = null,
-                tint = Color(0xFF525252),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(48.dp)
             )
             Text(
                 text = "Browse Files to Import Model",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFFA1A1A1)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -518,14 +520,17 @@ private fun ModelCard(
     onLoad: () -> Unit,
     onRemove: () -> Unit
 ) {
+    val isDark = LocalIsDarkTheme.current
+
     Surface(
         onClick = onLoad,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        color = Color(0xFF0A0A0A),
+        color = if (isDark) Color(0xFF0A0A0A) else MaterialTheme.colorScheme.surfaceContainerHigh,
         border = BorderStroke(
             width = if (isActive) 2.dp else 1.dp,
-            color = if (isActive) Color(0xFF2563EB) else Color.White.copy(alpha = 0.1f)
+            color = if (isActive) MaterialTheme.colorScheme.primary
+            else if (isDark) Color.White.copy(alpha = 0.1f) else MaterialTheme.colorScheme.outlineVariant
         )
     ) {
         Row(
@@ -542,7 +547,7 @@ private fun ModelCard(
                     .clip(CircleShape)
                     .background(
                         Brush.linearGradient(
-                            listOf(Color(0xFF2563EB), Color(0xFF1D4ED8))
+                            listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer)
                         )
                     ),
                 contentAlignment = Alignment.Center
@@ -565,7 +570,7 @@ private fun ModelCard(
                         text = model.name,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -573,7 +578,7 @@ private fun ModelCard(
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = "Active",
-                            tint = Color(0xFF2563EB),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -583,7 +588,7 @@ private fun ModelCard(
 
                 Surface(
                     shape = RoundedCornerShape(4.dp),
-                    color = Color(0xFF262626)
+                    color = if (isDark) Color(0xFF262626) else MaterialTheme.colorScheme.surfaceVariant
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
@@ -594,14 +599,14 @@ private fun ModelCard(
                             imageVector = Icons.Outlined.Bolt,
                             contentDescription = null,
                             modifier = Modifier.size(10.dp),
-                            tint = Color(0xFFA1A1A1)
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
                             text = "ON-DEVICE",
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFA1A1A1)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -613,7 +618,7 @@ private fun ModelCard(
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
                         contentDescription = "Load",
-                        tint = Color(0xFF525252),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -621,7 +626,7 @@ private fun ModelCard(
                     Icon(
                         imageVector = Icons.Default.Delete,
                         contentDescription = "Remove",
-                        tint = Color(0xFFEF4444).copy(alpha = 0.8f),
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -632,11 +637,17 @@ private fun ModelCard(
 
 @Composable
 private fun InfoCard() {
+    val isDark = LocalIsDarkTheme.current
+    val uriHandler = LocalUriHandler.current
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        color = Color(0xFF0A0A0A),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+        color = if (isDark) Color(0xFF0A0A0A) else MaterialTheme.colorScheme.surfaceContainerHigh,
+        border = BorderStroke(
+            1.dp,
+            if (isDark) Color.White.copy(alpha = 0.1f) else MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
         Row(
             modifier = Modifier.padding(20.dp),
@@ -645,7 +656,7 @@ private fun InfoCard() {
             Icon(
                 imageVector = Icons.Outlined.Info,
                 contentDescription = null,
-                tint = Color(0xFF3B82F6),
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp)
             )
             Column {
@@ -653,25 +664,90 @@ private fun InfoCard() {
                     text = "How to add model files",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(Modifier.height(12.dp))
 
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    InfoStep(number = "1", text = "Download a Gemma model (")
+                    InfoStep(number = "1", text = "Download a model from the links below")
                     InfoStep(number = "2", text = "Tap 'Browse Files' above")
                     InfoStep(number = "3", text = "Select the model from your device storage")
                     InfoStep(number = "4", text = "The model will be imported and ready to use")
                 }
 
                 Spacer(Modifier.height(16.dp))
+
                 Text(
-                    text = "Supported: Gemma 2B/7B, GPU/CPU variants",
+                    text = "Download Models",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                DownloadLink(
+                    label = "Gemma 3n E2B (Recommended)",
+                    url = "https://huggingface.co/google/gemma-3n-E2B-it-litert-preview",
+                    onClick = { uriHandler.openUri(it) }
+                )
+                Spacer(Modifier.height(6.dp))
+                DownloadLink(
+                    label = "Gemma 3n E4B",
+                    url = "https://huggingface.co/google/gemma-3n-E4B-it-litert-preview",
+                    onClick = { uriHandler.openUri(it) }
+                )
+                Spacer(Modifier.height(6.dp))
+                DownloadLink(
+                    label = "Gemma 2 2B",
+                    url = "https://huggingface.co/google/gemma-2-2b-it",
+                    onClick = { uriHandler.openUri(it) }
+                )
+                Spacer(Modifier.height(6.dp))
+                DownloadLink(
+                    label = "Browse all Gemma models",
+                    url = "https://huggingface.co/collections/google/gemma-3n-67e32e29f05a47e895a8beac",
+                    onClick = { uriHandler.openUri(it) }
+                )
+
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = "Supported formats: LiteRT (.task), TFLite (.tflite)",
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF525252)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun DownloadLink(
+    label: String,
+    url: String,
+    onClick: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .clickable { onClick(url) }
+            .padding(vertical = 6.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.OpenInNew,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(16.dp)
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.primary
+        )
     }
 }
 
@@ -684,13 +760,13 @@ private fun InfoStep(
         Text(
             text = "$number.",
             style = MaterialTheme.typography.bodySmall,
-            color = Color(0xFFA1A1A1),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.Medium
         )
         Text(
             text = text,
             style = MaterialTheme.typography.bodySmall,
-            color = Color(0xFFA1A1A1),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.Medium
         )
     }

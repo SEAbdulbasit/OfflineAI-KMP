@@ -1,5 +1,6 @@
 package org.abma.offlinelai_kmp.domain.usecase
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
@@ -159,7 +160,12 @@ class GenerateResponseUseCase(
         // ═══════════════════════════════════════════════════════════════════
         // ERROR HANDLING
         // ═══════════════════════════════════════════════════════════════════
-        // .catch() intercepts any exception in the Flow
+        // CancellationException must be re-thrown to allow proper coroutine
+        // cancellation (e.g., when user stops generation). Without this,
+        // the inner callbackFlow's awaitClose never runs, leaving the
+        // inference engine stuck and unable to accept new requests.
+        if (e is CancellationException) throw e
+        // .catch() intercepts any other exception in the Flow
         // Allows graceful error handling rather than crashing
         emit(GenerateResponseResult.Error(e as? Exception ?: Exception(e)))
     }
