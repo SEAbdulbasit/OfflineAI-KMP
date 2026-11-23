@@ -73,7 +73,20 @@ fun App() {
                         chatViewModel.onAction(ChatAction.RemoveModel(path))
                     },
                     loadedModels = uiState.loadedModels,
-                    currentModelPath = uiState.currentModelPath
+                    currentModelPath = uiState.currentModelPath,
+                    activeConfig = uiState.activeConfig,
+                    onUpdateModelConfig = { config ->
+                        chatViewModel.onAction(ChatAction.UpdateModelConfig(config))
+                    },
+                    trimmingStrategy = uiState.trimmingStrategy,
+                    onUpdateTrimmingStrategy = { strategy ->
+                        chatViewModel.onAction(ChatAction.UpdateTrimmingStrategy(strategy))
+                    },
+                    platformName = uiState.platformName,
+                    deviceModel = uiState.deviceModel,
+                    osVersion = uiState.osVersion,
+                    maxContextTokens = uiState.maxContextTokens,
+                    estimatedContextTokens = uiState.estimatedContextTokens
                 )
             }
         }

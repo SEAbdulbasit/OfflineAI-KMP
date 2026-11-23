@@ -33,8 +33,45 @@ import kotlinx.serialization.Serializable
 data class ModelConfig(
     val maxTokens: Int = 2048,
     val temperature: Float = 0.8f,
-    val topK: Int = 40
+    val topK: Int = 40,
+    val topP: Float = 0.95f
 )
+
+/**
+ * Built-in AI persona presets for Relay / Sentient OS modes.
+ */
+@Serializable
+enum class PersonaPreset(
+    val displayName: String,
+    val shortTag: String,
+    val description: String
+) {
+    DEFAULT(
+        displayName = "Sentient Core",
+        shortTag = "CORE",
+        description = "Balanced on-device intelligence with full device tool access"
+    ),
+    CODE_ARCHITECT(
+        displayName = "Code Architect",
+        shortTag = "CODE",
+        description = "Kotlin Multiplatform, Compose, and systems engineering specialist"
+    ),
+    CREATIVE_SYNTH(
+        displayName = "Creative Synth",
+        shortTag = "SYNTH",
+        description = "Expressive writing, brainstorming, and narrative synthesis"
+    ),
+    TACTICAL_BRIEF(
+        displayName = "Tactical Brief",
+        shortTag = "BRIEF",
+        description = "Ultra-concise bulleted answers with zero filler"
+    ),
+    CUSTOM(
+        displayName = "Custom Directive",
+        shortTag = "CUSTOM",
+        description = "User-defined system instructions and behavioral constraints"
+    )
+}
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════════

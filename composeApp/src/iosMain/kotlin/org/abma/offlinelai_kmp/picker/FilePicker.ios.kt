@@ -46,14 +46,7 @@ private fun showDocumentPicker(onFilePicked: (String?) -> Unit) {
     picker.allowsMultipleSelection = false
     picker.modalPresentationStyle = UIModalPresentationPageSheet
 
-    val rootViewController = getRootViewController()
-
-    var topController = rootViewController
-    while (topController?.presentedViewController != null) {
-        topController = topController.presentedViewController
-    }
-
-    topController?.presentViewController(picker, animated = true, completion = null)
+    presentOnTopViewController(picker)
 }
 
 private fun showDocumentPickerWithStatus(onStatusChange: (FilePickerStatus) -> Unit) {
@@ -71,19 +64,61 @@ private fun showDocumentPickerWithStatus(onStatusChange: (FilePickerStatus) -> U
     picker.allowsMultipleSelection = false
     picker.modalPresentationStyle = UIModalPresentationPageSheet
 
-    val rootViewController = getRootViewController()
+    presentOnTopViewController(picker)
+}
 
-    var topController = rootViewController
+private fun presentOnTopViewController(controller: UIViewController) {
+    var topController = getRootViewController()
     while (topController?.presentedViewController != null) {
         topController = topController.presentedViewController
     }
-
-    topController?.presentViewController(picker, animated = true, completion = null)
+    topController?.presentViewController(controller, animated = true, completion = null)
 }
 
 private fun getRootViewController(): UIViewController? {
     @Suppress("DEPRECATION")
     return UIApplication.sharedApplication.keyWindow?.rootViewController
+}
+
+@OptIn(ExperimentalForeignApi::class)
+private fun copyToDocuments(sourceUrl: NSURL): String? {
+    return try {
+        val fileManager = NSFileManager.defaultManager
+        val documentsDir = NSSearchPathForDirectoriesInDomains(
+            NSDocumentDirectory,
+            NSUserDomainMask,
+            true
+        ).firstOrNull() as? String ?: return null
+
+        val fileName = sourceUrl.lastPathComponent
+            ?: "model_${NSDate().timeIntervalSince1970.toLong()}.bin"
+        val destPath = "$documentsDir/$fileName"
+
+        if (fileManager.fileExistsAtPath(destPath)) {
+            fileManager.removeItemAtPath(destPath, null)
+        }
+
+        val sourcePath = sourceUrl.path ?: return null
+
+        if (!fileManager.fileExistsAtPath(sourcePath)) {
+            NSLog("Source file does not exist: $sourcePath")
+            return null
+        }
+
+        val success = fileManager.copyItemAtPath(sourcePath, destPath, null)
+
+        if (success) {
+            NSLog("File copied successfully to: $destPath")
+            fileManager.removeItemAtPath(sourcePath, null)
+            destPath
+        } else {
+            NSLog("Failed to copy file to Documents")
+            sourcePath
+        }
+    } catch (e: Exception) {
+        NSLog("Error copying file: ${e.message}")
+        null
+    }
 }
 
 private class DocumentPickerDelegate(
@@ -132,47 +167,6 @@ private class DocumentPickerDelegate(
             } catch (e: Exception) {
                 NSLog("Error in file picker cancel callback: ${e.message}")
             }
-        }
-    }
-
-    @OptIn(ExperimentalForeignApi::class)
-    private fun copyToDocuments(sourceUrl: NSURL): String? {
-        return try {
-            val fileManager = NSFileManager.defaultManager
-            val documentsDir = NSSearchPathForDirectoriesInDomains(
-                NSDocumentDirectory,
-                NSUserDomainMask,
-                true
-            ).firstOrNull() as? String ?: return null
-
-            val fileName = sourceUrl.lastPathComponent
-                ?: "model_${NSDate().timeIntervalSince1970.toLong()}.bin"
-            val destPath = "$documentsDir/$fileName"
-
-            if (fileManager.fileExistsAtPath(destPath)) {
-                fileManager.removeItemAtPath(destPath, null)
-            }
-
-            val sourcePath = sourceUrl.path ?: return null
-
-            if (!fileManager.fileExistsAtPath(sourcePath)) {
-                NSLog("Source file does not exist: $sourcePath")
-                return null
-            }
-
-            val success = fileManager.copyItemAtPath(sourcePath, destPath, null)
-
-            if (success) {
-                NSLog("File copied successfully to: $destPath")
-                fileManager.removeItemAtPath(sourcePath, null)
-                destPath
-            } else {
-                NSLog("Failed to copy file to Documents")
-                sourcePath
-            }
-        } catch (e: Exception) {
-            NSLog("Error copying file: ${e.message}")
-            null
         }
     }
 }
@@ -236,47 +230,6 @@ private class DocumentPickerStatusDelegate(
                 NSLog("Error in file picker cancel callback: ${e.message}")
             }
             currentStatusDelegate = null
-        }
-    }
-
-    @OptIn(ExperimentalForeignApi::class)
-    private fun copyToDocuments(sourceUrl: NSURL): String? {
-        return try {
-            val fileManager = NSFileManager.defaultManager
-            val documentsDir = NSSearchPathForDirectoriesInDomains(
-                NSDocumentDirectory,
-                NSUserDomainMask,
-                true
-            ).firstOrNull() as? String ?: return null
-
-            val fileName = sourceUrl.lastPathComponent
-                ?: "model_${NSDate().timeIntervalSince1970.toLong()}.bin"
-            val destPath = "$documentsDir/$fileName"
-
-            if (fileManager.fileExistsAtPath(destPath)) {
-                fileManager.removeItemAtPath(destPath, null)
-            }
-
-            val sourcePath = sourceUrl.path ?: return null
-
-            if (!fileManager.fileExistsAtPath(sourcePath)) {
-                NSLog("Source file does not exist: $sourcePath")
-                return null
-            }
-
-            val success = fileManager.copyItemAtPath(sourcePath, destPath, null)
-
-            if (success) {
-                NSLog("File copied successfully to: $destPath")
-                fileManager.removeItemAtPath(sourcePath, null)
-                destPath
-            } else {
-                NSLog("Failed to copy file to Documents")
-                sourcePath
-            }
-        } catch (e: Exception) {
-            NSLog("Error copying file: ${e.message}")
-            null
         }
     }
 }

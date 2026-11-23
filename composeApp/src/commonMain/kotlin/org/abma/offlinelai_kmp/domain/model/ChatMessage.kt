@@ -50,7 +50,25 @@ data class ChatMessage(
     val isStreaming: Boolean = false,
 
     /** True if this message represents an error (generation failed). */
-    val isError: Boolean = false
+    val isError: Boolean = false,
+
+    /** Optional performance metrics captured for AI generation of this message. */
+    val metrics: GenerationMetrics? = null,
+
+    /** Optional executed tool name if this message involved an on-device tool call. */
+    val toolCallName: String? = null,
+
+    /** Optional formatted JSON arguments for the executed tool call. */
+    val toolArgumentsJson: String? = null,
+
+    /** Optional raw result returned by the device tool execution. */
+    val toolResultText: String? = null,
+
+    /** True if the user pinned this message to active context memory. */
+    val isPinned: Boolean = false,
+
+    /** Optional persona tag that generated this response. */
+    val personaLabel: String? = null
 ) {
     companion object {
         /**

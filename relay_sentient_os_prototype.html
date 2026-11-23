@@ -1,0 +1,2967 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OfflineAI-KMP · Relay & Sentient OS Full-Flow Interactive Prototype</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ═══════════════════════════════════════════════════════════════════════
+           RELAY & SENTIENT OS DESIGN TOKENS (1:1 PARITY WITH Theme.kt)
+           ═══════════════════════════════════════════════════════════════════════ */
+        :root,
+        html[data-theme="dark"] {
+            --pitch: #0D1214;
+            --canvas: #101518;
+            --card-bg: #161C1F;
+            --surface: #1C2326;
+            --surface-elevated: #232B2E;
+            --glass-backdrop: rgba(22, 28, 31, 0.96);
+
+            --subtle-fill: rgba(255, 255, 255, 0.04);
+            --badge-fill: rgba(255, 255, 255, 0.07);
+            --hover-fill: rgba(255, 255, 255, 0.068);
+            --active-fill: rgba(255, 255, 255, 0.11);
+
+            --border-subtle: rgba(255, 255, 255, 0.075);
+            --border-default: rgba(255, 255, 255, 0.12);
+            --border-strong: rgba(255, 255, 255, 0.25);
+            --border-focus: rgba(255, 255, 255, 0.24);
+
+            --text-primary: #F5F7FA;
+            --text-bright: #EAEEF5;
+            --text-secondary: #C4C6CD;
+            --text-muted: #A6AAB6;
+            --text-dim: #979EAD;
+
+            --button-face: #F5F7FA;
+            --button-ink: #101319;
+
+            --workbench-accent: #82CDB8;
+            --accent-blue: #84B8FF;
+            --accent-emerald: #34D399;
+            --accent-amethyst: #C0A8FA;
+            --accent-amber: #FBBF24;
+            --accent-coral: #F87171;
+            --accent-cyan: #A5F3FC;
+            --accent-gold: #F4D69A;
+
+            --board-bg: radial-gradient(circle at 20% 0%, #151D22 0%, #0B0F12 65%, #070A0C 100%);
+            --device-bezel: #1D2529;
+            --device-shadow: 0 32px 72px rgba(0, 0, 0, 0.72), 0 0 0 1px rgba(255, 255, 255, 0.09);
+            --atmosphere-top: radial-gradient(ellipse 85% 32% at 50% 0%, rgba(132, 184, 255, 0.09) 0%, rgba(192, 168, 250, 0.04) 45%, transparent 100%);
+        }
+
+        html[data-theme="light"] {
+            --pitch: #F1F5F3;
+            --canvas: #F7F9F8;
+            --card-bg: #FFFFFF;
+            --surface: #F1F5F3;
+            --surface-elevated: #FFFFFF;
+            --glass-backdrop: rgba(255, 255, 255, 0.96);
+
+            --subtle-fill: rgba(15, 23, 42, 0.032);
+            --badge-fill: rgba(15, 23, 42, 0.052);
+            --hover-fill: rgba(15, 23, 42, 0.048);
+            --active-fill: rgba(15, 23, 42, 0.08);
+
+            --border-subtle: rgba(15, 23, 42, 0.07);
+            --border-default: rgba(15, 23, 42, 0.11);
+            --border-strong: rgba(17, 19, 24, 0.20);
+            --border-focus: rgba(17, 19, 24, 0.22);
+
+            --text-primary: #111318;
+            --text-bright: #181B22;
+            --text-secondary: #454952;
+            --text-muted: #595F6B;
+            --text-dim: #676F7D;
+
+            --button-face: #111318;
+            --button-ink: #FFFFFF;
+
+            --workbench-accent: #1B5B4E;
+            --accent-blue: #2563EB;
+            --accent-emerald: #047753;
+            --accent-amethyst: #7C3AED;
+            --accent-amber: #A65404;
+            --accent-coral: #CD2121;
+            --accent-cyan: #07708A;
+            --accent-gold: #B45309;
+
+            --board-bg: radial-gradient(circle at 20% 0%, #E7ECEA 0%, #DCE3E0 65%, #D2DBD7 100%);
+            --device-bezel: #CBD5D1;
+            --device-shadow: 0 28px 60px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(15, 23, 42, 0.10);
+            --atmosphere-top: radial-gradient(ellipse 85% 32% at 50% 0%, rgba(37, 99, 235, 0.06) 0%, rgba(124, 58, 237, 0.03) 45%, transparent 100%);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+            font-variant-numeric: tabular-nums;
+            background: var(--board-bg);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 94px 44px 64px;
+            min-height: 100vh;
+            display: flex;
+            gap: 48px;
+            overflow-x: auto;
+            align-items: flex-start;
+            transition: background 0.25s ease;
+        }
+
+        body[data-layout="focus"] {
+            justify-content: center;
+            padding-top: 86px;
+        }
+
+        body[data-layout="focus"] .flow-section {
+            background: transparent;
+            border-color: transparent;
+            box-shadow: none;
+            padding: 12px 0;
+        }
+
+        body[data-layout="focus"] .section-title {
+            display: none;
+        }
+
+        body[data-layout="focus"] .phone-wrapper:not(.active-focus) {
+            display: none;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+
+        .mono-caps {
+            font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 1.15px;
+            text-transform: uppercase;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════
+           FLOATING QUICK-JUMP PROTOTYPE TOOLBAR
+           ═══════════════════════════════════════════════════════════════════════ */
+        .proto-toolbar {
+            position: fixed;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            background: rgba(16, 21, 24, 0.88);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 999px;
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+            white-space: nowrap;
+            max-width: calc(100vw - 24px);
+            overflow-x: auto;
+        }
+
+        .proto-brand {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 4px 10px 4px 6px;
+            color: #F5F7FA;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: -0.2px;
+        }
+
+        .proto-chip {
+            background: transparent;
+            color: #A6AAB6;
+            border: 1px solid transparent;
+            border-radius: 999px;
+            padding: 6px 11px;
+            font-family: inherit;
+            font-size: 11.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.16s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .proto-chip:hover {
+            color: #F5F7FA;
+            background: rgba(255, 255, 255, 0.07);
+        }
+
+        .proto-chip.active {
+            color: #101319;
+            background: #F5F7FA;
+            font-weight: 700;
+            box-shadow: 0 2px 10px rgba(255, 255, 255, 0.18);
+        }
+
+        .proto-chip.accent {
+            color: #82CDB8;
+            border-color: rgba(130, 205, 184, 0.28);
+            background: rgba(130, 205, 184, 0.10);
+        }
+
+        .proto-divider {
+            width: 1px;
+            height: 18px;
+            background: rgba(255, 255, 255, 0.14);
+            margin: 0 3px;
+            flex-shrink: 0;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════
+           BOARD FLOW SECTIONS & DEVICE FRAMES
+           ═══════════════════════════════════════════════════════════════════════ */
+        .flow-section {
+            background: rgba(255, 255, 255, 0.018);
+            border: 1px solid var(--border-subtle);
+            padding: 36px 28px 28px;
+            border-radius: 36px;
+            display: flex;
+            gap: 36px;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .section-title {
+            position: absolute;
+            top: -32px;
+            left: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .phone-wrapper {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .screen-label {
+            position: absolute;
+            top: -25px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            font-size: 11px;
+            letter-spacing: 0.4px;
+        }
+
+        .device {
+            width: 392px;
+            height: 852px;
+            background: var(--canvas);
+            border-radius: 44px;
+            box-shadow: var(--device-shadow);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border: 6px solid var(--device-bezel);
+            color: var(--text-primary);
+            position: relative;
+            transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .relay-atmosphere {
+            position: absolute;
+            inset: 0;
+            background: var(--atmosphere-top);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Status Bar */
+        .ios-status-bar {
+            height: 36px;
+            padding: 8px 24px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            z-index: 5;
+            flex-shrink: 0;
+            background: var(--glass-backdrop);
+        }
+
+        .dynamic-island {
+            width: 96px;
+            height: 22px;
+            background: #07090B;
+            border-radius: 999px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10px;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════
+           REUSABLE RELAY & SENTIENT OS ATOMS
+           ═══════════════════════════════════════════════════════════════════════ */
+        .relay-mark {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            background: var(--surface-elevated);
+            border: 1px solid var(--border-default);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .relay-mark.sm {
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+        }
+
+        .health-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .health-dot::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: currentColor;
+            opacity: 0.18;
+            animation: pulseHalo 2s infinite ease-in-out;
+        }
+
+        .health-dot::after {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            box-shadow: 0 0 6px currentColor;
+        }
+
+        @keyframes pulseHalo {
+            0%, 100% { transform: scale(0.85); opacity: 0.14; }
+            50% { transform: scale(1.18); opacity: 0.32; }
+        }
+
+        .relay-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3.5px 8px;
+            border-radius: 999px;
+            font-size: 10.5px;
+            font-weight: 600;
+            background: var(--badge-fill);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .relay-badge.emerald {
+            color: var(--accent-emerald);
+            background: rgba(52, 211, 153, 0.11);
+            border-color: rgba(52, 211, 153, 0.28);
+        }
+
+        .relay-badge.cyan {
+            color: var(--accent-cyan);
+            background: rgba(165, 243, 252, 0.10);
+            border-color: rgba(165, 243, 252, 0.26);
+        }
+
+        .relay-badge.blue {
+            color: var(--accent-blue);
+            background: rgba(132, 184, 255, 0.11);
+            border-color: rgba(132, 184, 255, 0.28);
+        }
+
+        .relay-badge.amethyst {
+            color: var(--accent-amethyst);
+            background: rgba(192, 168, 250, 0.11);
+            border-color: rgba(192, 168, 250, 0.28);
+        }
+
+        .relay-badge.amber {
+            color: var(--accent-amber);
+            background: rgba(251, 191, 36, 0.11);
+            border-color: rgba(251, 191, 36, 0.30);
+        }
+
+        .relay-badge.gold {
+            color: var(--accent-gold);
+            background: rgba(244, 214, 154, 0.12);
+            border-color: rgba(244, 214, 154, 0.30);
+        }
+
+        .relay-badge.coral {
+            color: var(--accent-coral);
+            background: rgba(248, 113, 113, 0.12);
+            border-color: rgba(248, 113, 113, 0.30);
+        }
+
+        .relay-badge.teal {
+            color: var(--workbench-accent);
+            background: rgba(130, 205, 184, 0.11);
+            border-color: rgba(130, 205, 184, 0.28);
+        }
+
+        .relay-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 14px;
+            position: relative;
+        }
+
+        .relay-icon-badge {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            border: 1px solid var(--border-subtle);
+            background: var(--subtle-fill);
+        }
+
+        /* Signature 3-Ribbon NotchThinkingUnderlight */
+        .thinking-underlight {
+            height: 3px;
+            width: 100%;
+            background: linear-gradient(90deg,
+                transparent 0%,
+                #38BDF8 20%,
+                #6366F1 50%,
+                #2DD4BF 80%,
+                transparent 100%);
+            background-size: 200% 100%;
+            animation: underlightSweep 2.2s linear infinite;
+            flex-shrink: 0;
+        }
+
+        @keyframes underlightSweep {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════
+           CHAT WORKSPACE TOP BAR, TELEMETRY HUD & PERSONA BAR
+           ═══════════════════════════════════════════════════════════════════════ */
+        .chat-topbar {
+            background: var(--glass-backdrop);
+            padding: 8px 12px 9px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-subtle);
+            z-index: 4;
+            flex-shrink: 0;
+        }
+
+        .brand-lockup {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            min-width: 0;
+        }
+
+        .brand-title {
+            font-size: 14.5px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+            color: var(--text-primary);
+            line-height: 1.15;
+        }
+
+        .brand-sub {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            color: var(--workbench-accent);
+            letter-spacing: 0.6px;
+        }
+
+        .topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .model-capsule {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            height: 27px;
+            padding: 0 9px;
+            border-radius: 999px;
+            background: var(--subtle-fill);
+            border: 1px solid var(--border-default);
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10.5px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .model-capsule:hover {
+            background: var(--hover-fill);
+        }
+
+        .icon-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--text-secondary);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s;
+            padding: 0;
+        }
+
+        .icon-btn:hover,
+        .icon-btn.active {
+            background: var(--hover-fill);
+            color: var(--text-primary);
+            border-color: var(--border-subtle);
+        }
+
+        /* Sentient OS Neural Telemetry HUD */
+        .telemetry-strip {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-subtle);
+            z-index: 3;
+            flex-shrink: 0;
+        }
+
+        .telemetry-bar {
+            padding: 6px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .telemetry-pills {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .telemetry-pills::-webkit-scrollbar {
+            display: none;
+        }
+
+        .ctx-meter {
+            width: 28px;
+            height: 4px;
+            border-radius: 999px;
+            background: var(--surface-elevated);
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .ctx-meter-fill {
+            height: 100%;
+            background: var(--accent-amethyst);
+            border-radius: 999px;
+        }
+
+        .telemetry-drawer {
+            background: var(--pitch);
+            border-top: 1px solid var(--border-subtle);
+            padding: 11px 13px;
+            display: none;
+            flex-direction: column;
+            gap: 9px;
+        }
+
+        .telemetry-drawer.open {
+            display: flex;
+        }
+
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+        }
+
+        .telemetry-cell {
+            background: var(--card-bg);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 6px 7px;
+        }
+
+        .telemetry-cell-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 8.5px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .telemetry-cell-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        /* Relay Persona Bar */
+        .persona-bar {
+            background: var(--canvas);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 7px 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            z-index: 3;
+            flex-shrink: 0;
+        }
+
+        .persona-bar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .persona-pill {
+            height: 28px;
+            padding: 0 9px;
+            border-radius: 8px;
+            background: var(--surface);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            font-size: 11.5px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+            transition: all 0.15s;
+        }
+
+        .persona-pill.active {
+            background: var(--surface-elevated);
+            border-color: var(--border-strong);
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .persona-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .workbench-pill {
+            height: 28px;
+            padding: 0 10px;
+            border-radius: 8px;
+            background: rgba(130, 205, 184, 0.11);
+            border: 1px solid rgba(130, 205, 184, 0.30);
+            color: var(--workbench-accent);
+            font-size: 11.5px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        /* In-Conversation Search Strip */
+        .search-strip {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 7px 12px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            z-index: 3;
+            flex-shrink: 0;
+        }
+
+        .search-strip.open {
+            display: flex;
+        }
+
+        .search-input-wrap {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            background: var(--surface);
+            border: 1px solid var(--border-default);
+            border-radius: 9px;
+            padding: 5px 10px;
+        }
+
+        .search-input-wrap input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 12px;
+            font-family: inherit;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════
+           EDITORIAL CHAT TRANSCRIPT & BUBBLES (1:1 ChatBubble.kt)
+           ═══════════════════════════════════════════════════════════════════════ */
+        .chat-stream {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            z-index: 2;
+            scrollbar-width: none;
+        }
+
+        .chat-stream::-webkit-scrollbar {
+            display: none;
+        }
+
+        .journal-header {
+            text-align: center;
+            margin: 2px 0;
+        }
+
+        /* User Message: Right-aligned Relay Editorial Pill */
+        .msg-user-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+
+        .msg-user-pill {
+            max-width: 84%;
+            background: var(--surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 14px;
+            padding: 10px 14px;
+            color: var(--text-primary);
+            font-size: 14px;
+            line-height: 1.48;
+        }
+
+        .msg-meta-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 3px;
+        }
+
+        .msg-time {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .msg-action-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 10.5px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            cursor: pointer;
+            padding: 2px 5px;
+            border-radius: 5px;
+            transition: all 0.14s;
+        }
+
+        .msg-action-btn:hover {
+            color: var(--text-primary);
+            background: var(--subtle-fill);
+        }
+
+        .msg-action-btn.pinned {
+            color: var(--accent-gold);
+        }
+
+        .msg-action-btn.copied {
+            color: var(--accent-emerald);
+        }
+
+        /* Assistant Turn: Left-aligned Workspace Card */
+        .msg-ai-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+        }
+
+        .msg-ai-header {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 0 2px;
+        }
+
+        .msg-ai-name {
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .msg-ai-card {
+            width: 100%;
+            background: var(--card-bg);
+            border: 1px solid var(--border-subtle);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .msg-ai-card.pinned-border {
+            border-color: rgba(244, 214, 154, 0.42);
+        }
+
+        .msg-ai-body {
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            font-size: 13.8px;
+            line-height: 1.52;
+            color: var(--text-primary);
+        }
+
+        .msg-ai-body p {
+            margin: 0;
+        }
+
+        /* Structured Fenced Code Block (TranscriptCodeBlockCard) */
+        .code-card {
+            background: var(--pitch);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .code-card-head {
+            background: var(--surface);
+            padding: 5px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .code-card-body {
+            padding: 9px 11px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11.5px;
+            line-height: 1.48;
+            color: var(--text-bright);
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        /* OS Action Execution Card (RelayActionExecutionCard) */
+        .tool-exec-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(251, 191, 36, 0.36);
+            border-radius: 12px;
+            padding: 11px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+        }
+
+        .tool-args-well {
+            background: var(--pitch);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 7px 9px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .tool-result-well {
+            background: rgba(52, 211, 153, 0.08);
+            border: 1px solid rgba(52, 211, 153, 0.24);
+            border-radius: 8px;
+            padding: 7px 9px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 12.5px;
+            color: var(--text-primary);
+        }
+
+        /* Per-Message Telemetry & Action Footer */
+        .msg-ai-footer {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2px;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════
+           SQUIRCLE COMPOSER DOCK (1:1 MessageInput.kt)
+           ═══════════════════════════════════════════════════════════════════════ */
+        .composer-dock-wrap {
+            background: var(--canvas);
+            padding: 8px 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            z-index: 4;
+            flex-shrink: 0;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .quick-chips-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .quick-chips-row::-webkit-scrollbar {
+            display: none;
+        }
+
+        .source-chip {
+            height: 26px;
+            padding: 0 9px;
+            border-radius: 8px;
+            background: var(--surface);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            font-size: 11px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+            transition: all 0.14s;
+        }
+
+        .source-chip:hover {
+            background: var(--hover-fill);
+            color: var(--text-primary);
+            border-color: var(--border-default);
+        }
+
+        /* Slash-Command Autocomplete Popup */
+        .slash-popup {
+            background: var(--card-bg);
+            border: 1px solid var(--border-default);
+            border-radius: 10px;
+            padding: 5px 0;
+            display: none;
+            flex-direction: column;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+        }
+
+        .slash-popup.open {
+            display: flex;
+        }
+
+        .slash-item {
+            padding: 6px 11px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            font-size: 11.5px;
+        }
+
+        .slash-item:hover {
+            background: var(--hover-fill);
+        }
+
+        /* 16px Squircle Composer Box */
+        .squircle-composer {
+            background: var(--surface);
+            border: 1px solid var(--border-default);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: border-color 0.16s;
+        }
+
+        .squircle-composer:focus-within {
+            border-color: var(--border-focus);
+        }
+
+        .squircle-composer.recording {
+            border-color: rgba(248, 113, 113, 0.65);
+        }
+
+        /* Inline 14-Bar NotchAudioWaveform Strip */
+        .voice-waveform-strip {
+            background: var(--pitch);
+            padding: 8px 11px;
+            border-bottom: 1px solid var(--border-subtle);
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .voice-waveform-strip.open {
+            display: flex;
+        }
+
+        .waveform-bars {
+            display: flex;
+            align-items: center;
+            gap: 2.5px;
+            height: 18px;
+        }
+
+        .waveform-bar {
+            width: 2.5px;
+            background: var(--accent-coral);
+            border-radius: 99px;
+            animation: waveBounce 0.9s infinite ease-in-out;
+        }
+
+        @keyframes waveBounce {
+            0%, 100% { height: 4px; opacity: 0.55; }
+            50% { height: 17px; opacity: 1; }
+        }
+
+        .composer-controls-row {
+            padding: 7px 9px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .cmd-deck-trigger {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: var(--subtle-fill);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all 0.15s;
+        }
+
+        .cmd-deck-trigger:hover {
+            background: var(--hover-fill);
+            color: var(--text-primary);
+        }
+
+        .composer-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 13.5px;
+            min-width: 0;
+        }
+
+        .composer-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .mic-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-secondary);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .mic-btn.active {
+            background: rgba(248, 113, 113, 0.16);
+            border-color: rgba(248, 113, 113, 0.45);
+            color: var(--accent-coral);
+        }
+
+        .relay-send-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--button-face);
+            color: var(--button-ink);
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: transform 0.12s;
+        }
+
+        .relay-send-btn:active {
+            transform: scale(0.94);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════
+           COMMAND & TOOL DECK BOTTOM SHEET (RelayCommandDeckSheet)
+           ═══════════════════════════════════════════════════════════════════════ */
+        .sheet-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(6, 9, 11, 0.68);
+            backdrop-filter: blur(4px);
+            z-index: 30;
+            display: none;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        .sheet-overlay.open {
+            display: flex;
+        }
+
+        .command-sheet {
+            background: var(--card-bg);
+            border-top: 1px solid var(--border-default);
+            border-radius: 22px 22px 0 0;
+            padding: 14px 16px 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            max-height: 78%;
+            overflow-y: auto;
+        }
+
+        .cmd-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .cmd-tile {
+            background: var(--surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 9px 10px;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.14s;
+        }
+
+        .cmd-tile:hover {
+            background: var(--surface-elevated);
+            border-color: var(--border-default);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════
+           RELAY PRISM ORB (EmptyStateView & LoadingIndicator)
+           ═══════════════════════════════════════════════════════════════════════ */
+        .prism-orb-wrap {
+            width: 84px;
+            height: 84px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+        }
+
+        .prism-ring-outer {
+            position: absolute;
+            inset: 2px;
+            border-radius: 50%;
+            border: 1.5px dashed rgba(132, 184, 255, 0.35);
+            animation: spinSlow 14s linear infinite;
+        }
+
+        .prism-ring-mid {
+            position: absolute;
+            inset: 12px;
+            border-radius: 50%;
+            border: 1.5px solid rgba(192, 168, 250, 0.32);
+            animation: spinReverse 9s linear infinite;
+        }
+
+        .prism-core {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(132, 184, 255, 0.25) 0%, rgba(130, 205, 184, 0.08) 70%, transparent 100%);
+            border: 1px solid var(--border-default);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 24px rgba(132, 184, 255, 0.24);
+        }
+
+        @keyframes spinSlow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes spinReverse {
+            from { transform: rotate(360deg); }
+            to { transform: rotate(0deg); }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════
+           WORKBENCH & SETTINGS CONTROLS
+           ═══════════════════════════════════════════════════════════════════════ */
+        .segmented-bar {
+            background: var(--pitch);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 4px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .seg-tab {
+            flex: 1;
+            height: 34px;
+            border-radius: 9px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .seg-tab.active {
+            background: var(--surface-elevated);
+            border-color: var(--border-default);
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .relay-btn-primary {
+            width: 100%;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--button-face);
+            color: var(--button-ink);
+            border: none;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            cursor: pointer;
+            transition: opacity 0.15s, transform 0.12s;
+        }
+
+        .relay-btn-primary:hover {
+            opacity: 0.93;
+        }
+
+        .relay-btn-primary:active {
+            transform: scale(0.985);
+        }
+
+        .field-well {
+            background: var(--pitch);
+            border: 1px solid var(--border-default);
+            border-radius: 10px;
+            padding: 8px 10px;
+        }
+
+        .field-well label {
+            display: block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 3px;
+        }
+
+        .field-well input,
+        .field-well textarea {
+            width: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 12.5px;
+            resize: none;
+        }
+
+        .glow-progress-track {
+            width: 100%;
+            height: 6px;
+            border-radius: 999px;
+            background: var(--surface-elevated);
+            border: 1px solid var(--border-subtle);
+            overflow: hidden;
+        }
+
+        .glow-progress-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, var(--accent-amethyst), var(--accent-blue), var(--accent-cyan));
+            transition: width 0.25s ease;
+        }
+
+        input[type="range"].relay-slider {
+            width: 100%;
+            accent-color: var(--accent-blue);
+            cursor: pointer;
+        }
+
+        /* Toast Pill */
+        .relay-toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: var(--surface-elevated);
+            color: var(--text-primary);
+            border: 1px solid var(--border-strong);
+            border-radius: 999px;
+            padding: 8px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.2s ease;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .relay-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+
+<body data-layout="board">
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         FLOATING PROTOTYPE CONTROL BAR
+         ═══════════════════════════════════════════════════════════════════════ -->
+    <nav class="proto-toolbar" id="prototype-toolbar" aria-label="Prototype Navigation">
+        <div class="proto-brand">
+            <span class="health-dot" style="color:#34D399"></span>
+            <span>OfflineAI-KMP · Relay &amp; Sentient OS</span>
+        </div>
+        <div class="proto-divider"></div>
+        <button class="proto-chip active" onclick="navigateTo('screen-chat-active')">01 · Chat Workspace</button>
+        <button class="proto-chip" onclick="navigateTo('screen-chat-empty')">02 · Prism Start &amp; States</button>
+        <button class="proto-chip" onclick="navigateTo('screen-workbench-notes')">03 · Workbench: Action Items</button>
+        <button class="proto-chip" onclick="navigateTo('screen-workbench-faq')">04 · Workbench: Citation FAQ</button>
+        <button class="proto-chip" onclick="navigateTo('screen-settings')">05 · Runtime &amp; Models</button>
+        <div class="proto-divider"></div>
+        <button class="proto-chip accent" id="theme-toggle-chip" onclick="togglePrototypeTheme()">☀ Day / ☾ Night</button>
+        <button class="proto-chip" id="layout-toggle-chip" onclick="toggleLayoutMode()">⊡ Focus Single</button>
+    </nav>
+
+    <div class="relay-toast" id="relay-toast">
+        <span style="color:var(--accent-emerald)">✓</span>
+        <span id="relay-toast-text">Copied to clipboard</span>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         SECTION 1: RELAY & SENTIENT OS CONVERSATION WORKSPACE
+         ═══════════════════════════════════════════════════════════════════════ -->
+    <section class="flow-section">
+        <div class="section-title">
+            <span style="color:var(--accent-blue)">●</span>
+            <span>01 / RELAY &amp; SENTIENT OS NEURAL CHAT WORKSPACE</span>
+        </div>
+
+        <!-- ───────────────────────────────────────────────────────────────────
+             SCREEN 1.1: ACTIVE CHAT WORKSPACE (TELEMETRY HUD, TOOL CARDS, CODE, VOICE)
+             ─────────────────────────────────────────────────────────────────── -->
+        <div class="phone-wrapper active-focus" id="screen-chat-active">
+            <div class="screen-label">
+                <span>1.1 · ChatScreen (Active Session + Tool Card + HUD)</span>
+                <span style="color:var(--accent-emerald)">INTERACTIVE</span>
+            </div>
+            <div class="device">
+                <div class="relay-atmosphere"></div>
+
+                <!-- iOS Status Bar -->
+                <div class="ios-status-bar">
+                    <span>9:41</span>
+                    <div class="dynamic-island">
+                        <span style="width:6px;height:6px;border-radius:50%;background:#34D399"></span>
+                        <span class="mono" style="font-size:8.5px;color:#A5F3FC">31.4 tok/s</span>
+                    </div>
+                    <span class="mono" style="font-size:10px">✈ AIR-GAPPED</span>
+                </div>
+
+                <!-- Relay Workspace Top Header (ChatTopBar) -->
+                <header class="chat-topbar">
+                    <div class="brand-lockup">
+                        <div class="relay-mark" title="RelayMark Step-Glyph">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 17h5v-5h4V7h5" />
+                                <circle cx="19" cy="7" r="2" fill="var(--accent-blue)" stroke="none" />
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="brand-title">LocalIntelligence</div>
+                            <div class="brand-sub">
+                                <span>ON-DEVICE</span>
+                                <span>·</span>
+                                <span id="top-status-label" style="color:var(--accent-emerald)">READY</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="topbar-actions">
+                        <button class="model-capsule" onclick="navigateTo('screen-settings')" title="Open Runtime & Models">
+                            <span class="health-dot" id="top-health-dot" style="color:var(--accent-emerald)"></span>
+                            <span id="active-model-pill-label">gemma-3n-E2B</span>
+                        </button>
+                        <button class="icon-btn" id="btn-toggle-search" onclick="toggleSearchStrip()" title="Search Transcript">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                        </button>
+                        <button class="icon-btn" id="btn-toggle-hud" onclick="toggleTelemetryDrawer()" title="Sentient Telemetry Inspector">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15l3.5-3.5"/><path d="M4.93 19.07a10 10 0 1 1 14.14 0"/></svg>
+                        </button>
+                        <button class="icon-btn" onclick="togglePrototypeTheme()" title="Toggle Night / Day Theme">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                        </button>
+                        <button class="icon-btn" onclick="exportTranscript()" title="Export Markdown Transcript">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Sentient OS Neural Telemetry HUD Strip + Expandable Inspector (SentientTelemetryHud) -->
+                <div class="telemetry-strip">
+                    <div class="telemetry-bar" onclick="toggleTelemetryDrawer()">
+                        <div class="telemetry-pills">
+                            <span class="relay-badge cyan mono" id="hud-tps-pill">
+                                <span style="width:6px;height:6px;border-radius:50%;background:var(--accent-emerald)"></span>
+                                <span id="hud-tps-text">31.4 tok/s</span>
+                            </span>
+                            <span class="relay-badge blue mono" id="hud-ttft-pill">142ms TTFT</span>
+                            <span class="relay-badge amethyst mono">
+                                <span id="hud-ctx-text">CTX 18%</span>
+                                <span class="ctx-meter"><span class="ctx-meter-fill" id="hud-ctx-fill" style="width:18%"></span></span>
+                            </span>
+                            <span class="relay-badge gold mono" id="hud-pinned-pill">★ 1 PINNED</span>
+                            <span class="relay-badge teal mono">iPhone 16 Pro · LiteRT</span>
+                        </div>
+                        <span class="mono" id="hud-toggle-label" style="font-size:9.5px;color:var(--text-muted);flex-shrink:0">HUD ▾</span>
+                    </div>
+
+                    <div class="thinking-underlight" id="global-underlight" style="display:none"></div>
+
+                    <!-- Expandable Inspector Drawer -->
+                    <div class="telemetry-drawer" id="telemetry-drawer">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <span class="mono-caps" style="color:var(--workbench-accent)">SENTIENT OS · NEURAL TELEMETRY INSPECTOR</span>
+                            <span class="relay-badge emerald mono">THERMAL OPTIMAL</span>
+                        </div>
+                        <div class="telemetry-grid">
+                            <div class="telemetry-cell">
+                                <div class="telemetry-cell-label">AVG TPS</div>
+                                <div class="telemetry-cell-val" style="color:var(--accent-cyan)">30.8 t/s</div>
+                            </div>
+                            <div class="telemetry-cell">
+                                <div class="telemetry-cell-label">AVG TTFT</div>
+                                <div class="telemetry-cell-val" style="color:var(--accent-blue)">148 ms</div>
+                            </div>
+                            <div class="telemetry-cell">
+                                <div class="telemetry-cell-label">TOTAL TOK</div>
+                                <div class="telemetry-cell-val" style="color:var(--accent-amethyst)">412</div>
+                            </div>
+                            <div class="telemetry-cell">
+                                <div class="telemetry-cell-label">PEAK MEM</div>
+                                <div class="telemetry-cell-val" style="color:var(--accent-emerald)">1,420MB</div>
+                            </div>
+                        </div>
+                        <div>
+                            <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:4px" class="mono">
+                                <span style="color:var(--text-secondary)">Context Window Budget</span>
+                                <span style="color:var(--accent-amethyst)" id="drawer-ctx-budget">1,350 / 7,500 tokens (18%)</span>
+                            </div>
+                            <div class="glow-progress-track">
+                                <div class="glow-progress-fill" id="drawer-ctx-bar" style="width:18%"></div>
+                            </div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:10.5px;color:var(--text-muted)" class="mono">
+                            <span>LiteRT-LM · iPhone 16 Pro (iOS 18.2)</span>
+                            <button class="msg-action-btn" onclick="showToast('Telemetry counters reset')">↺ Reset Stats</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Relay Persona / System Directive Bar (RelayPersonaBar) -->
+                <div class="persona-bar">
+                    <button class="workbench-pill" onclick="navigateTo('screen-workbench-notes')" title="Open Sentient Offline Workbench">
+                        <span>⚡</span>
+                        <span>Workbench</span>
+                    </button>
+                    <button class="persona-pill active" data-persona="Sentient Core" onclick="selectPersona(this, 'Sentient Core')">
+                        <span class="persona-dot" style="background:var(--workbench-accent)"></span>
+                        <span>Sentient Core</span>
+                    </button>
+                    <button class="persona-pill" data-persona="Code Architect" onclick="selectPersona(this, 'Code Architect')">
+                        <span class="persona-dot" style="background:var(--accent-blue)"></span>
+                        <span>Code Architect</span>
+                    </button>
+                    <button class="persona-pill" data-persona="Creative Synth" onclick="selectPersona(this, 'Creative Synth')">
+                        <span class="persona-dot" style="background:var(--accent-amethyst)"></span>
+                        <span>Creative Synth</span>
+                    </button>
+                    <button class="persona-pill" data-persona="Tactical Brief" onclick="selectPersona(this, 'Tactical Brief')">
+                        <span class="persona-dot" style="background:var(--accent-emerald)"></span>
+                        <span>Tactical Brief</span>
+                    </button>
+                    <button class="persona-pill" data-persona="Custom Directive" onclick="selectPersona(this, 'Custom Directive')">
+                        <span class="persona-dot" style="background:var(--accent-amber)"></span>
+                        <span>Custom Directive</span>
+                    </button>
+                </div>
+
+                <!-- Collapsible In-Conversation Search Strip -->
+                <div class="search-strip" id="search-strip">
+                    <div class="search-input-wrap">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                        <input type="text" id="transcript-search-input" placeholder="Find in conversation transcript…" oninput="filterTranscript(this.value)">
+                        <span class="mono" id="search-match-count" style="font-size:10px;color:var(--accent-cyan)">4/4</span>
+                    </div>
+                    <button class="icon-btn" onclick="toggleSearchStrip()">✕</button>
+                </div>
+
+                <!-- Editorial Conversation Stream -->
+                <div class="chat-stream" id="chat-stream">
+                    <div class="journal-header">
+                        <span class="relay-badge mono-caps" id="journal-persona-pill">LOCAL JOURNAL · SENTIENT CORE</span>
+                    </div>
+
+                    <!-- Turn 1: User Message with Pin & Edit/Branch -->
+                    <div class="msg-user-wrap transcript-item" data-search="turn on the flashlight toggle torch hardware">
+                        <span class="relay-badge gold mono">★ PINNED TO CONTEXT</span>
+                        <div class="msg-user-pill" id="user-msg-1">Turn on the hardware flashlight and show me the KMP tool schema.</div>
+                        <div class="msg-meta-row">
+                            <span class="msg-time">09:39</span>
+                            <button class="msg-action-btn" onclick="copyText('Turn on the hardware flashlight and show me the KMP tool schema.', this)">Copy</button>
+                            <button class="msg-action-btn" onclick="promptBranchEdit()">✎ Branch</button>
+                            <button class="msg-action-btn pinned" onclick="togglePinBadge(this)">★ Unpin</button>
+                        </div>
+                    </div>
+
+                    <!-- Turn 2: Assistant Structured OS Action Execution Card (toggle_torch) -->
+                    <div class="msg-ai-wrap transcript-item" data-search="toggle_torch flashlight turned on device tool execution json">
+                        <div class="msg-ai-header">
+                            <div class="relay-mark sm">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 17h5v-5h4V7h5"/></svg>
+                            </div>
+                            <span class="msg-ai-name">LocalIntelligence</span>
+                            <span class="relay-badge amber mono">OS ACTION</span>
+                        </div>
+
+                        <div class="tool-exec-card" style="width:100%">
+                            <div style="display:flex;justify-content:space-between;align-items:center">
+                                <div style="display:flex;align-items:center;gap:9px">
+                                    <div class="relay-icon-badge" style="color:var(--accent-amber);border-color:rgba(251,191,36,0.3)">⚡</div>
+                                    <div>
+                                        <div class="mono-caps" style="color:var(--accent-amber);font-size:9px">DEVICE TOOL EXECUTION</div>
+                                        <div class="mono" style="font-size:13px;font-weight:700;color:var(--text-primary)">toggle_torch</div>
+                                    </div>
+                                </div>
+                                <span class="relay-badge emerald mono">✓ EXECUTED ON DEVICE</span>
+                            </div>
+
+                            <div class="tool-args-well">
+                                <span class="mono-caps" style="font-size:8.5px;color:var(--text-muted)">ARGUMENTS PAYLOAD</span>
+                                <span class="mono" style="font-size:11.5px;color:var(--accent-cyan)">{"enabled": true}</span>
+                            </div>
+
+                            <div class="tool-result-well">
+                                <span style="color:var(--accent-emerald);font-weight:700">✓</span>
+                                <span id="torch-result-text">Flashlight turned ON via flash-capable back camera unit.</span>
+                            </div>
+                        </div>
+
+                        <div class="msg-ai-footer">
+                            <span class="relay-badge mono" style="font-size:9.5px">34.2 tok/s · 118ms TTFT · 24 tok</span>
+                            <div style="display:flex;gap:4px">
+                                <button class="msg-action-btn" onclick="copyText('toggle_torch({\"enabled\": true}) -> Flashlight turned ON', this)">Copy</button>
+                                <button class="msg-action-btn" onclick="regenerateDemoResponse()">↻ Regenerate</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Turn 3: Assistant Prose + Fenced Code Block Card (TranscriptCodeBlockCard) -->
+                    <div class="msg-ai-wrap transcript-item" id="ai-code-turn" data-search="kotlin flow generateResponse strict boolean validation schema">
+                        <div class="msg-ai-header">
+                            <div class="relay-mark sm">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 17h5v-5h4V7h5"/></svg>
+                            </div>
+                            <span class="msg-ai-name">LocalIntelligence</span>
+                            <span class="relay-badge teal mono">ON-DEVICE</span>
+                        </div>
+
+                        <div class="msg-ai-card">
+                            <div class="msg-ai-body">
+                                <p id="ai-prose-text">The flashlight is now active. In shared Kotlin Multiplatform code, tool calls validate strict boolean arguments before dispatching to Android <code class="mono" style="font-size:12px;color:var(--accent-cyan)">CameraManager</code> or iOS <code class="mono" style="font-size:12px;color:var(--accent-cyan)">AVCaptureDevice</code>:</p>
+
+                                <div class="code-card">
+                                    <div class="code-card-head">
+                                        <span class="mono-caps" style="color:var(--accent-blue);font-size:9.5px">KOTLIN · TOOLING.KT</span>
+                                        <button class="msg-action-btn" onclick="copyText('fun generateResponse(prompt: String): Flow<String>', this)">Copy code</button>
+                                    </div>
+                                    <div class="code-card-body">val toggleTorch = ToolSpec(
+  name = "toggle_torch",
+  schema = """{"enabled": Boolean}""",
+  execute = { args -> appActions.toggleTorch(args.boolean("enabled")) }
+)</div>
+                                </div>
+                            </div>
+                            <div class="thinking-underlight" id="msg-underlight" style="display:none"></div>
+                        </div>
+
+                        <div class="msg-ai-footer">
+                            <span class="relay-badge mono" style="font-size:9.5px" id="last-msg-telemetry">31.4 tok/s · 142ms TTFT · 64 tok</span>
+                            <div style="display:flex;gap:4px">
+                                <button class="msg-action-btn" onclick="copyText('The flashlight is now active...', this)">Copy</button>
+                                <button class="msg-action-btn" onclick="regenerateDemoResponse()">↻ Regenerate</button>
+                                <button class="msg-action-btn" onclick="togglePinBadge(this)">☆ Pin</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Squircle Composer Dock (MessageInput.kt) -->
+                <div class="composer-dock-wrap">
+                    <!-- Quick-Action RelaySourceChips -->
+                    <div class="quick-chips-row">
+                        <button class="source-chip" onclick="triggerQuickTorch(true)">
+                            <span style="color:var(--accent-amber)">⚡</span>
+                            <span>Flashlight on</span>
+                        </button>
+                        <button class="source-chip" onclick="triggerQuickTorch(false)">
+                            <span style="color:var(--accent-amber)">⚡</span>
+                            <span>Flashlight off</span>
+                        </button>
+                        <button class="source-chip" onclick="sendPresetMessage('What is the current device time?')">
+                            <span style="color:var(--accent-amber)">⚡</span>
+                            <span>Device time</span>
+                        </button>
+                        <button class="source-chip" onclick="sendPresetMessage('Summarize our session into verified action items.')">
+                            <span style="color:var(--accent-cyan)">✦</span>
+                            <span>Summarize</span>
+                        </button>
+                    </div>
+
+                    <!-- Slash Command Popup (shows when typing /) -->
+                    <div class="slash-popup" id="slash-popup">
+                        <div class="slash-item" onclick="applySlashCommand('Turn on the flashlight')">
+                            <span class="mono" style="color:var(--accent-amber);font-weight:600">/torch on</span>
+                            <span style="color:var(--text-secondary)">Turn flashlight ON</span>
+                        </div>
+                        <div class="slash-item" onclick="applySlashCommand('Turn off the flashlight')">
+                            <span class="mono" style="color:var(--accent-amber);font-weight:600">/torch off</span>
+                            <span style="color:var(--text-secondary)">Turn flashlight OFF</span>
+                        </div>
+                        <div class="slash-item" onclick="applySlashCommand('What is the current device time?')">
+                            <span class="mono" style="color:var(--accent-cyan);font-weight:600">/time</span>
+                            <span style="color:var(--text-secondary)">Get current device time</span>
+                        </div>
+                        <div class="slash-item" onclick="applySlashCommand('Summarize our conversation into key takeaways.')">
+                            <span class="mono" style="color:var(--accent-amethyst);font-weight:600">/summarize</span>
+                            <span style="color:var(--text-secondary)">Summarize conversation</span>
+                        </div>
+                    </div>
+
+                    <!-- 16px Squircle Composer Container -->
+                    <div class="squircle-composer" id="squircle-composer">
+                        <!-- Inline 14-Bar NotchAudioWaveform Voice Dictation Strip -->
+                        <div class="voice-waveform-strip" id="voice-waveform-strip">
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <span class="health-dot" style="color:var(--accent-coral)"></span>
+                                <span class="mono-caps" style="color:var(--accent-coral);font-size:9px">LISTENING ON-DEVICE</span>
+                                <div class="waveform-bars">
+                                    <span class="waveform-bar" style="animation-delay:0.0s"></span>
+                                    <span class="waveform-bar" style="animation-delay:0.12s"></span>
+                                    <span class="waveform-bar" style="animation-delay:0.24s"></span>
+                                    <span class="waveform-bar" style="animation-delay:0.08s"></span>
+                                    <span class="waveform-bar" style="animation-delay:0.30s"></span>
+                                    <span class="waveform-bar" style="animation-delay:0.18s"></span>
+                                    <span class="waveform-bar" style="animation-delay:0.04s"></span>
+                                    <span class="waveform-bar" style="animation-delay:0.22s"></span>
+                                    <span class="waveform-bar" style="animation-delay:0.14s"></span>
+                                    <span class="waveform-bar" style="animation-delay:0.28s"></span>
+                                    <span class="waveform-bar" style="animation-delay:0.09s"></span>
+                                    <span class="waveform-bar" style="animation-delay:0.19s"></span>
+                                    <span class="waveform-bar" style="animation-delay:0.06s"></span>
+                                    <span class="waveform-bar" style="animation-delay:0.25s"></span>
+                                </div>
+                            </div>
+                            <button class="relay-badge coral" style="cursor:pointer" onclick="toggleVoiceDictation()">Finish</button>
+                        </div>
+
+                        <div class="composer-controls-row">
+                            <button class="cmd-deck-trigger" onclick="toggleCommandDeck(true)" title="Open Sentient OS Command & Tool Deck (+)">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+                            </button>
+                            <input type="text" class="composer-input" id="chat-composer-input" placeholder="Message LocalIntelligence or type / for tools…" oninput="handleComposerInput(this.value)" onkeydown="if(event.key==='Enter')sendChatMessage()">
+                            <button class="mic-btn" id="mic-toggle-btn" onclick="toggleVoiceDictation()" title="On-Device Speech Recognition">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4M8 21h8"/></svg>
+                            </button>
+                            <button class="relay-send-btn" onclick="sendChatMessage()" title="Send Message">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sentient OS Command & Tool Deck Modal Bottom Sheet (RelayCommandDeckSheet) -->
+                <div class="sheet-overlay" id="command-deck-overlay" onclick="if(event.target===this)toggleCommandDeck(false)">
+                    <div class="command-sheet">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <div>
+                                <div class="mono-caps" style="color:var(--workbench-accent)">SENTIENT OS · COMMAND &amp; TOOL DECK</div>
+                                <div style="font-size:15px;font-weight:600;margin-top:2px">Hardware Bridges &amp; Workspace Actions</div>
+                            </div>
+                            <button class="icon-btn" onclick="toggleCommandDeck(false)">✕</button>
+                        </div>
+
+                        <div class="mono-caps" style="color:var(--text-muted)">01 / ON-DEVICE HARDWARE TOOLS</div>
+                        <div class="cmd-grid">
+                            <button class="cmd-tile" onclick="toggleCommandDeck(false);triggerQuickTorch(true)">
+                                <div class="relay-icon-badge" style="color:var(--accent-amber)">⚡</div>
+                                <div>
+                                    <div style="font-size:12px;font-weight:600;color:var(--text-primary)">Flashlight ON</div>
+                                    <div class="mono" style="font-size:10px;color:var(--text-muted)">toggle_torch(true)</div>
+                                </div>
+                            </button>
+                            <button class="cmd-tile" onclick="toggleCommandDeck(false);triggerQuickTorch(false)">
+                                <div class="relay-icon-badge" style="color:var(--accent-amber)">🔦</div>
+                                <div>
+                                    <div style="font-size:12px;font-weight:600;color:var(--text-primary)">Flashlight OFF</div>
+                                    <div class="mono" style="font-size:10px;color:var(--text-muted)">toggle_torch(false)</div>
+                                </div>
+                            </button>
+                            <button class="cmd-tile" onclick="toggleCommandDeck(false);sendPresetMessage('What is the current device time?')">
+                                <div class="relay-icon-badge" style="color:var(--accent-cyan)">🕒</div>
+                                <div>
+                                    <div style="font-size:12px;font-weight:600;color:var(--text-primary)">Device Time</div>
+                                    <div class="mono" style="font-size:10px;color:var(--text-muted)">get_current_time</div>
+                                </div>
+                            </button>
+                            <button class="cmd-tile" onclick="toggleCommandDeck(false);sendPresetMessage('Open maps and search for Room Cedar conference venue')">
+                                <div class="relay-icon-badge" style="color:var(--accent-emerald)">🗺</div>
+                                <div>
+                                    <div style="font-size:12px;font-weight:600;color:var(--text-primary)">Open Maps</div>
+                                    <div class="mono" style="font-size:10px;color:var(--text-muted)">open_maps</div>
+                                </div>
+                            </button>
+                        </div>
+
+                        <div class="mono-caps" style="color:var(--text-muted)">02 / SESSION &amp; WORKSPACE ACTIONS</div>
+                        <div class="cmd-grid">
+                            <button class="cmd-tile" onclick="toggleCommandDeck(false);navigateTo('screen-workbench-notes')">
+                                <div class="relay-icon-badge" style="color:var(--workbench-accent)">🧪</div>
+                                <div>
+                                    <div style="font-size:12px;font-weight:600;color:var(--text-primary)">Offline Workbench</div>
+                                    <div style="font-size:10px;color:var(--text-muted)">Notes &amp; FAQ Verifier</div>
+                                </div>
+                            </button>
+                            <button class="cmd-tile" onclick="toggleCommandDeck(false);exportTranscript()">
+                                <div class="relay-icon-badge" style="color:var(--accent-blue)">📤</div>
+                                <div>
+                                    <div style="font-size:12px;font-weight:600;color:var(--text-primary)">Export Transcript</div>
+                                    <div style="font-size:10px;color:var(--text-muted)">Share Markdown log</div>
+                                </div>
+                            </button>
+                            <button class="cmd-tile" onclick="toggleCommandDeck(false);navigateTo('screen-settings')">
+                                <div class="relay-icon-badge" style="color:var(--accent-amethyst)">⚙</div>
+                                <div>
+                                    <div style="font-size:12px;font-weight:600;color:var(--text-primary)">Runtime &amp; Models</div>
+                                    <div style="font-size:10px;color:var(--text-muted)">Temp, Top-K &amp; LiteRT</div>
+                                </div>
+                            </button>
+                            <button class="cmd-tile" onclick="toggleCommandDeck(false);showToast('Conversation context cleared')">
+                                <div class="relay-icon-badge" style="color:var(--accent-coral)">🗑</div>
+                                <div>
+                                    <div style="font-size:12px;font-weight:600;color:var(--text-primary)">Clear Session</div>
+                                    <div style="font-size:10px;color:var(--text-muted)">Reset context window</div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ───────────────────────────────────────────────────────────────────
+             SCREEN 1.2: EMPTY STATE & LOADING / PRISM ORB WORKSPACE START
+             ─────────────────────────────────────────────────────────────────── -->
+        <div class="phone-wrapper" id="screen-chat-empty">
+            <div class="screen-label">
+                <span>1.2 · EmptyStateView &amp; RelayPrismOrb States</span>
+                <span style="color:var(--accent-blue)">STATE SWITCHER</span>
+            </div>
+            <div class="device">
+                <div class="relay-atmosphere"></div>
+
+                <div class="ios-status-bar">
+                    <span>9:41</span>
+                    <div class="dynamic-island">
+                        <span style="width:6px;height:6px;border-radius:50%;background:#84B8FF"></span>
+                        <span class="mono" style="font-size:8.5px;color:#C4C6CD">IDLE</span>
+                    </div>
+                    <span class="mono" style="font-size:10px">✈ AIR-GAPPED</span>
+                </div>
+
+                <header class="chat-topbar">
+                    <div class="brand-lockup">
+                        <div class="relay-mark">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 17h5v-5h4V7h5"/></svg>
+                        </div>
+                        <div>
+                            <div class="brand-title">LocalIntelligence</div>
+                            <div class="brand-sub"><span>ON-DEVICE</span><span>·</span><span id="empty-state-badge-label" style="color:var(--accent-emerald)">READY</span></div>
+                        </div>
+                    </div>
+                    <button class="model-capsule" onclick="navigateTo('screen-settings')">
+                        <span class="health-dot" style="color:var(--accent-emerald)"></span>
+                        <span>gemma-3n-E2B</span>
+                    </button>
+                </header>
+
+                <!-- Interactive State Preview Switcher (Ready / Loading / No Model) -->
+                <div style="padding:10px 14px 0;z-index:3">
+                    <div class="segmented-bar">
+                        <button class="seg-tab active" onclick="switchEmptyPreviewState('ready', this)">Ready Start</button>
+                        <button class="seg-tab" onclick="switchEmptyPreviewState('loading', this)">Loading (64%)</button>
+                        <button class="seg-tab" onclick="switchEmptyPreviewState('nomodel', this)">No Model</button>
+                    </div>
+                </div>
+
+                <!-- WorkspaceStartView with RelayPrismOrb -->
+                <div class="chat-stream" style="justify-content:center;align-items:center;text-align:center;padding:18px">
+                    <div id="empty-state-ready-view" style="display:flex;flex-direction:column;gap:14px;width:100%">
+                        <div class="prism-orb-wrap">
+                            <div class="prism-ring-outer"></div>
+                            <div class="prism-ring-mid"></div>
+                            <div class="prism-core">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2"><path d="M5 17h5v-5h4V7h5"/></svg>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="mono-caps" style="color:var(--workbench-accent);margin-bottom:5px">ON-DEVICE NEURAL WORKSPACE</div>
+                            <h2 style="margin:0 0 6px;font-size:20px;font-weight:600;letter-spacing:-0.4px">What are we working on?</h2>
+                            <p style="margin:0;font-size:12.5px;color:var(--text-secondary);line-height:1.45">
+                                Ask a question, synthesize code, or trigger on-device hardware tools. Conversations stay 100% private on your device.
+                            </p>
+                        </div>
+
+                        <!-- 2x2 Starter Draft & Tool Cards -->
+                        <div class="cmd-grid" style="margin-top:4px">
+                            <button class="cmd-tile" style="flex-direction:column;align-items:flex-start;padding:11px" onclick="navigateTo('screen-chat-active');triggerQuickTorch(true)">
+                                <div class="relay-icon-badge" style="color:var(--accent-amber)">⚡</div>
+                                <div>
+                                    <div style="font-size:12px;font-weight:600;color:var(--text-primary)">Hardware Torch</div>
+                                    <div style="font-size:10.5px;color:var(--text-muted);margin-top:2px">Execute toggle_torch tool call</div>
+                                </div>
+                            </button>
+                            <button class="cmd-tile" style="flex-direction:column;align-items:flex-start;padding:11px" onclick="navigateTo('screen-chat-active');sendPresetMessage('Design a KMP Flow contract for streaming LiteRT-LM tokens.')">
+                                <div class="relay-icon-badge" style="color:var(--accent-amethyst)">⌘</div>
+                                <div>
+                                    <div style="font-size:12px;font-weight:600;color:var(--text-primary)">Kotlin Architect</div>
+                                    <div style="font-size:10.5px;color:var(--text-muted);margin-top:2px">KMP Flow &amp; LiteRT bridge</div>
+                                </div>
+                            </button>
+                            <button class="cmd-tile" style="flex-direction:column;align-items:flex-start;padding:11px" onclick="navigateTo('screen-workbench-notes')">
+                                <div class="relay-icon-badge" style="color:var(--accent-blue)">✓</div>
+                                <div>
+                                    <div style="font-size:12px;font-weight:600;color:var(--text-primary)">Action Extractor</div>
+                                    <div style="font-size:10.5px;color:var(--text-muted);margin-top:2px">Verbatim commitment cards</div>
+                                </div>
+                            </button>
+                            <button class="cmd-tile" style="flex-direction:column;align-items:flex-start;padding:11px" onclick="navigateTo('screen-workbench-faq')">
+                                <div class="relay-icon-badge" style="color:var(--accent-emerald)">❝</div>
+                                <div>
+                                    <div style="font-size:12px;font-weight:600;color:var(--text-primary)">Citation Verifier</div>
+                                    <div style="font-size:10.5px;color:var(--text-muted);margin-top:2px">Zero-hallucination local FAQ</div>
+                                </div>
+                            </button>
+                        </div>
+
+                        <button class="workbench-pill" style="justify-content:center;width:100%;height:36px" onclick="navigateTo('screen-workbench-notes')">
+                            <span>🧪 Open Sentient Offline Workbench →</span>
+                        </button>
+                    </div>
+
+                    <!-- LoadingIndicator State (RelayGlowProgressBar) -->
+                    <div id="empty-state-loading-view" style="display:none;flex-direction:column;gap:16px;width:100%">
+                        <div class="relay-card" style="padding:22px 18px;display:flex;flex-direction:column;gap:14px;align-items:center">
+                            <div class="prism-orb-wrap">
+                                <div class="prism-ring-outer" style="border-color:var(--accent-cyan)"></div>
+                                <div class="prism-ring-mid" style="border-color:var(--accent-amethyst)"></div>
+                                <div class="prism-core">
+                                    <span class="mono" style="font-size:11px;font-weight:700;color:var(--accent-cyan)">64%</span>
+                                </div>
+                            </div>
+                            <div class="mono-caps" style="color:var(--accent-cyan)">SENTIENT OS · NEURAL ENGINE</div>
+                            <div style="font-size:15px;font-weight:600">Loading Gemma 3n E2B INT4…</div>
+                            <div class="glow-progress-track">
+                                <div class="glow-progress-fill" style="width:64%"></div>
+                            </div>
+                            <div style="font-size:11.5px;color:var(--text-muted)">Mapping quantized weights into local hardware buffers</div>
+                            <div class="thinking-underlight"></div>
+                        </div>
+                    </div>
+
+                    <!-- No Model Loaded State -->
+                    <div id="empty-state-nomodel-view" style="display:none;flex-direction:column;gap:16px;width:100%">
+                        <div class="relay-card" style="padding:22px 18px;display:flex;flex-direction:column;gap:14px;align-items:center">
+                            <div class="prism-orb-wrap">
+                                <div class="prism-ring-outer" style="border-color:var(--accent-amber)"></div>
+                                <div class="prism-core" style="border-color:rgba(251,191,36,0.4)">
+                                    <span style="font-size:18px;color:var(--accent-amber)">⚠</span>
+                                </div>
+                            </div>
+                            <div class="mono-caps" style="color:var(--accent-amber)">MODEL REGISTRY STANDBY</div>
+                            <div style="font-size:17px;font-weight:600">No Model Loaded</div>
+                            <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.45">
+                                Open Runtime &amp; Models settings to select and load an on-device Gemma LiteRT-LM model.
+                            </div>
+                            <button class="relay-btn-primary" onclick="navigateTo('screen-settings')">Open Runtime &amp; Models</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         SECTION 2: SENTIENT WORKBENCH (VERIFIABLE LOCAL WORKFLOWS — DemoScreen.kt)
+         ═══════════════════════════════════════════════════════════════════════ -->
+    <section class="flow-section">
+        <div class="section-title">
+            <span style="color:var(--workbench-accent)">●</span>
+            <span>02 / SENTIENT WORKBENCH — VERIFIABLE LOCAL WORKFLOWS</span>
+        </div>
+
+        <!-- ───────────────────────────────────────────────────────────────────
+             SCREEN 2.1: WORKBENCH 01 · ACTION ITEMS EXTRACTOR (DemoKind.NOTES)
+             ─────────────────────────────────────────────────────────────────── -->
+        <div class="phone-wrapper" id="screen-workbench-notes">
+            <div class="screen-label">
+                <span>2.1 · DemoScreen (01 · Action Items Extractor)</span>
+                <span style="color:var(--workbench-accent)">VERIFIED SUBSTRING</span>
+            </div>
+            <div class="device">
+                <div class="relay-atmosphere"></div>
+
+                <div class="ios-status-bar">
+                    <span>9:41</span>
+                    <div class="dynamic-island">
+                        <span style="width:6px;height:6px;border-radius:50%;background:#82CDB8"></span>
+                        <span class="mono" style="font-size:8.5px;color:#82CDB8">WORKBENCH</span>
+                    </div>
+                    <span class="mono" style="font-size:10px">✈ AIR-GAPPED</span>
+                </div>
+
+                <!-- DemoWorkbenchTopBar -->
+                <header class="chat-topbar">
+                    <div style="display:flex;align-items:center;gap:9px">
+                        <button class="model-capsule" onclick="navigateTo('screen-chat-active')">← Chat</button>
+                        <div>
+                            <div class="mono-caps" style="color:var(--workbench-accent);font-size:9px">SENTIENT WORKBENCH</div>
+                            <div class="brand-title">Verifiable Local AI</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:5px">
+                        <span class="relay-badge cyan mono" id="notes-timing-pill">138ms · 0.8s</span>
+                        <span class="relay-badge emerald mono">gemma-3n</span>
+                    </div>
+                </header>
+
+                <div class="chat-stream" style="gap:12px">
+                    <!-- Device Hardware Control Bridge Card -->
+                    <div class="relay-card" style="padding:11px 12px">
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+                            <div style="display:flex;align-items:center;gap:10px">
+                                <div class="relay-icon-badge" style="color:var(--accent-amber)">⚡</div>
+                                <div>
+                                    <div class="mono-caps" style="color:var(--accent-amber);font-size:8.5px">DEVICE TOOLING BRIDGE</div>
+                                    <div style="font-size:12.5px;font-weight:600">Hardware Flashlight Control in Chat</div>
+                                    <div style="font-size:11px;color:var(--text-secondary)">Hands off torch prompt to inspect JSON proposal &amp; execution.</div>
+                                </div>
+                            </div>
+                            <button class="model-capsule" onclick="navigateTo('screen-chat-active');triggerQuickTorch(true)">Test in Chat</button>
+                        </div>
+                    </div>
+
+                    <!-- Segmented Workflow Switcher -->
+                    <div class="segmented-bar">
+                        <button class="seg-tab active">01 · Action items</button>
+                        <button class="seg-tab" onclick="navigateTo('screen-workbench-faq')">02 · Local FAQ</button>
+                    </div>
+
+                    <!-- Input Corpus Card -->
+                    <div class="relay-card" style="display:flex;flex-direction:column;gap:10px">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <div>
+                                <div class="mono-caps" style="color:var(--accent-blue);font-size:9px">VERIFIABLE EXTRACTION WORKFLOW</div>
+                                <div style="font-size:14px;font-weight:600">Turn Notes into Grounded Action Items</div>
+                            </div>
+                            <button class="source-chip" onclick="resetSampleNotes()">Sample Notes</button>
+                        </div>
+
+                        <div class="field-well">
+                            <label>MEETING NOTES CORPUS (<span id="notes-char-count">221</span>/4000)</label>
+                            <textarea id="workbench-notes-input" rows="4" oninput="document.getElementById('notes-char-count').textContent=this.value.length">Demo rehearsal notes (fictional)
+Sara will update the slides. No deadline was agreed.
+Omar will record the Android demo by Friday.
+Lina will test the iOS build by Thursday.
+We discussed adding a dark theme, but made no commitment.</textarea>
+                        </div>
+
+                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:10.5px;color:var(--text-muted)">
+                            <span>Unagreed ideas are filtered out automatically</span>
+                            <span class="mono" style="color:var(--accent-emerald)">Shared Kotlin checks</span>
+                        </div>
+
+                        <div class="thinking-underlight" id="notes-underlight" style="display:none"></div>
+
+                        <button class="relay-btn-primary" onclick="runNotesExtraction()">
+                            <span>⚡ Extract &amp; Verify Action Items</span>
+                        </button>
+                    </div>
+
+                    <!-- Extracted Commitment Cards Header -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 2px 0">
+                        <span class="mono-caps" style="color:var(--accent-emerald)">EXTRACTED COMMITMENTS (3 VERIFIED · 1 FILTERED)</span>
+                        <span class="relay-badge emerald mono">✓ SUBSTRING OK</span>
+                    </div>
+
+                    <!-- Commitment #1: Sara (Deadline null stays missing!) -->
+                    <div class="relay-card" style="display:flex;flex-direction:column;gap:9px">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <span class="relay-badge blue mono">COMMITMENT #1</span>
+                            <span class="relay-badge amber mono">DEADLINE: NULL</span>
+                        </div>
+                        <div class="field-well">
+                            <label>TASK (EDITABLE FOR REVIEW)</label>
+                            <input type="text" value="update the slides">
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
+                            <div class="field-well">
+                                <label>OWNER</label>
+                                <input type="text" value="Sara">
+                            </div>
+                            <div class="field-well">
+                                <label>DEADLINE</label>
+                                <input type="text" value="" placeholder="Not specified (null)">
+                            </div>
+                        </div>
+                        <div class="tool-result-well" style="flex-direction:column;align-items:flex-start;gap:3px">
+                            <div class="mono-caps" style="color:var(--accent-emerald);font-size:8.5px">✓ VERIFIED SUBSTRING IN SOURCE NOTES</div>
+                            <div style="font-size:11.5px;color:var(--text-secondary)">“Sara will update the slides. No deadline was agreed.”</div>
+                        </div>
+                    </div>
+
+                    <!-- Commitment #2: Omar -->
+                    <div class="relay-card" style="display:flex;flex-direction:column;gap:9px">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <span class="relay-badge blue mono">COMMITMENT #2</span>
+                            <span class="relay-badge emerald mono">COMPLETE</span>
+                        </div>
+                        <div class="field-well">
+                            <label>TASK</label>
+                            <input type="text" value="record the Android demo">
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
+                            <div class="field-well">
+                                <label>OWNER</label>
+                                <input type="text" value="Omar">
+                            </div>
+                            <div class="field-well">
+                                <label>DEADLINE</label>
+                                <input type="text" value="Friday">
+                            </div>
+                        </div>
+                        <div class="tool-result-well" style="flex-direction:column;align-items:flex-start;gap:3px">
+                            <div class="mono-caps" style="color:var(--accent-emerald);font-size:8.5px">✓ VERIFIED SUBSTRING IN SOURCE NOTES</div>
+                            <div style="font-size:11.5px;color:var(--text-secondary)">“Omar will record the Android demo by Friday.”</div>
+                        </div>
+                    </div>
+
+                    <!-- Commitment #3: Lina -->
+                    <div class="relay-card" style="display:flex;flex-direction:column;gap:9px">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <span class="relay-badge blue mono">COMMITMENT #3</span>
+                            <span class="relay-badge emerald mono">COMPLETE</span>
+                        </div>
+                        <div class="field-well">
+                            <label>TASK</label>
+                            <input type="text" value="test the iOS build">
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
+                            <div class="field-well">
+                                <label>OWNER</label>
+                                <input type="text" value="Lina">
+                            </div>
+                            <div class="field-well">
+                                <label>DEADLINE</label>
+                                <input type="text" value="Thursday">
+                            </div>
+                        </div>
+                        <div class="tool-result-well" style="flex-direction:column;align-items:flex-start;gap:3px">
+                            <div class="mono-caps" style="color:var(--accent-emerald);font-size:8.5px">✓ VERIFIED SUBSTRING IN SOURCE NOTES</div>
+                            <div style="font-size:11.5px;color:var(--text-secondary)">“Lina will test the iOS build by Thursday.”</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ───────────────────────────────────────────────────────────────────
+             SCREEN 2.2: WORKBENCH 02 · LOCAL FAQ CITATION VERIFIER (DemoKind.FAQ)
+             ─────────────────────────────────────────────────────────────────── -->
+        <div class="phone-wrapper" id="screen-workbench-faq">
+            <div class="screen-label">
+                <span>2.2 · DemoScreen (02 · Grounded FAQ Citation Verifier)</span>
+                <span style="color:var(--accent-emerald)">ZERO HALLUCINATION</span>
+            </div>
+            <div class="device">
+                <div class="relay-atmosphere"></div>
+
+                <div class="ios-status-bar">
+                    <span>9:41</span>
+                    <div class="dynamic-island">
+                        <span style="width:6px;height:6px;border-radius:50%;background:#34D399"></span>
+                        <span class="mono" style="font-size:8.5px;color:#34D399">VERIFIER</span>
+                    </div>
+                    <span class="mono" style="font-size:10px">✈ AIR-GAPPED</span>
+                </div>
+
+                <header class="chat-topbar">
+                    <div style="display:flex;align-items:center;gap:9px">
+                        <button class="model-capsule" onclick="navigateTo('screen-chat-active')">← Chat</button>
+                        <div>
+                            <div class="mono-caps" style="color:var(--workbench-accent);font-size:9px">SENTIENT WORKBENCH</div>
+                            <div class="brand-title">Verifiable Local AI</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:5px">
+                        <span class="relay-badge cyan mono" id="faq-timing-pill">112ms · 0.5s</span>
+                        <span class="relay-badge emerald mono">gemma-3n</span>
+                    </div>
+                </header>
+
+                <div class="chat-stream" style="gap:12px">
+                    <!-- Segmented Workflow Switcher -->
+                    <div class="segmented-bar">
+                        <button class="seg-tab" onclick="navigateTo('screen-workbench-notes')">01 · Action items</button>
+                        <button class="seg-tab active">02 · Local FAQ</button>
+                    </div>
+
+                    <!-- FAQ Query Card -->
+                    <div class="relay-card" style="display:flex;flex-direction:column;gap:10px">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <div>
+                                <div class="mono-caps" style="color:var(--workbench-accent);font-size:9px">GROUNDED CITATION VERIFIER</div>
+                                <div style="font-size:14px;font-weight:600">Ask the Bundled Conference FAQ</div>
+                            </div>
+                            <button class="source-chip" onclick="toggleCorpusInspector()">View Corpus</button>
+                        </div>
+
+                        <div style="font-size:11.5px;color:var(--text-secondary);line-height:1.45">
+                            The model selects a passage from the local reference. Shared Kotlin verifies the quote is an exact substring before displaying it.
+                        </div>
+
+                        <div class="field-well">
+                            <label>QUESTION</label>
+                            <input type="text" id="faq-question-input" value="Where is the workshop?">
+                        </div>
+
+                        <div>
+                            <div class="mono-caps" style="color:var(--text-muted);font-size:8.5px;margin-bottom:5px">SAMPLE QUERIES (TAP TO TEST VERIFICATION)</div>
+                            <div style="display:flex;flex-direction:column;gap:5px">
+                                <button class="source-chip" style="justify-content:flex-start;height:28px" onclick="runFaqQuery('venue')">
+                                    <span style="color:var(--accent-emerald)">✓</span>
+                                    <span>Where is the workshop?</span>
+                                </button>
+                                <button class="source-chip" style="justify-content:flex-start;height:28px" onclick="runFaqQuery('setup')">
+                                    <span style="color:var(--accent-emerald)">✓</span>
+                                    <span>What should I bring?</span>
+                                </button>
+                                <button class="source-chip" style="justify-content:flex-start;height:28px" onclick="runFaqQuery('wifi')">
+                                    <span style="color:var(--accent-amber)">⚠</span>
+                                    <span>What is the Wi-Fi password? (Unanswerable test)</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <button class="relay-btn-primary" onclick="runFaqQuery('custom')">
+                            <span>⚡ Run Grounded FAQ Lookup</span>
+                        </button>
+                    </div>
+
+                    <!-- Verified Citation Output Card -->
+                    <div class="relay-card" id="faq-result-card" style="border-color:rgba(52,211,153,0.45);display:flex;flex-direction:column;gap:10px">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <div style="display:flex;align-items:center;gap:6px">
+                                <span style="color:var(--accent-emerald)" id="faq-status-icon">✓</span>
+                                <span class="mono-caps" id="faq-status-title" style="color:var(--accent-emerald)">VERIFIED EXACT SUBSTRING</span>
+                            </div>
+                            <span class="relay-badge teal mono" id="faq-source-badge">[venue]</span>
+                        </div>
+
+                        <div style="font-size:13.5px;font-weight:600" id="faq-section-heading">Workshop location</div>
+
+                        <div class="field-well" style="border-color:var(--border-subtle)">
+                            <div style="font-size:13px;line-height:1.5;color:var(--text-primary)" id="faq-quote-text">
+                                “The Offline AI workshop takes place in Room Cedar on level 2. The workshop starts at 10:00 and ends at 12:00.”
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Collapsible Bundled Reference Corpus -->
+                    <div class="relay-card" id="faq-corpus-card" style="display:flex;flex-direction:column;gap:8px">
+                        <div class="mono-caps" style="color:var(--workbench-accent)">BUNDLED REFERENCE CORPUS (4 SECTIONS)</div>
+                        <div class="field-well">
+                            <div class="mono" style="font-size:10px;color:var(--accent-cyan)">[venue] · Workshop location</div>
+                            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">The Offline AI workshop takes place in Room Cedar on level 2. The workshop starts at 10:00 and ends at 12:00.</div>
+                        </div>
+                        <div class="field-well">
+                            <div class="mono" style="font-size:10px;color:var(--accent-cyan)">[setup] · Before the workshop</div>
+                            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">Bring a laptop and a physical Android phone or iPhone. Download and import a compatible LiteRT-LM model before arriving.</div>
+                        </div>
+                        <div class="field-well">
+                            <div class="mono" style="font-size:10px;color:var(--accent-cyan)">[offline] · Offline demos</div>
+                            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">After the model is loaded, the text demos run on the device. Enable airplane mode and turn off Wi-Fi to rehearse.</div>
+                        </div>
+                    </div>
+
+                    <!-- Raw Model JSON Inspector -->
+                    <div class="code-card">
+                        <div class="code-card-head">
+                            <span class="mono-caps" style="color:var(--text-muted)">RAW JSON OUTPUT</span>
+                            <span class="mono" style="font-size:9.5px;color:var(--accent-emerald)">DemoSamples.parseFaq() ✓</span>
+                        </div>
+                        <div class="code-card-body" id="faq-raw-json">{"sourceId": "venue", "quote": "The Offline AI workshop takes place in Room Cedar on level 2. The workshop starts at 10:00 and ends at 12:00."}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         SECTION 3: SENTIENT OS ENGINE — RUNTIME & MODELS (SettingsScreen.kt)
+         ═══════════════════════════════════════════════════════════════════════ -->
+    <section class="flow-section">
+        <div class="section-title">
+            <span style="color:var(--accent-amethyst)">●</span>
+            <span>03 / RUNTIME &amp; MODELS — HARDWARE PROFILE &amp; SAMPLING TUNING</span>
+        </div>
+
+        <div class="phone-wrapper" id="screen-settings">
+            <div class="screen-label">
+                <span>3.1 · SettingsScreen (Hardware Profile + Tuning + Registry)</span>
+                <span style="color:var(--accent-amethyst)">LIVE TUNING</span>
+            </div>
+            <div class="device">
+                <div class="relay-atmosphere"></div>
+
+                <div class="ios-status-bar">
+                    <span>9:41</span>
+                    <div class="dynamic-island">
+                        <span style="width:6px;height:6px;border-radius:50%;background:#C0A8FA"></span>
+                        <span class="mono" style="font-size:8.5px;color:#C0A8FA">ENGINE</span>
+                    </div>
+                    <span class="mono" style="font-size:10px">✈ AIR-GAPPED</span>
+                </div>
+
+                <!-- SettingsTopBar -->
+                <header class="chat-topbar">
+                    <div style="display:flex;align-items:center;gap:9px">
+                        <button class="model-capsule" onclick="navigateTo('screen-chat-active')">← Chat</button>
+                        <div>
+                            <div class="mono-caps" style="color:var(--text-muted);font-size:9px">SENTIENT OS · ENGINE</div>
+                            <div class="brand-title">Runtime &amp; Models</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:5px">
+                        <button class="model-capsule" onclick="togglePrototypeTheme()" id="settings-theme-btn">☾ Night</button>
+                        <span class="relay-badge emerald mono">
+                            <span class="health-dot" style="color:var(--accent-emerald);width:10px;height:10px"></span>
+                            <span>AIR-GAPPED</span>
+                        </span>
+                    </div>
+                </header>
+
+                <div class="chat-stream" style="gap:14px">
+                    <!-- SECTION 01: DEVICE & NEURAL HARDWARE PROFILE -->
+                    <div>
+                        <div class="mono-caps" style="color:var(--workbench-accent);font-size:9px">01 / HARDWARE &amp; NEURAL RUNTIME</div>
+                        <div style="font-size:13.5px;font-weight:600;margin-bottom:7px">Device &amp; Neural Hardware Profile</div>
+
+                        <div class="relay-card" style="display:flex;flex-direction:column;gap:11px">
+                            <div style="display:flex;justify-content:space-between;align-items:center">
+                                <div style="display:flex;align-items:center;gap:10px">
+                                    <div class="relay-icon-badge" style="color:var(--workbench-accent)">⚙</div>
+                                    <div>
+                                        <div style="font-size:13px;font-weight:600">iPhone 16 Pro · Apple A18 Pro</div>
+                                        <div style="font-size:11px;color:var(--text-secondary)">iOS 18.2 · LiteRT-LM / MediaPipe GenAI</div>
+                                    </div>
+                                </div>
+                                <span class="relay-badge emerald mono">LOADED</span>
+                            </div>
+
+                            <div style="display:flex;gap:6px;flex-wrap:wrap">
+                                <span class="relay-badge blue mono">ENGINE: LITERT-LM</span>
+                                <span class="relay-badge teal mono">CTX: 7500 TOK</span>
+                                <span class="relay-badge emerald mono">LOCAL STORAGE</span>
+                            </div>
+
+                            <div>
+                                <div style="display:flex;justify-content:space-between;font-size:10.5px;margin-bottom:4px">
+                                    <span style="color:var(--text-secondary)">Active Context Window Fill</span>
+                                    <span class="mono" style="color:var(--accent-cyan)">1,350 / 7,500 tokens (18%)</span>
+                                </div>
+                                <div class="glow-progress-track">
+                                    <div class="glow-progress-fill" style="width:18%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECTION 02: RUNTIME INFERENCE TUNING -->
+                    <div>
+                        <div class="mono-caps" style="color:var(--workbench-accent);font-size:9px">02 / SAMPLING &amp; CONTEXT BUDGET</div>
+                        <div style="font-size:13.5px;font-weight:600;margin-bottom:7px">Runtime Inference Tuning</div>
+
+                        <div class="relay-card" style="display:flex;flex-direction:column;gap:12px">
+                            <!-- Temperature Slider -->
+                            <div>
+                                <div style="display:flex;justify-content:space-between;align-items:center">
+                                    <div>
+                                        <div style="font-size:12.5px;font-weight:600">Temperature</div>
+                                        <div style="font-size:10.5px;color:var(--text-secondary)">Lower = deterministic facts · Higher = creative synthesis</div>
+                                    </div>
+                                    <span class="relay-badge blue mono" id="temp-val-badge">0.70</span>
+                                </div>
+                                <input type="range" class="relay-slider" min="0" max="2" step="0.05" value="0.70" oninput="updateTemperature(this.value)">
+                            </div>
+
+                            <!-- Top-K Slider -->
+                            <div>
+                                <div style="display:flex;justify-content:space-between;align-items:center">
+                                    <div>
+                                        <div style="font-size:12.5px;font-weight:600">Top-K Sampling</div>
+                                        <div style="font-size:10.5px;color:var(--text-secondary)">Candidate token pool size per decoding step</div>
+                                    </div>
+                                    <span class="relay-badge amethyst mono" id="topk-val-badge">K = 40</span>
+                                </div>
+                                <input type="range" class="relay-slider" min="1" max="100" step="1" value="40" oninput="updateTopK(this.value)">
+                            </div>
+
+                            <!-- Max Output Tokens -->
+                            <div>
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                                    <span style="font-size:12.5px;font-weight:600">Max Output Tokens</span>
+                                    <span class="relay-badge cyan mono" id="maxtok-val-badge">2048 tok</span>
+                                </div>
+                                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+                                    <button class="seg-tab" style="height:28px;border:1px solid var(--border-subtle)" onclick="selectMaxTokens(512, this)">512</button>
+                                    <button class="seg-tab" style="height:28px;border:1px solid var(--border-subtle)" onclick="selectMaxTokens(1024, this)">1024</button>
+                                    <button class="seg-tab active" style="height:28px" onclick="selectMaxTokens(2048, this)">2048</button>
+                                    <button class="seg-tab" style="height:28px;border:1px solid var(--border-subtle)" onclick="selectMaxTokens(4096, this)">4096</button>
+                                </div>
+                            </div>
+
+                            <!-- Context Trimming Strategy -->
+                            <div>
+                                <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">Context Window Trimming Policy</div>
+                                <div style="display:flex;flex-direction:column;gap:6px">
+                                    <div class="cmd-tile" id="trim-recent" style="border-color:var(--border-strong);background:var(--surface-elevated)" onclick="selectTrimStrategy('recent')">
+                                        <span style="color:var(--accent-emerald)">●</span>
+                                        <div>
+                                            <div style="font-size:12px;font-weight:600">Sliding Window (Keep Recent)</div>
+                                            <div style="font-size:10.5px;color:var(--text-secondary)">Retains the newest turns within the 7,500-token budget</div>
+                                        </div>
+                                    </div>
+                                    <div class="cmd-tile" id="trim-anchor" onclick="selectTrimStrategy('anchor')">
+                                        <span style="color:var(--text-muted)">○</span>
+                                        <div>
+                                            <div style="font-size:12px;font-weight:600">Anchor First + Keep Recent</div>
+                                            <div style="font-size:10.5px;color:var(--text-secondary)">Pins initial task exchange alongside recent turns</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECTION 03: ON-DEVICE MODEL REGISTRY -->
+                    <div>
+                        <div class="mono-caps" style="color:var(--workbench-accent);font-size:9px">03 / INSTALLED MODELS (2)</div>
+                        <div style="font-size:13.5px;font-weight:600;margin-bottom:7px">On-Device Model Registry</div>
+
+                        <div style="display:flex;flex-direction:column;gap:8px">
+                            <!-- Active Model -->
+                            <div class="relay-card" style="border-color:rgba(52,211,153,0.45);display:flex;flex-direction:column;gap:9px">
+                                <div style="display:flex;justify-content:space-between;align-items:center">
+                                    <div style="display:flex;align-items:center;gap:9px">
+                                        <div class="relay-icon-badge" style="color:var(--accent-emerald)">✦</div>
+                                        <div>
+                                            <div style="display:flex;align-items:center;gap:6px">
+                                                <span style="font-size:13px;font-weight:600">gemma-3n-E2B-it-int4</span>
+                                                <span class="relay-badge emerald mono">ACTIVE</span>
+                                            </div>
+                                            <div class="mono" style="font-size:10px;color:var(--text-muted)">gemma-3n-E2B-it-int4.litertlm · 1.4 GB</div>
+                                        </div>
+                                    </div>
+                                    <button class="model-capsule" onclick="activateModel('gemma-3n-E2B')">Reload</button>
+                                </div>
+                                <div style="display:flex;gap:5px">
+                                    <span class="relay-badge mono" id="model-card-tok">2048 max tok</span>
+                                    <span class="relay-badge mono" id="model-card-temp">Temp 0.70</span>
+                                    <span class="relay-badge mono" id="model-card-topk">Top-K 40</span>
+                                </div>
+                            </div>
+
+                            <!-- Secondary Installed Model -->
+                            <div class="relay-card" style="display:flex;justify-content:space-between;align-items:center">
+                                <div style="display:flex;align-items:center;gap:9px">
+                                    <div class="relay-icon-badge" style="color:var(--accent-blue)">◈</div>
+                                    <div>
+                                        <div style="font-size:13px;font-weight:600">gemma-3n-E4B-it-int4</div>
+                                        <div class="mono" style="font-size:10px;color:var(--text-muted)">gemma-3n-E4B-it-int4.litertlm · 2.6 GB</div>
+                                    </div>
+                                </div>
+                                <button class="relay-btn-primary" style="width:auto;height:30px;padding:0 12px;font-size:11.5px" onclick="activateModel('gemma-3n-E4B')">Load</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECTION 04: IMPORT & CURATED CATALOG -->
+                    <div>
+                        <div class="mono-caps" style="color:var(--workbench-accent);font-size:9px">04 / MODEL STORAGE &amp; CATALOG</div>
+                        <div style="font-size:13.5px;font-weight:600;margin-bottom:7px">Import or Download LiteRT-LM</div>
+
+                        <div class="relay-card" style="display:flex;flex-direction:column;gap:9px">
+                            <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="simulateModelImport()">
+                                <div style="display:flex;align-items:center;gap:10px">
+                                    <div class="relay-icon-badge" style="color:var(--accent-blue)">📂</div>
+                                    <div>
+                                        <div style="font-size:12.5px;font-weight:600">Import .task or .litertlm Model</div>
+                                        <div style="font-size:10.5px;color:var(--text-secondary)">Copies model into private app sandbox storage</div>
+                                    </div>
+                                </div>
+                                <span style="color:var(--text-muted)">→</span>
+                            </div>
+
+                            <div id="import-progress-box" style="display:none;flex-direction:column;gap:5px;padding-top:6px;border-top:1px solid var(--border-subtle)">
+                                <div style="display:flex;justify-content:space-between;font-size:10.5px" class="mono">
+                                    <span style="color:var(--accent-cyan)">Copying to app sandbox…</span>
+                                    <span id="import-pct">45%</span>
+                                </div>
+                                <div class="glow-progress-track">
+                                    <div class="glow-progress-fill" id="import-bar" style="width:45%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         INTERACTIVE PROTOTYPE CONTROLLER SCRIPT
+         ═══════════════════════════════════════════════════════════════════════ -->
+    <script>
+        let currentScreen = 'screen-chat-active';
+        let isVoiceRecording = false;
+        let activePersonaName = 'Sentient Core';
+
+        function showToast(msg) {
+            const toast = document.getElementById('relay-toast');
+            const text = document.getElementById('relay-toast-text');
+            text.textContent = msg;
+            toast.classList.add('show');
+            clearTimeout(window.__toastTimer);
+            window.__toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+        }
+
+        function navigateTo(screenId) {
+            currentScreen = screenId;
+            document.querySelectorAll('.phone-wrapper').forEach(w => {
+                w.classList.toggle('active-focus', w.id === screenId);
+            });
+            document.querySelectorAll('.proto-toolbar .proto-chip').forEach(btn => {
+                const onclick = btn.getAttribute('onclick') || '';
+                if (onclick.includes('navigateTo')) {
+                    btn.classList.toggle('active', onclick.includes("'" + screenId + "'"));
+                }
+            });
+            const el = document.getElementById(screenId);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                const device = el.querySelector('.device');
+                if (device) {
+                    device.style.transform = 'scale(1.012)';
+                    setTimeout(() => { device.style.transform = ''; }, 240);
+                }
+            }
+        }
+
+        function togglePrototypeTheme() {
+            const root = document.documentElement;
+            const next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+            root.setAttribute('data-theme', next);
+            const settingsBtn = document.getElementById('settings-theme-btn');
+            if (settingsBtn) {
+                settingsBtn.textContent = next === 'dark' ? '☾ Night' : '☀ Day';
+            }
+            showToast(next === 'dark' ? 'Relay Night · Matte Obsidian (#101518)' : 'Relay Day · Warm Porcelain (#F7F9F8)');
+        }
+
+        function toggleLayoutMode() {
+            const body = document.body;
+            const btn = document.getElementById('layout-toggle-chip');
+            const next = body.getAttribute('data-layout') === 'focus' ? 'board' : 'focus';
+            body.setAttribute('data-layout', next);
+            btn.textContent = next === 'focus' ? '⊞ Full Board (5 Screens)' : '⊡ Focus Single';
+            navigateTo(currentScreen);
+        }
+
+        function toggleTelemetryDrawer() {
+            const drawer = document.getElementById('telemetry-drawer');
+            const label = document.getElementById('hud-toggle-label');
+            const btn = document.getElementById('btn-toggle-hud');
+            const isOpen = drawer.classList.toggle('open');
+            label.textContent = isOpen ? 'HIDE HUD ▴' : 'HUD ▾';
+            btn.classList.toggle('active', isOpen);
+        }
+
+        function toggleSearchStrip() {
+            const strip = document.getElementById('search-strip');
+            const btn = document.getElementById('btn-toggle-search');
+            const isOpen = strip.classList.toggle('open');
+            btn.classList.toggle('active', isOpen);
+            if (isOpen) {
+                document.getElementById('transcript-search-input').focus();
+            } else {
+                filterTranscript('');
+            }
+        }
+
+        function filterTranscript(query) {
+            const q = query.trim().toLowerCase();
+            const items = document.querySelectorAll('#chat-stream .transcript-item');
+            let matched = 0;
+            items.forEach(item => {
+                const hay = (item.textContent + ' ' + (item.dataset.search || '')).toLowerCase();
+                const visible = !q || hay.includes(q);
+                item.style.display = visible ? '' : 'none';
+                if (visible) matched++;
+            });
+            document.getElementById('search-match-count').textContent = `${matched}/${items.length}`;
+        }
+
+        function selectPersona(btn, personaName) {
+            activePersonaName = personaName;
+            document.querySelectorAll('.persona-pill').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('journal-persona-pill').textContent = `LOCAL JOURNAL · ${personaName.toUpperCase()}`;
+            showToast(`Active Persona Directive: ${personaName}`);
+        }
+
+        function copyText(text, btnEl) {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).catch(() => {});
+            }
+            if (btnEl) {
+                const orig = btnEl.textContent;
+                btnEl.textContent = '✓ Copied';
+                btnEl.classList.add('copied');
+                setTimeout(() => {
+                    btnEl.textContent = orig;
+                    btnEl.classList.remove('copied');
+                }, 1400);
+            }
+            showToast('Copied to clipboard');
+        }
+
+        function togglePinBadge(btnEl) {
+            const isPinned = btnEl.classList.toggle('pinned');
+            btnEl.textContent = isPinned ? '★ Unpin' : '☆ Pin';
+            showToast(isPinned ? 'Pinned message to active context memory' : 'Removed from pinned memory');
+        }
+
+        function promptBranchEdit() {
+            const msgEl = document.getElementById('user-msg-1');
+            const updated = prompt('Edit & Branch Conversation from this user turn:', msgEl.textContent);
+            if (updated && updated.trim()) {
+                msgEl.textContent = updated.trim();
+                regenerateDemoResponse();
+            }
+        }
+
+        function regenerateDemoResponse() {
+            const underlight = document.getElementById('msg-underlight');
+            const globalUnderlight = document.getElementById('global-underlight');
+            const statusLabel = document.getElementById('top-status-label');
+            const tpsText = document.getElementById('hud-tps-text');
+            underlight.style.display = 'block';
+            globalUnderlight.style.display = 'block';
+            statusLabel.textContent = 'SYNTHESIZING';
+            statusLabel.style.color = 'var(--accent-blue)';
+            tpsText.textContent = '33.8 tok/s (streaming)';
+            showToast('Regenerating response on-device…');
+
+            setTimeout(() => {
+                underlight.style.display = 'none';
+                globalUnderlight.style.display = 'none';
+                statusLabel.textContent = 'READY';
+                statusLabel.style.color = 'var(--accent-emerald)';
+                tpsText.textContent = '33.8 tok/s';
+                document.getElementById('last-msg-telemetry').textContent = '33.8 tok/s · 129ms TTFT · 68 tok';
+            }, 1300);
+        }
+
+        function handleComposerInput(val) {
+            const popup = document.getElementById('slash-popup');
+            popup.classList.toggle('open', val.trim().startsWith('/'));
+        }
+
+        function applySlashCommand(promptText) {
+            const input = document.getElementById('chat-composer-input');
+            input.value = promptText;
+            document.getElementById('slash-popup').classList.remove('open');
+            sendChatMessage();
+        }
+
+        function toggleVoiceDictation() {
+            isVoiceRecording = !isVoiceRecording;
+            const strip = document.getElementById('voice-waveform-strip');
+            const composer = document.getElementById('squircle-composer');
+            const micBtn = document.getElementById('mic-toggle-btn');
+            const input = document.getElementById('chat-composer-input');
+            strip.classList.toggle('open', isVoiceRecording);
+            composer.classList.toggle('recording', isVoiceRecording);
+            micBtn.classList.toggle('active', isVoiceRecording);
+            if (isVoiceRecording) {
+                input.value = 'Turn on the flashlight…';
+                showToast('SpeechRecognizerManager listening on-device…');
+            } else {
+                showToast('Voice transcription ready in composer');
+            }
+        }
+
+        function toggleCommandDeck(open) {
+            document.getElementById('command-deck-overlay').classList.toggle('open', open);
+        }
+
+        function triggerQuickTorch(enabled) {
+            const resText = document.getElementById('torch-result-text');
+            if (resText) {
+                resText.textContent = enabled
+                    ? 'Flashlight turned ON via flash-capable back camera unit.'
+                    : 'Flashlight turned OFF via flash-capable back camera unit.';
+            }
+            showToast(`Executed toggle_torch({"enabled": ${enabled}})`);
+        }
+
+        function sendPresetMessage(text) {
+            const input = document.getElementById('chat-composer-input');
+            input.value = text;
+            sendChatMessage();
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chat-composer-input');
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = '';
+            document.getElementById('slash-popup').classList.remove('open');
+
+            const stream = document.getElementById('chat-stream');
+            const userWrap = document.createElement('div');
+            userWrap.className = 'msg-user-wrap transcript-item';
+            userWrap.innerHTML = `
+                <div class="msg-user-pill">${text.replace(/</g, '&lt;')}</div>
+                <div class="msg-meta-row"><span class="msg-time">NOW</span></div>
+            `;
+            stream.appendChild(userWrap);
+
+            const aiWrap = document.createElement('div');
+            aiWrap.className = 'msg-ai-wrap transcript-item';
+            const isTorch = /flashlight|torch/i.test(text);
+            const isTime = /time/i.test(text);
+            if (isTorch) {
+                const on = !/off/i.test(text);
+                aiWrap.innerHTML = `
+                    <div class="msg-ai-header">
+                        <div class="relay-mark sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 17h5v-5h4V7h5"/></svg></div>
+                        <span class="msg-ai-name">LocalIntelligence</span>
+                        <span class="relay-badge amber mono">OS ACTION</span>
+                    </div>
+                    <div class="tool-exec-card" style="width:100%">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <div class="mono" style="font-size:12.5px;font-weight:700">toggle_torch({"enabled": ${on}})</div>
+                            <span class="relay-badge emerald mono">✓ EXECUTED</span>
+                        </div>
+                        <div class="tool-result-well">✓ Flashlight turned ${on ? 'ON' : 'OFF'} on device.</div>
+                    </div>
+                `;
+            } else {
+                const reply = isTime
+                    ? 'Executed `get_current_time` on-device: Local system time is **09:41:28** (Air-Gapped Clock).'
+                    : `Synthesized locally under **${activePersonaName}** directive with zero cloud calls.`;
+                aiWrap.innerHTML = `
+                    <div class="msg-ai-header">
+                        <div class="relay-mark sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 17h5v-5h4V7h5"/></svg></div>
+                        <span class="msg-ai-name">LocalIntelligence</span>
+                        <span class="relay-badge teal mono">${activePersonaName.toUpperCase()}</span>
+                    </div>
+                    <div class="msg-ai-card">
+                        <div class="msg-ai-body"><p>${reply}</p></div>
+                    </div>
+                    <div class="msg-ai-footer">
+                        <span class="relay-badge mono" style="font-size:9.5px">32.6 tok/s · 134ms TTFT · 38 tok</span>
+                    </div>
+                `;
+            }
+            stream.appendChild(aiWrap);
+            stream.scrollTop = stream.scrollHeight;
+            regenerateDemoResponse();
+        }
+
+        function exportTranscript() {
+            showToast('Markdown transcript exported (# LocalIntelligence Transcript)');
+        }
+
+        function switchEmptyPreviewState(state, btn) {
+            btn.parentElement.querySelectorAll('.seg-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('empty-state-ready-view').style.display = state === 'ready' ? 'flex' : 'none';
+            document.getElementById('empty-state-loading-view').style.display = state === 'loading' ? 'flex' : 'none';
+            document.getElementById('empty-state-nomodel-view').style.display = state === 'nomodel' ? 'flex' : 'none';
+            const badge = document.getElementById('empty-state-badge-label');
+            badge.textContent = state === 'ready' ? 'READY' : state === 'loading' ? 'LOADING' : 'STANDBY';
+        }
+
+        function resetSampleNotes() {
+            const area = document.getElementById('workbench-notes-input');
+            area.value = `Demo rehearsal notes (fictional)\nSara will update the slides. No deadline was agreed.\nOmar will record the Android demo by Friday.\nLina will test the iOS build by Thursday.\nWe discussed adding a dark theme, but made no commitment.`;
+            document.getElementById('notes-char-count').textContent = area.value.length;
+            showToast('Loaded sample meeting notes');
+        }
+
+        function runNotesExtraction() {
+            const underlight = document.getElementById('notes-underlight');
+            underlight.style.display = 'block';
+            showToast('Extracting & verifying exact source substrings…');
+            setTimeout(() => {
+                underlight.style.display = 'none';
+                document.getElementById('notes-timing-pill').textContent = '126ms · 0.7s';
+                showToast('Verified 3 commitments against source notes');
+            }, 900);
+        }
+
+        function runFaqQuery(mode) {
+            const qInput = document.getElementById('faq-question-input');
+            const card = document.getElementById('faq-result-card');
+            const icon = document.getElementById('faq-status-icon');
+            const title = document.getElementById('faq-status-title');
+            const badge = document.getElementById('faq-source-badge');
+            const heading = document.getElementById('faq-section-heading');
+            const quote = document.getElementById('faq-quote-text');
+            const raw = document.getElementById('faq-raw-json');
+
+            if (mode === 'venue') {
+                qInput.value = 'Where is the workshop?';
+                card.style.borderColor = 'rgba(52,211,153,0.45)';
+                icon.textContent = '✓';
+                icon.style.color = 'var(--accent-emerald)';
+                title.textContent = 'VERIFIED EXACT SUBSTRING';
+                title.style.color = 'var(--accent-emerald)';
+                badge.textContent = '[venue]';
+                heading.textContent = 'Workshop location';
+                quote.textContent = '“The Offline AI workshop takes place in Room Cedar on level 2. The workshop starts at 10:00 and ends at 12:00.”';
+                raw.textContent = '{"sourceId": "venue", "quote": "The Offline AI workshop takes place in Room Cedar on level 2. The workshop starts at 10:00 and ends at 12:00."}';
+            } else if (mode === 'setup') {
+                qInput.value = 'What should I bring?';
+                card.style.borderColor = 'rgba(52,211,153,0.45)';
+                icon.textContent = '✓';
+                icon.style.color = 'var(--accent-emerald)';
+                title.textContent = 'VERIFIED EXACT SUBSTRING';
+                title.style.color = 'var(--accent-emerald)';
+                badge.textContent = '[setup]';
+                heading.textContent = 'Before the workshop';
+                quote.textContent = '“Bring a laptop and a physical Android phone or iPhone. Download and import a compatible LiteRT-LM model before arriving.”';
+                raw.textContent = '{"sourceId": "setup", "quote": "Bring a laptop and a physical Android phone or iPhone. Download and import a compatible LiteRT-LM model before arriving."}';
+            } else if (mode === 'wifi' || /wi-?fi|password/i.test(qInput.value)) {
+                qInput.value = 'What is the Wi-Fi password?';
+                card.style.borderColor = 'rgba(251,191,36,0.45)';
+                icon.textContent = '⚠';
+                icon.style.color = 'var(--accent-amber)';
+                title.textContent = 'UNANSWERABLE FROM LOCAL CORPUS';
+                title.style.color = 'var(--accent-amber)';
+                badge.textContent = 'NULL';
+                heading.textContent = 'Not found in the local reference';
+                quote.textContent = 'The bundled reference does not contain a verifiable answer to this question. No answer was guessed.';
+                raw.textContent = '{"sourceId": null, "quote": null}';
+            }
+            showToast('Verified citation against bundled FAQ corpus');
+        }
+
+        function toggleCorpusInspector() {
+            const card = document.getElementById('faq-corpus-card');
+            card.style.display = card.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        function updateTemperature(val) {
+            const formatted = Number(val).toFixed(2);
+            document.getElementById('temp-val-badge').textContent = formatted;
+            document.getElementById('model-card-temp').textContent = `Temp ${formatted}`;
+        }
+
+        function updateTopK(val) {
+            document.getElementById('topk-val-badge').textContent = `K = ${val}`;
+            document.getElementById('model-card-topk').textContent = `Top-K ${val}`;
+        }
+
+        function selectMaxTokens(tokens, btn) {
+            btn.parentElement.querySelectorAll('.seg-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('maxtok-val-badge').textContent = `${tokens} tok`;
+            document.getElementById('model-card-tok').textContent = `${tokens} max tok`;
+            showToast(`Max output tokens set to ${tokens}`);
+        }
+
+        function selectTrimStrategy(kind) {
+            const rec = document.getElementById('trim-recent');
+            const anc = document.getElementById('trim-anchor');
+            if (kind === 'recent') {
+                rec.style.borderColor = 'var(--border-strong)';
+                rec.style.background = 'var(--surface-elevated)';
+                anc.style.borderColor = 'var(--border-subtle)';
+                anc.style.background = 'var(--surface)';
+                showToast('Context Trimming: KEEP_RECENT');
+            } else {
+                anc.style.borderColor = 'var(--border-strong)';
+                anc.style.background = 'var(--surface-elevated)';
+                rec.style.borderColor = 'var(--border-subtle)';
+                rec.style.background = 'var(--surface)';
+                showToast('Context Trimming: KEEP_FIRST_AND_RECENT');
+            }
+        }
+
+        function activateModel(name) {
+            document.getElementById('active-model-pill-label').textContent = name;
+            showToast(`Loaded ${name} into LiteRT-LM runtime`);
+            navigateTo('screen-chat-active');
+        }
+
+        function simulateModelImport() {
+            const box = document.getElementById('import-progress-box');
+            const pct = document.getElementById('import-pct');
+            const bar = document.getElementById('import-bar');
+            box.style.display = 'flex';
+            let p = 20;
+            const iv = setInterval(() => {
+                p += 25;
+                if (p >= 100) {
+                    p = 100;
+                    clearInterval(iv);
+                    setTimeout(() => {
+                        box.style.display = 'none';
+                        showToast('Model copied to local sandbox & ready to load');
+                    }, 500);
+                }
+                pct.textContent = `${p}%`;
+                bar.style.width = `${p}%`;
+            }, 300);
+        }
+    </script>
+</body>
+
+</html>

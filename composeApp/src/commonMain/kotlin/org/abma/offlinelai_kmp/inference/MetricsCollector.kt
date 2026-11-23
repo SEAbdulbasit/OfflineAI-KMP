@@ -80,9 +80,9 @@ object MetricsCollector {
     }
 
     /**
-     * Call for each token generated.
+     * Call for each token or text chunk generated.
      */
-    fun onTokenGenerated() {
+    fun onTokenGenerated(chunk: String = "") {
         if (!isGenerating) return
 
         val now = currentTimeMs()
@@ -92,7 +92,8 @@ object MetricsCollector {
             println("⏱️ First token at ${now - generationStartTime}ms")
         }
 
-        tokenCount++
+        val addedTokens = if (chunk.length > 4) (chunk.length / 4).coerceAtLeast(1) else 1
+        tokenCount += addedTokens
         _liveTokenCount.value = tokenCount
 
         // Calculate live TPS (from first token)
@@ -104,9 +105,11 @@ object MetricsCollector {
 
     /**
      * Call when generation is complete.
+     *
+     * @return The [GenerationMetrics] captured for this run, or null if not generating.
      */
-    fun endGeneration() {
-        if (!isGenerating) return
+    fun endGeneration(): GenerationMetrics? {
+        if (!isGenerating) return null
 
         val endTime = currentTimeMs()
 
@@ -124,6 +127,7 @@ object MetricsCollector {
 
         _metrics.add(metrics)
         _currentStats.value = PerformanceStats.fromMetrics(_metrics)
+        ThermalMonitor.onGenerationComplete(metrics.tokensPerSecond)
 
         isGenerating = false
 
@@ -134,6 +138,7 @@ object MetricsCollector {
         if (metrics.tokensPerSecond < 10.0 && tokenCount > 10) {
             println("⚠️ Low performance detected - possible thermal throttling")
         }
+        return metrics
     }
 
     /**

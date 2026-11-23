@@ -1,6 +1,7 @@
 package org.abma.offlinelai_kmp.inference
 
 import org.abma.offlinelai_kmp.domain.model.ChatMessage
+import org.abma.offlinelai_kmp.domain.model.PersonaPreset
 
 /**
  * Builds formatted prompts for Gemma with conversation history.
@@ -15,41 +16,66 @@ import org.abma.offlinelai_kmp.domain.model.ChatMessage
  */
 object PromptBuilder {
 
-    private const val MAX_CONTEXT_TOKENS = 7500  // Leave ~700 tokens for response
+    const val MAX_CONTEXT_TOKENS = 7500  // Leave ~700 tokens for response
     private const val TURN_START = "<start_of_turn>"
     private const val TURN_END = "<end_of_turn>"
 
     /**
-     * Build a complete prompt with conversation history.
-     *
-     * The resulting prompt structure:
-     * ```
-     * <start_of_turn>user
-     * System Instructions: [system prompt]<end_of_turn>
-     * <start_of_turn>model
-     * I understand. I'll follow these instructions.<end_of_turn>
-     * <start_of_turn>user
-     * [message 1]<end_of_turn>
-     * <start_of_turn>model
-     * [response 1]<end_of_turn>
-     * ... more history ...
-     * <start_of_turn>user
-     * [current message]<end_of_turn>
-     * <start_of_turn>model
-     * ```
-     *
-     * @param systemPrompt Optional system instructions for persona/behavior
-     * @param messages Conversation history (may be trimmed if too long)
-     * @param currentMessage The new user message to respond to
-     * @return Formatted prompt string ready for inference
+     * Resolve the persona instruction text for a given [PersonaPreset].
+     */
+    fun personaPromptFor(preset: PersonaPreset, customPrompt: String = ""): String {
+        return when (preset) {
+            PersonaPreset.DEFAULT -> DEFAULT_SYSTEM_PROMPT
+            PersonaPreset.CODE_ARCHITECT -> CODING_ASSISTANT_PROMPT
+            PersonaPreset.CREATIVE_SYNTH -> CREATIVE_WRITER_PROMPT
+            PersonaPreset.TACTICAL_BRIEF -> CONCISE_ASSISTANT_PROMPT
+            PersonaPreset.CUSTOM -> customPrompt.ifBlank { DEFAULT_SYSTEM_PROMPT }
+        }
+    }
+
+    /**
+     * Combine persona instructions, optional pinned context memories, and tool-calling instructions.
+     */
+    fun buildCombinedSystemPrompt(
+        preset: PersonaPreset,
+        customPrompt: String = "",
+        toolInstructions: String = "",
+        pinnedMessages: List<ChatMessage> = emptyList()
+    ): String = buildString {
+        val personaInstruction = personaPromptFor(preset, customPrompt).trim()
+        if (personaInstruction.isNotEmpty()) {
+            appendLine(personaInstruction)
+        }
+
+        if (pinnedMessages.isNotEmpty()) {
+            appendLine()
+            appendLine("Pinned Context Memories (keep these facts in mind):")
+            pinnedMessages.forEach { msg ->
+                val speaker = if (msg.isFromUser) "User" else "Assistant"
+                appendLine("- [$speaker]: ${msg.content.trim()}")
+            }
+        }
+
+        if (toolInstructions.isNotBlank()) {
+            appendLine()
+            appendLine(toolInstructions.trim())
+        }
+    }.trim()
+
+    /**
+     * Build a complete prompt with conversation history (excluding system prompt,
+     * or optionally embedding system prompt when [includeSystemTurn] is true).
      */
     fun buildPrompt(
         systemPrompt: String? = null,
         messages: List<ChatMessage>,
-        currentMessage: String
+        currentMessage: String,
+        trimmingStrategy: TrimmingStrategy = TrimmingStrategy.KEEP_RECENT,
+        maxContextTokens: Int = MAX_CONTEXT_TOKENS,
+        includeSystemTurn: Boolean = true
     ): String = buildString {
-        // 1. System prompt (if provided)
-        if (!systemPrompt.isNullOrBlank()) {
+        // 1. System prompt (if provided and requested as turn)
+        if (includeSystemTurn && !systemPrompt.isNullOrBlank()) {
             append("${TURN_START}user\n")
             append("System Instructions: $systemPrompt$TURN_END\n")
             append("${TURN_START}model\n")
@@ -57,7 +83,11 @@ object PromptBuilder {
         }
 
         // 2. Conversation history (trimmed to fit context)
-        val trimmedMessages = trimToContextLimit(messages)
+        val trimmedMessages = ContextTrimmer.trim(
+            messages = messages,
+            maxTokens = maxContextTokens,
+            strategy = trimmingStrategy
+        )
         for (message in trimmedMessages) {
             val role = if (message.isFromUser) "user" else "model"
             append("$TURN_START$role\n")
