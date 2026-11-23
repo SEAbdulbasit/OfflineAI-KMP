@@ -169,14 +169,16 @@ actual object AppActionsProvider {
                 return@withContext false
             }
 
-            device.lockForConfiguration(null)
-            if (enable) {
-                device.setTorchMode(AVCaptureTorchModeOn)
-            } else {
-                device.setTorchMode(AVCaptureTorchModeOff)
+            val mode = if (enable) AVCaptureTorchModeOn else AVCaptureTorchModeOff
+            if (!device.isTorchModeSupported(mode) || !device.lockForConfiguration(null)) {
+                return@withContext false
             }
-            device.unlockForConfiguration()
-            true
+            try {
+                device.setTorchMode(mode)
+                true
+            } finally {
+                device.unlockForConfiguration()
+            }
         } catch (e: Exception) {
             println("Failed to toggle torch: ${e.message}")
             false

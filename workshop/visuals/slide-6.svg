@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="810" viewBox="0 0 1440 810">
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10" fill="none" stroke="#9F82FF" stroke-width="1.5"/></marker></defs>
+<rect width="1440" height="810" fill="#11131C"/>
+<g font-family="Arial, sans-serif" fill="#F7F7FA">
+<text x="80" y="97" font-size="48" font-weight="700">The on-device request</text>
+<rect x="80" y="178" width="1280" height="490" rx="24" fill="none" stroke="#45495B" stroke-width="2"/>
+<text x="116" y="228" font-size="24" fill="#BFC1CE">Android or iOS device</text>
+<g font-size="30" font-weight="700">
+<rect x="120" y="324" width="240" height="134" rx="12" fill="#25203B"/>
+<text x="150" y="381">Input</text><text x="150" y="420" font-size="21" font-weight="400" fill="#BFC1CE">Notes or question</text>
+<rect x="440" y="324" width="240" height="134" rx="12" fill="#25203B"/>
+<text x="470" y="381">Prompt</text><text x="470" y="420" font-size="21" font-weight="400" fill="#BFC1CE">Shared Kotlin</text>
+<rect x="760" y="324" width="240" height="134" rx="12" fill="#25203B"/>
+<text x="790" y="381">Runtime</text><text x="790" y="420" font-size="21" font-weight="400" fill="#BFC1CE">Local model</text>
+<rect x="1080" y="324" width="240" height="134" rx="12" fill="#25203B"/>
+<text x="1110" y="381">Result</text><text x="1110" y="420" font-size="21" font-weight="400" fill="#BFC1CE">Validated JSON</text>
+</g>
+<path d="M360 391H416" fill="none" stroke="#9F82FF" stroke-width="3" marker-end="url(#a)"/><path d="M680 391H736" fill="none" stroke="#9F82FF" stroke-width="3" marker-end="url(#a)"/><path d="M1000 391H1056" fill="none" stroke="#9F82FF" stroke-width="3" marker-end="url(#a)"/>
+<path d="M880 458V550H240V482" fill="none" stroke="#9F82FF" stroke-width="2" marker-end="url(#a)"/>
+<text x="436" y="593" font-size="24" fill="#C8B9FF">Flow&lt;String&gt; streams response chunks</text>
+<text x="80" y="752" font-size="24" fill="#BFC1CE">Model import happens before offline use</text>
+</g></svg>

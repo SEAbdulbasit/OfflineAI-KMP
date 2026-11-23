@@ -18,6 +18,7 @@ import org.abma.offlinelai_kmp.ui.viewmodel.ChatViewModel
 private object Routes {
     const val CHAT = "chat"
     const val SETTINGS = "settings"
+    const val DEMOS = "demos"
 }
 
 @Composable
@@ -42,7 +43,22 @@ fun App() {
                     onNavigateToSettings = {
                         navController.navigate(Routes.SETTINGS)
                     },
+                    onNavigateToDemos = { navController.navigate(Routes.DEMOS) },
                     viewModel = chatViewModel
+                )
+            }
+            composable(Routes.DEMOS) {
+                DisposableEffect(Unit) { onDispose { chatViewModel.demos.cancel() } }
+                org.abma.offlinelai_kmp.ui.screens.DemoScreen(
+                    controller = chatViewModel.demos,
+                    modelState = uiState.modelState,
+                    modelPath = uiState.currentModelPath,
+                    onBack = { navController.popBackStack() },
+                    onSettings = { navController.navigate(Routes.SETTINGS) },
+                    onFlashlight = {
+                        chatViewModel.onAction(ChatAction.UpdateInput("Turn on the flashlight"))
+                        navController.popBackStack()
+                    }
                 )
             }
             composable(Routes.SETTINGS) {

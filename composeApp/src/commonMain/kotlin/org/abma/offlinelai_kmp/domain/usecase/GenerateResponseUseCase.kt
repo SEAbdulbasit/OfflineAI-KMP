@@ -104,19 +104,6 @@ class GenerateResponseUseCase(
             "<start_of_turn>user\n$userPrompt<end_of_turn>\n" +
             "<start_of_turn>model\n"
 
-        // WORKSHOP DEBUG: Log the prompt (helpful during development)
-        println("═══════════════════════════════════════════════════════════")
-        println("📤 SENDING TO LLM:")
-        println("───────────────────────────────────────────────────────────")
-        println("System Prompt (${systemPrompt.length} chars):")
-        println(systemPrompt)  // Full prompt, no truncation
-        println("───────────────────────────────────────────────────────────")
-        println("Formatted Prompt:")
-        println(formattedPrompt)
-        println("───────────────────────────────────────────────────────────")
-        println("History Messages: ${messages.size}")
-        println("═══════════════════════════════════════════════════════════")
-
         // ═══════════════════════════════════════════════════════════════════
         // STEP 3: Stream tokens and accumulate
         // ═══════════════════════════════════════════════════════════════════
@@ -137,17 +124,9 @@ class GenerateResponseUseCase(
         // ═══════════════════════════════════════════════════════════════════
         // STEP 4: Handle completion
         // ═══════════════════════════════════════════════════════════════════
-        println("═══════════════════════════════════════════════════════════")
-        println("📥 LLM RESPONSE:")
-        println("───────────────────────────────────────────────────────────")
-        println(fullResponse)
-        println("═══════════════════════════════════════════════════════════")
-
-        // Check for tool calls (advanced feature - function calling)
         val toolCall = extractToolCall(fullResponse)
         if (toolCall != null) {
             println("🔧 DETECTED TOOL CALL: ${toolCall.tool}")
-            println("   Arguments: ${toolCall.arguments}")
         } else {
             println("💬 No tool call detected - regular response")
         }

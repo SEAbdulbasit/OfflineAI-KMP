@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CameraCharacteristics
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -126,7 +127,14 @@ actual object AppActionsProvider {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-                val cameraId = cameraManager.cameraIdList.firstOrNull() ?: return@withContext false
+                val camerasWithFlash = cameraManager.cameraIdList.filter { id ->
+                    cameraManager.getCameraCharacteristics(id)
+                        .get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+                }
+                val cameraId = camerasWithFlash.firstOrNull { id ->
+                    cameraManager.getCameraCharacteristics(id)
+                        .get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_BACK
+                } ?: camerasWithFlash.firstOrNull() ?: return@withContext false
                 cameraManager.setTorchMode(cameraId, enable)
                 true
             } else {

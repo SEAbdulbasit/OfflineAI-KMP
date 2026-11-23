@@ -3,6 +3,8 @@ package org.abma.offlinelai_kmp.tools
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.coroutines.CancellationException
 import org.abma.offlinelai_kmp.domain.repository.LoadedModel
 import kotlin.time.Clock
 
@@ -175,24 +177,34 @@ class OpenAppSettingsTool : ToolHandler {
     }
 }
 
-class ToggleTorchTool : ToolHandler {
+class ToggleTorchTool(
+    private val setTorch: suspend (Boolean) -> Boolean = { AppActionsProvider.toggleTorch(it) }
+) : ToolHandler {
     override val spec: ToolSpec = ToolSpec(
         name = "toggle_torch",
         description = "Turn the device flashlight/torch on or off. Use this when the user wants to control the flashlight.",
-        parametersSchemaJson = """{"type":"object","properties":{"enable":{"type":"boolean","description":"true to turn on the torch, false to turn it off"}},"required":["enable"]}"""
+        parametersSchemaJson = """{"type":"object","properties":{"enable":{"type":"boolean","description":"true to turn on the torch, false to turn it off"}},"required":["enable"],"additionalProperties":false}"""
     )
 
     override suspend fun execute(arguments: JsonObject, context: ToolContext): ToolResult {
-        val enableStr = arguments.str("enable")
-        val enable = enableStr?.lowercase() == "true" || enableStr == "1"
-
-        val success = AppActionsProvider.toggleTorch(enable)
+        val value = arguments["enable"] as? JsonPrimitive
+        val enable = value?.takeUnless { it.isString }?.booleanOrNull
+        if (arguments.keys != setOf("enable") || enable == null) {
+            return ToolResult(spec.name, "Invalid flashlight request: enable must be a JSON boolean (true or false), with no extra arguments. No action was taken.")
+        }
+        val success = try {
+            setTorch(enable)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            false
+        }
         return ToolResult(
             spec.name,
             if (success) {
-                if (enable) "Flashlight turned ON 🔦" else "Flashlight turned OFF"
+                if (enable) "Device accepted flashlight ON request." else "Device accepted flashlight OFF request."
             } else {
-                "Failed to control flashlight. The device may not have a flashlight or permission was denied."
+                "Unable to control flashlight. It may be unavailable, busy, or restricted on this device."
             }
         )
     }

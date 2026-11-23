@@ -38,23 +38,34 @@ fun buildSystemPrompt(specs: List<ToolSpec>): String {
         appendLine("<<{\"tool\":\"TOOL_NAME\",\"arguments\":{...}}>>")
         appendLine()
         appendLine("Examples:")
-        appendLine("Q: What time is it?")
-        appendLine("A: <<{\"tool\":\"get_current_time\",\"arguments\":{}}>>")
-        appendLine()
-        appendLine("Q: Open youtube")
-        appendLine("A: <<{\"tool\":\"open_url\",\"arguments\":{\"url\":\"youtube.com\"}}>>")
-        appendLine()
-        appendLine("Q: Call 555-1234")
-        appendLine("A: <<{\"tool\":\"open_dialer\",\"arguments\":{\"phone_number\":\"555-1234\"}}>>")
-        appendLine()
-        appendLine("Q: Email john@example.com about the meeting")
-        appendLine("A: <<{\"tool\":\"open_email\",\"arguments\":{\"to\":\"john@example.com\",\"subject\":\"Meeting\",\"body\":\"\"}}>>")
-        appendLine()
-        appendLine("Q: Find coffee shops near me")
-        appendLine("A: <<{\"tool\":\"open_maps\",\"arguments\":{\"query\":\"coffee shops near me\"}}>>")
-        appendLine()
-        appendLine("Q: Turn on flashlight")
-        appendLine("A: <<{\"tool\":\"toggle_torch\",\"arguments\":{\"enable\":true}}>>")
+        val available = specs.map { it.name }.toSet()
+        if ("get_current_time" in available) {
+            appendLine("Q: What time is it?")
+            appendLine("A: <<{\"tool\":\"get_current_time\",\"arguments\":{}}>>")
+        }
+        if ("open_url" in available) {
+            appendLine("Q: Open youtube")
+            appendLine("A: <<{\"tool\":\"open_url\",\"arguments\":{\"url\":\"youtube.com\"}}>>")
+        }
+        if ("open_dialer" in available) {
+            appendLine("Q: Call 555-1234")
+            appendLine("A: <<{\"tool\":\"open_dialer\",\"arguments\":{\"phone_number\":\"555-1234\"}}>>")
+        }
+        if ("open_email" in available) {
+            appendLine("Q: Email john@example.com about the meeting")
+            appendLine("A: <<{\"tool\":\"open_email\",\"arguments\":{\"to\":\"john@example.com\",\"subject\":\"Meeting\",\"body\":\"\"}}>>")
+        }
+        if ("open_maps" in available) {
+            appendLine("Q: Find coffee shops near me")
+            appendLine("A: <<{\"tool\":\"open_maps\",\"arguments\":{\"query\":\"coffee shops near me\"}}>>")
+        }
+        if ("toggle_torch" in available) {
+            appendLine("Q: Turn on flashlight")
+            appendLine("A: <<{\"tool\":\"toggle_torch\",\"arguments\":{\"enable\":true}}>>")
+            appendLine("Q: Turn off flashlight")
+            appendLine("A: <<{\"tool\":\"toggle_torch\",\"arguments\":{\"enable\":false}}>>")
+            appendLine("Use JSON booleans true and false, not quoted strings or numbers.")
+        }
         appendLine()
         appendLine("If no tool needed, answer normally.")
     }
@@ -74,7 +85,7 @@ private fun extractParamDetails(schemaJson: String): Map<String, String> {
 }
 
 fun extractToolCall(text: String): ToolCall? {
-    println("🔍 Extracting tool call from: ${text.take(200)}${if (text.length > 200) "..." else ""}")
+    println("Extracting tool call from model response")
 
     // Try Gemma native function call format first
     extractGemmaFunctionCall(text)?.let {
@@ -185,7 +196,7 @@ private fun parseToolCallJson(payload: String): ToolCall? {
         ToolCall(tool = toolName, arguments = args)
     } catch (e: Exception) {
         println("Failed to parse tool call JSON: ${e.message}")
-        println("Payload was: $payload")
+
         null
     }
 }

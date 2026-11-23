@@ -122,6 +122,19 @@ class ChatViewModel : ViewModel() {
         buildSystemPrompt(toolRegistry.specs())
     }
 
+    val demos by lazy {
+        org.abma.offlinelai_kmp.demo.DemoController(
+            scope = viewModelScope,
+            acquire = {
+                val current = _uiState.value
+                current.modelState == ModelState.READY &&
+                    _uiState.compareAndSet(current, current.copy(modelState = ModelState.GENERATING))
+            },
+            release = { _uiState.update { it.copy(modelState = ModelState.READY) } },
+            generate = { prompt -> gemmaInference.generateResponse(org.abma.offlinelai_kmp.inference.formatPrompt(prompt)) }
+        )
+    }
+
     init {
         // Load list of available models on startup
         onAction(ChatAction.RefreshModels)
@@ -177,8 +190,9 @@ class ChatViewModel : ViewModel() {
      * 3. Handle success/failure with appropriate state updates
      */
     private fun loadModel(modelPath: String, config: ModelConfig = ModelConfig()) {
+        if (_uiState.value.modelState in listOf(ModelState.LOADING, ModelState.GENERATING)) return
+        _uiState.update { it.copy(modelState = ModelState.LOADING, errorMessage = null) }
         viewModelScope.launch(Dispatchers.IO) {
-            _uiState.update { it.copy(modelState = ModelState.LOADING, errorMessage = null) }
 
             loadModelUseCase(modelPath, config)
                 .onSuccess { loadedModel ->
@@ -333,6 +347,7 @@ class ChatViewModel : ViewModel() {
     private fun handleToolCall(toolCall: ToolCall) {
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isToolCallInProgress = true) }
+            val proposal = "Model proposal\n${toolCall.tool} ${toolCall.arguments}\n\nDevice result\n"
 
             executeToolUseCase(
                 toolCall = toolCall,
@@ -341,13 +356,13 @@ class ChatViewModel : ViewModel() {
             ).collect { result ->
                 when (result) {
                     is ExecuteToolResult.Executing -> {
-                        updateStreamingMessage("🔧 Calling ${result.toolName}...\n\n")
+                        updateStreamingMessage(proposal + "Executing…")
                     }
                     is ExecuteToolResult.Streaming -> {
-                        updateStreamingMessage(result.toolDisplay + result.partialResponse)
+                        updateStreamingMessage(proposal + result.partialResponse)
                     }
                     is ExecuteToolResult.Complete -> {
-                        updateStreamingMessage(result.toolDisplay + result.response)
+                        updateStreamingMessage(proposal + result.response)
                         finishToolCall()
                     }
                     is ExecuteToolResult.Error -> {

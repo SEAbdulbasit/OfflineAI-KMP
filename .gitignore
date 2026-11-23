@@ -79,6 +79,10 @@ node_modules/
 /build/
 **/bin/
 **/out/
+**/.build/
+
+# Temporary slide QA screenshot dumps
+workshop/conference-deck/*qa/
 
 # Konan
 .konan/

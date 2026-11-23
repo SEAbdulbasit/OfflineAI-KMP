@@ -15,6 +15,10 @@ A **Kotlin Multiplatform** (KMP) application that runs Google's **Gemma LLM** co
 
 ---
 
+## Talk demos
+
+Open **Offline demos** from chat after loading a model to try note-to-action-item extraction and a bundled local FAQ with source quotes. Both share the existing on-device model, support cancellation, and show measured response times. See the [demo rehearsal guide](workshop/DEMO_EDITION.md) and [revised slide deck](https://docs.google.com/presentation/d/1t0TN-4Gq12jiaSv_b8fnPEvqBks4kRbE1EKkKoA67L8/edit).
+
 ## ✨ Features
 
 | Feature | Description |
@@ -106,41 +110,28 @@ composeApp/src/
 
 LiteRT-LM is now the inference layer for **both Android and iOS**, replacing MediaPipe completely across the project.
 
-### Unified SDK
+### Shared contract, platform adapters
 
-- Single inference stack across Android (Kotlin) and iOS (Swift)
-- No more platform divergence in the AI layer
-- Shared concepts, model handling, and streaming behavior across both apps
+- Android uses LiteRT-LM's Kotlin API; callbacks are bridged to Kotlin `Flow`.
+- iOS uses a Swift wrapper and a notification bridge back to Kotlin.
+- Android currently tries GPU then CPU. iOS currently uses GPU and initializes lazily.
+- Sampling configuration and native cancellation are not yet equivalent across platforms.
+- Runtime versions are pinned separately in `gradle/libs.versions.toml` and `iosApp/LiteRTWrapper/Package.swift`.
 
-### Performance improvements
+### Model and feature compatibility
 
-- **Multi-Token Prediction (MTP)** for speculative decoding and faster token generation
-- **GPU acceleration** with OpenCL on Android and Metal on iOS
-- **NPU support** on devices with neural processing units
-- **Smarter caching** for faster subsequent model load times
-
-### Modern API design
-
-- **Android**: First-class Kotlin coroutine `Flow` support for streaming with minimal bridging
-- **iOS**: Native Swift `async/await` and `AsyncStream` support
-- True push-based token streaming with no polling workarounds
-
-### Multi-modal support
-
-- Text, image, and audio inputs supported out of the box
-
-### Tool use / Function calling
-
-- Models can call defined Kotlin or Swift functions directly
+The two demo flows use text inputs. Select a compatible `.litertlm` model and verify
+its supported inputs, chat template, context budget and device requirements. Runtime
+support for multimodal inputs or accelerators does not mean this app enables them.
+The chat tool path parses model-generated JSON and dispatches registered app actions;
+the model does not execute Kotlin or Swift functions directly.
 
 ### Active development
 
-- MediaPipe LLM Inference API is superseded by LiteRT-LM
-- LiteRT-LM receives ongoing updates and platform improvements
-
-### Consistent model format
-
-- `.litertlm` models work across both Android and iOS
+[MediaPipe LLM Inference is in maintenance-only mode](https://developers.google.com/edge/mediapipe/solutions/genai/llm_inference).
+Google recommends migrating to [LiteRT-LM](https://developers.google.com/edge/litert-lm/overview).
+Benchmark loading, memory and generation on the exact model and target device rather
+than assuming latency or memory figures from another setup.
 
 ---
 

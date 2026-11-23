@@ -4,64 +4,35 @@ import kotlinx.coroutines.flow.Flow
 import org.abma.offlinelai_kmp.domain.model.ModelConfig
 
 /**
- * ═══════════════════════════════════════════════════════════════════════════════
- * WORKSHOP: GemmaInference - The Core Inference Interface
- * ═══════════════════════════════════════════════════════════════════════════════
+ * Shared inference contract implemented by the Android and iOS adapters.
  *
- * This is the EXPECT class - the shared interface that both Android and iOS implement.
+ * Both adapters use LiteRT-LM. MediaPipe LLM Inference is in maintenance-only mode;
+ * Google recommends migrating to LiteRT-LM.
+ * https://developers.google.com/edge/mediapipe/solutions/genai/llm_inference
  *
- * The expect/actual pattern is KMP's way of handling platform differences:
- * - "expect" declares WHAT the interface looks like (this file)
- * - "actual" provides HOW it works on each platform (GemmaInference.android.kt, etc.)
- *
- * WHY THIS PATTERN?
- * LiteRT-LM has different APIs on Android (Kotlin) vs iOS (Swift).
- * This abstraction lets our ViewModel use the same interface on both platforms.
- *
- * NOTE: This project uses LiteRT-LM for on-device LLM inference.
- * LiteRT-LM replaces the deprecated MediaPipe LLM Inference API.
- * https://ai.google.dev/edge/litert-lm/overview
- *
- * KEY METHODS:
- * - loadModel(): Load the Gemma model into memory (3-8 seconds)
- * - generateResponse(): Stream tokens from the model
- * - close(): Free memory (CRITICAL - forgetting this = 1.7GB leak!)
- *
- * ═══════════════════════════════════════════════════════════════════════════════
+ * Android bridges SDK callbacks to Flow. iOS bridges Swift streaming through
+ * notifications. Model initialization, configuration and cleanup differ by platform.
  */
 expect class GemmaInference() {
 
     /**
-     * Load a Gemma model from disk into memory.
+     * Prepare a local model for generation.
      *
-     * This operation:
-     * - Reads ~1.4GB model file from disk
-     * - Allocates ~1.7GB RAM for weights
-     * - Initializes the inference engine
-     * - Takes 3-8 seconds depending on device
+     * Android initializes the engine here. iOS resolves the file here and initializes
+     * its Swift engine lazily at first generation. Loading time and memory use depend
+     * on the model, runtime, backend and device; measure them on the target device.
      *
-     * IMPORTANT: Always call on Dispatchers.IO, never on Main thread!
-     *
-     * @param modelPath Path to the model file (absolute or will search common locations)
-     * @param config Configuration for inference (maxTokens, temperature, topK)
-     * @throws IllegalArgumentException if model file not found
-     * @throws OutOfMemoryError if device doesn't have enough RAM
+     * @param modelPath Model path, resolved using platform-specific search locations.
+     * @param config Inference settings; currently applied by the Android adapter.
      */
     suspend fun loadModel(modelPath: String, config: ModelConfig = ModelConfig())
 
     /**
-     * Generate a streaming response from the model.
+     * Stream incremental text chunks, which need not correspond to individual tokens.
+     * First-response latency varies with initialization, prompt and device.
      *
-     * Returns a Flow that emits tokens as they're generated.
-     * Each emission is the NEXT token(s), not the full response.
-     *
-     * WORKSHOP NOTE: This is the magic of streaming!
-     * Instead of waiting 5 seconds for a complete response,
-     * users see tokens appear immediately (~50ms to first token).
-     *
-     * @param prompt The formatted prompt (MUST include turn tokens!)
-     * @return Flow<String> that emits tokens until generation completes
-     * @throws IllegalStateException if model not loaded
+     * @param prompt Prompt formatted for the selected model and runtime API.
+     * @throws IllegalStateException if no model has been prepared.
      */
     fun generateResponse(prompt: String): Flow<String>
 
@@ -74,7 +45,7 @@ expect class GemmaInference() {
      *
      * @param systemPrompt Instructions for the AI (persona, rules, etc.)
      * @param currentPrompt The formatted conversation with turn tokens
-     * @return Flow<String> of generated tokens
+     * @return Flow<String> of incremental text chunks
      */
     fun generateResponseWithHistory(
         systemPrompt: String,
@@ -82,53 +53,33 @@ expect class GemmaInference() {
     ): Flow<String>
 
     /**
-     * Check if a model is currently loaded and ready.
+     * Check whether this adapter has prepared a model.
+     * On iOS this confirms path resolution, not native engine initialization.
      */
     fun isModelLoaded(): Boolean
 
     /**
-     * Get the current loading progress (0.0 to 1.0).
-     * Useful for showing loading UI during model initialization.
+     * Get this adapter's preparation progress (0.0 to 1.0).
+     * These are coarse stages, not measured progress through native initialization.
      */
     fun getLoadingProgress(): Float
 
     /**
-     * Release the model and free memory.
+     * Clear this adapter's model state.
      *
-     * ⚠️ CRITICAL: You MUST call this when you're done!
-     *
-     * Forgetting to call close() means:
-     * - ~1.7GB of RAM is never freed
-     * - The OS will eventually kill your app
-     * - Users will see "Out of Memory" crashes
-     *
-     * Best practice: Call in ViewModel.onCleared()
+     * Android also closes its session and engine. The current iOS adapter does not
+     * forward this call to the Swift bridge, so native resource release and cancellation
+     * must not be assumed from this shared method alone.
      */
     fun close()
 }
 
 /**
- * ═══════════════════════════════════════════════════════════════════════════════
- * WORKSHOP: Prompt Formatting Helper
- * ═══════════════════════════════════════════════════════════════════════════════
+ * Wrap a user message in the Gemma turn format used by this app.
  *
- * Gemma was trained with special tokens that mark conversation turns.
- * If you don't use these tokens, you'll get GARBAGE output!
- *
- * CORRECT FORMAT:
- * ```
- * <start_of_turn>user
- * Hello, how are you?<end_of_turn>
- * <start_of_turn>model
- * ```
- *
- * The model then generates its response after "<start_of_turn>model\n"
- *
- * WRONG (will produce nonsense):
- * ```
- * Hello, how are you?
- * ```
- * ═══════════════════════════════════════════════════════════════════════════════
+ * This template is model-specific, not a universal LLM requirement. Confirm the
+ * selected model's chat template and whether its runtime API already applies one.
+ * Correct formatting helps interpretation but does not guarantee output quality.
  */
 fun formatPrompt(userMessage: String): String = buildString {
     append("<start_of_turn>user\n$userMessage<end_of_turn>\n")

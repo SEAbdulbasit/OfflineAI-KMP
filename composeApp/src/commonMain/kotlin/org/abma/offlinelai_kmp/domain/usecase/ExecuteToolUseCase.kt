@@ -25,7 +25,6 @@ class ExecuteToolUseCase(
             println("🔧 EXECUTING TOOL:")
             println("───────────────────────────────────────────────────────────")
             println("Tool: ${toolCall.tool}")
-            println("Arguments: ${toolCall.arguments}")
             println("═══════════════════════════════════════════════════════════")
 
             emit(ExecuteToolResult.Executing(toolCall.tool))
@@ -40,7 +39,6 @@ class ExecuteToolUseCase(
             println("═══════════════════════════════════════════════════════════")
             println("✅ TOOL RESULT:")
             println("───────────────────────────────────────────────────────────")
-            println(toolResult.result)
             println("═══════════════════════════════════════════════════════════")
 
             val toolCallDisplay = "🔧 ${toolCall.tool}\n\n"

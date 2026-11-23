@@ -40,11 +40,13 @@ import org.abma.offlinelai_kmp.ui.viewmodel.ChatAction
 import org.abma.offlinelai_kmp.ui.viewmodel.ChatUiState
 import org.abma.offlinelai_kmp.ui.viewmodel.ChatViewModel
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import org.abma.offlinelai_kmp.domain.speech.rememberSpeechRecognizerManager
 
 
 @Composable
 fun ChatScreen(
     onNavigateToSettings: () -> Unit,
+    onNavigateToDemos: () -> Unit = {},
     viewModel: ChatViewModel = viewModel { ChatViewModel() }
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -81,6 +83,7 @@ fun ChatScreen(
             listState = listState,
             snackbarHostState = snackbarHostState,
             onNavigateToSettings = onNavigateToSettings,
+            onNavigateToDemos = onNavigateToDemos,
             onClearChat = { viewModel.onAction(ChatAction.ClearChat) },
             onInputChange = { viewModel.onAction(ChatAction.UpdateInput(it)) },
             onSend = { viewModel.onAction(ChatAction.SendMessage) },
@@ -117,9 +120,20 @@ fun ChatScreenContent(
     onStopGeneration: () -> Unit,
     onCopyMessage: (ChatMessage) -> Unit,
     onRegenerateMessage: (ChatMessage) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateToDemos: () -> Unit = {}
 ) {
     val focusManager = LocalFocusManager.current
+    val speechRecognizer = rememberSpeechRecognizerManager()
+    val isRecording by speechRecognizer.isRecording.collectAsState()
+    val recognizedText by speechRecognizer.recognizedText.collectAsState()
+
+    LaunchedEffect(recognizedText) {
+        if (recognizedText.isNotBlank()) {
+            onInputChange(recognizedText)
+        }
+    }
+
     Scaffold(
         modifier = modifier.pointerInput(Unit) {
             detectTapGestures(onTap = {
@@ -154,6 +168,11 @@ fun ChatScreenContent(
                 .padding(paddingValues)
                 .imePadding()
         ) {
+            TextButton(
+                onClick = onNavigateToDemos,
+                enabled = uiState.modelState != ModelState.GENERATING && uiState.modelState != ModelState.LOADING,
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Offline demos · Action items & local FAQ") }
             // Messages list or loading/empty state
             Box(
                 modifier = Modifier
@@ -243,6 +262,19 @@ fun ChatScreenContent(
                 }
             }
 
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                Text("Device action samples · select, then send", style = MaterialTheme.typography.labelSmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Flashlight on" to "Turn on the flashlight", "Flashlight off" to "Turn off the flashlight").forEach { (label, prompt) ->
+                        SuggestionChip(
+                            onClick = { onInputChange(prompt) },
+                            enabled = uiState.modelState == ModelState.READY && !uiState.isToolCallInProgress,
+                            label = { Text(label) }
+                        )
+                    }
+                }
+            }
+
             // Message input
             ChatInputBar(
                 value = uiState.currentInput,
@@ -250,6 +282,14 @@ fun ChatScreenContent(
                 onSend = onSend,
                 enabled = uiState.modelState == ModelState.READY || uiState.modelState == ModelState.GENERATING,
                 isGenerating = uiState.modelState == ModelState.GENERATING,
+                isRecording = isRecording,
+                onToggleRecording = {
+                    if (isRecording) {
+                        speechRecognizer.stopListening()
+                    } else {
+                        speechRecognizer.startListening()
+                    }
+                },
                 onStopGeneration = onStopGeneration,
                 placeholder = when (uiState.modelState) {
                     ModelState.NOT_LOADED -> "Load a model to start..."
@@ -530,6 +570,8 @@ private fun ChatInputBar(
     onSend: () -> Unit,
     enabled: Boolean,
     isGenerating: Boolean,
+    isRecording: Boolean = false,
+    onToggleRecording: () -> Unit = {},
     onStopGeneration: () -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier
@@ -610,6 +652,24 @@ private fun ChatInputBar(
                                 imageVector = Icons.Default.Stop,
                                 contentDescription = "Stop",
                                 tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    } else if (value.isBlank()) {
+                        FilledIconButton(
+                            onClick = onToggleRecording,
+                            enabled = enabled,
+                            shape = RoundedCornerShape(14.dp),
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = if (isRecording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondaryContainer,
+                                disabledContainerColor = if (isDark) Color(0xFF262626) else MaterialTheme.colorScheme.surfaceVariant
+                            ),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Mic,
+                                contentDescription = if (isRecording) "Stop Recording" else "Start Recording",
+                                tint = if (enabled) (if (isRecording) Color.White else MaterialTheme.colorScheme.onSecondaryContainer) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
                                 modifier = Modifier.size(20.dp)
                             )
                         }

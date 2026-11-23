@@ -253,7 +253,7 @@ actual class GemmaInference {
         var activeSession: Session? = null
 
         try {
-            Log.d(TAG, "Starting generation for prompt: ${prompt.take(50)}...")
+            Log.d(TAG, "Starting generation")
             
             // Create a new session for this generation
             val samplerConfig = SamplerConfig(

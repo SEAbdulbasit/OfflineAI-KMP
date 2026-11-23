@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="810" viewBox="0 0 1440 810">
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10" fill="none" stroke="#8B92A8" stroke-width="1.5"/></marker></defs>
+<rect width="1440" height="810" fill="#11131C"/>
+<g font-family="Arial, sans-serif" fill="#F7F7FA">
+<text x="80" y="97" font-size="48" font-weight="700">Shared features, native inference</text>
+<rect x="80" y="156" width="1280" height="248" rx="16" fill="#25203B" stroke="#9F82FF" stroke-width="2"/>
+<text x="112" y="204" font-size="24" fill="#C8B9FF">commonMain</text>
+<text x="112" y="264" font-size="32" font-weight="700">Compose UI</text>
+<text x="545" y="264" font-size="32" font-weight="700">DemoController</text>
+<text x="995" y="264" font-size="32" font-weight="700">Validation</text>
+<text x="112" y="305" font-size="22" fill="#BFC1CE">Screens and state</text>
+<text x="545" y="305" font-size="22" fill="#BFC1CE">Prompts and streaming</text>
+<text x="995" y="305" font-size="22" fill="#BFC1CE">JSON and source checks</text>
+<path d="M368 263H493" stroke="#8B92A8" stroke-width="2" marker-end="url(#arrow)"/><path d="M829 263H943" stroke="#8B92A8" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="112" y="368" font-size="22" fill="#D9CFFF">expect GemmaInference</text>
+<text x="545" y="368" font-size="22" fill="#D9CFFF">generateResponse(prompt): Flow&lt;String&gt;</text>
+<path d="M388 404V460" stroke="#8B92A8" stroke-width="2" marker-end="url(#arrow)"/><path d="M1052 404V460" stroke="#8B92A8" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="80" y="478" width="616" height="205" rx="16" fill="#192D29"/>
+<rect x="744" y="478" width="616" height="205" rx="16" fill="#1B293C"/>
+<text x="112" y="522" font-size="24" fill="#82D9BA">androidMain</text>
+<text x="776" y="522" font-size="24" fill="#93BEF2">iosMain + Swift</text>
+<text x="112" y="578" font-size="30" font-weight="700">Kotlin adapter</text>
+<text x="776" y="578" font-size="30" font-weight="700">Notification bridge</text>
+<text x="112" y="632" font-size="25">LiteRT-LM Kotlin API</text>
+<text x="776" y="632" font-size="25">LiteRT-LM Swift wrapper</text>
+<text x="80" y="754" font-size="24" fill="#BFC1CE">Each platform runs its own local model file</text>
+</g></svg>
