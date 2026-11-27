@@ -52,15 +52,17 @@ Transition → What model families and sizes could we evaluate?
 
 3:15–4:15
 
-M means million learned parameters; B means billion. We will unpack that term on the next slide. Gemma is one option, not the whole mobile-model landscape. Within Gemma 3, 270M and 1B are text-only; 4B adds image input, and the family also includes larger 12B and 27B variants. Do not assume every size fits a phone. Qwen3 has compact 0.6B and 1.7B text models. Llama 3.2 has 1B and 3B text variants. SmolLM2 spans 135M, 360M and 1.7B.
+Use this table as a shortlist, not a catalogue to memorize. Gemma is one option among compact model families. M means million parameters and B means billion; those counts are not download sizes. Input support also differs: for example, Gemma 3’s smaller variants are text-only, while 4B adds image input.
 
-The practical point is that choosing LiteRT-LM does not force us to choose Gemma. Other supported model exports can use the same engine API. A swap can still change the expected chat template, tokenizer, input capabilities and tool format, so evaluate the complete export rather than promising a two-line universal switch. These examples compare learned parameter counts, not download sizes or speed. Pick a candidate for your task, then check the exact converted artifact, chat format, runtime support, license and phone resources. This talk does not claim every listed model ran in our app.
+For our KMP app, choose a supported export that passes the feature’s task. The same engine API can load different supported exports, but a swap can change the tokenizer, chat template, input types or tool protocol. Check those before treating a new download as interchangeable.
 
-If asked: This is a deliberately small, non-exhaustive set rather than a claim about the latest releases. Gemma 3n E2B/E4B use effective-size naming, which is different from total stored parameters. FunctionGemma is specialized and needs its own protocol. The repository’s app-managed LiteRT-LM route is also distinct from system-provided models such as Gemini Nano or Apple Foundation Models.
+Presenter cue: Let attendees scan the rows. Do not read every size aloud or imply that all listed variants ran in this app.
+
+If asked: Gemma 3n E2B/E4B use effective-size naming, which differs from total stored parameter count. FunctionGemma specializes in tool use and has its own protocol. Gemini Nano and Apple Foundation Models are system-model routes with different APIs and availability from this app-managed runtime.
 
 Sources: https://gemma.ai/models/gemma-3/ ; https://huggingface.co/Qwen/Qwen3-0.6B ; https://huggingface.co/Qwen/Qwen3-1.7B ; https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct ; https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct
 
-Transition → What do the parts of those model names mean?
+Transition → What do the labels on one model actually mean?
 
 ## 6. What 1B IT and INT4 mean
 
@@ -241,7 +243,7 @@ Source: https://ai.google.dev/gemini-api/docs/function-calling
 Diagram credit: Google Gemini API documentation, https://ai.google.dev/gemini-api/docs/function-calling . The supplied original diagram illustrates the general function-call flow, not a weather-specific API. Image licensed under the documentation’s stated terms; attribution retained here and in the slide caption.
 
 Transition → Keep function calling, move inference locally, and change from remote weather to a device flashlight action.
-Diagram note: The main sequence is a presentation-width adaptation of the tool branch in Google’s general diagram. Google’s unmodified original is preserved on reference 31. The optional direct-answer/extra-function branches are in that original; this slide traces the weather lookup branch only.
+Diagram note: The main sequence is a presentation-width adaptation of the tool branch in Google’s general diagram. Google’s unmodified original is preserved on reference 32. The optional direct-answer/extra-function branches are in that original; this slide traces the weather lookup branch only.
 
 
 ## 18. A complete function-calling request
@@ -262,25 +264,37 @@ Transition → Where does this tool contract come from in our application code?
 
 ## 19. Register the available tool handlers
 
-20:45–22:30
+20:45–21:45
 
-The screenshot is the real createDefaultToolRegistry function. It constructs the shared registry from nine handler instances. Point to ToggleTorchTool, which handles our running flashlight example, and CopyToClipboardTool, which we will use in the live demonstration. The model did not discover these functions; the app selected the available handlers.
+This is the actual createDefaultToolRegistry function, containing nine application-owned handlers. The registry is the set of actions the app chooses to expose; the model does not discover Kotlin functions on its own.
 
-For our OFF example, the proposed toggle_torch name selects ToggleTorchTool. Its checks require the exact enable key and a JSON Boolean; enable=false then reaches the native adapter. The native result is shown in the UI. The current chat does not send that result back for another model turn.
+Each handler owns a ToolSpec describing its name, purpose and arguments. The shared prompt builder reads those definitions so the model can propose a known tool name. The registry then looks up that name and delegates to the corresponding handler. The handler is responsible for its implemented checks and native effect.
 
-Each handler owns a ToolSpec with its name, description and argument contract. The shared prompt builder reads the registry’s specs to describe the tools. After generation, ToolRegistry matches a proposed name to one of these handlers. An unknown name produces an error result. The selected handler validates its inputs before delegating to native code.
+Presenter cue: Point to ToggleTorchTool, then CopyToClipboardTool. This is our application registry, not the SDK ToolSet registration shown later. Leave the detailed execution code for the next slide.
 
-This is the app’s shared registry, not LiteRT-LM ToolSet registration. The screenshot shows registration only; we will trace dispatch after the generation examples.
+Sources: composeApp/src/commonMain/kotlin/org/abma/offlinelai_kmp/tools/Tooling.kt ; ToolPrompt.kt ; ChatViewModel.kt.
 
-Presenter cue: Point to ToggleTorchTool and CopyToClipboardTool in the actual source capture. Do not read all nine names.
+Transition → Of these registered handlers, let’s implement the clipboard action we will demonstrate.
 
-Sources: Tooling.kt ToolRegistry, createDefaultToolRegistry and ToolHandler.spec; ToolPrompt.kt.
+## 20. Build a shared clipboard tool
 
-Transition → How do both native runtimes receive the same system instructions and user request?
+21:45–23:30
 
-## 20. Android and iOS: the same tool prompt
+Of the registered handlers, let’s implement the clipboard action we will demonstrate. The right-hand ToolSpec gives the model the name copy_to_clipboard and a required text argument. Its description and schema are abridged here; the full source also describes the parameter. This is our application contract, not SDK ToolSet registration.
 
-22:30–24:30
+On the left, execute reads the argument and reports a missing value before attempting the native call. The highlighted line is the KMP boundary: common code calls AppActionsProvider.copyToClipboard, and each actual implementation handles its platform. Android uses ClipboardManager and ClipData; iOS uses UIPasteboard. Both actual implementations are Kotlin and run withContext(Dispatchers.Main). Their surrounding try/catch and Android clipboard-service lookup are omitted from the small native excerpts.
+
+To add another tool, implement ToolHandler, define its ToolSpec, implement the shared checks and effect, and add it to createDefaultToolRegistry. When a new platform effect is required, add the expect/actual boundary for it. Existing platform effects can be reused.
+
+Presenter cue: Read the tool name and text argument, then trace the highlighted call to both native snippets. str is a project helper, not a kotlinx.serialization API. It uses JsonPrimitive.contentOrNull, so this current clipboard handler also accepts numeric/Boolean primitive content and does not reject extra keys or empty strings. Do not describe it as strict schema enforcement. A true result means the native call completed without a caught exception, not an independent clipboard readback. The live paste will verify the effect.
+
+Sources: composeApp/src/commonMain/kotlin/org/abma/offlinelai_kmp/tools/Tooling.kt ; AppActionsProvider.kt ; composeApp/src/androidMain/kotlin/org/abma/offlinelai_kmp/tools/AppActionsProvider.android.kt ; composeApp/src/iosMain/kotlin/org/abma/offlinelai_kmp/tools/AppActionsProvider.ios.kt.
+
+Transition → That is the device effect. Now return to the loaded model and see how the same tool prompt is sent on each platform.
+
+## 21. Android and iOS: the same tool prompt
+
+23:30–25:30
 
 Now the variables have a concrete meaning: systemPrompt contains the tool instructions we just read, and userPrompt asks to turn the flashlight off. The loaded engine is already available. These are shortened new-conversation excerpts, with empty history.
 
@@ -294,9 +308,9 @@ Sources: GemmaInference.android.kt generateConversationResponse; iosApp/iosApp/I
 
 Transition → How does that native text stream update shared UI state, and when is a tool proposal ready to dispatch?
 
-## 21. Streaming into shared UI state
+## 22. Streaming into shared UI state
 
-24:30–26:00
+25:30–27:00
 
 The native APIs stream text, but the UI needs more than an ever-growing string. Our shared use case exposes three sealed results: Streaming, Complete and Error. This is our KMP application API, not the Flutter package’s response types.
 
@@ -308,9 +322,9 @@ Sources: composeApp/src/commonMain/kotlin/org/abma/offlinelai_kmp/ui/viewmodel/C
 
 Transition → The preceding code uses our prompted proposal format. What can the Android SDK handle for us instead?
 
-## 22. LiteRT-LM SDK function calling
+## 23. LiteRT-LM SDK function calling
 
-26:00–28:00
+27:00–28:30
 
 SDK means Software Development Kit: the runtime library and APIs we integrate into our application. Google AI Edge LiteRT-LM’s Kotlin SDK can derive a tool contract from a ToolSet’s annotated Kotlin functions. @Tool supplies a description; @ToolParam supplies the parameter description; Kotlin’s function name and parameter type supply their corresponding contract information. The example deliberately calls the function toggle_torch to match that exposed name.
 
@@ -322,51 +336,52 @@ If asked — app wiring and integration details: Our current Android AND iOS cha
 
 Sources: https://raw.githubusercontent.com/google-ai-edge/LiteRT-LM/v0.14.0/kotlin/java/com/google/ai/edge/litertlm/Tool.kt ; https://raw.githubusercontent.com/google-ai-edge/LiteRT-LM/v0.14.0/kotlin/java/com/google/ai/edge/litertlm/Config.kt ; pinned v0.14.0 Kotlin getting_started.md; current local app code.
 
-Transition → Whether the contract comes from an SDK or a prompt, can a correctly typed proposal still choose the wrong action?
+Transition → What implementation decisions should we carry into our own KMP feature?
 
-## 23. What validation does not prove
+## 24. Engineering lessons from this implementation
 
-28:00–29:00
+28:30–30:00
 
-A correctly typed proposal can still contradict the user. If the user says “Do not change the flashlight” and the model proposes enable=true, the Boolean shape can pass while the action is wrong. Each handler needs its own validation, and consequential actions may need review before execution. The current chat dispatches automatically after its implemented checks; confirmation is a product recommendation.
+Three implementation lessons are worth taking away. First, distinguish deltas from snapshots. The native stream sends chunks that our use case appends. Its Streaming result carries cumulative partialResponse, so the ViewModel replaces the displayed content. Confusing those contracts would duplicate text.
 
-Native execution can also fail because the device has no available torch or access is restricted. Report the API result or error; do not treat a generated success sentence as evidence of a device effect.
+Second, specify startup policy per platform. This Android implementation tries GPU, then CPU if initialization fails, and attempts warm-up separately. The current iOS bridge initializes on GPU. Both load paths wait for initialization. The common loadModel signature does not choose these policies for us.
 
-Sources: Tooling.kt ; ChatViewModel.kt ; current native action adapters.
+Third, choose the tool protocol deliberately. Our current Android and iOS chat paths use the shared prompted proposal envelope. SDK tool APIs are another route, not code automatically enabled by registering our application handlers. SDK tool-call arguments need normalization before these JsonObject-based handlers can be reused. Keep one application-facing contract and adapt the protocol at its boundary.
 
-Transition → Inspect a real proposed call and its observable device effect.
+Presenter cue: These are lessons from inspecting the implementation, not invented stories about crashes, measured speedups or production incidents. Point back to the exact code just shown rather than introducing another architecture diagram. A valid envelope still does not establish semantic intent; for example, a Boolean can be correctly typed while contradicting a negated user request. Native permissions, hardware and input checks still belong to the application.
 
-## 24. Live clipboard proof
+Sources: GenerateResponseUseCase.kt and ChatViewModel.kt for delta/cumulative behavior; GemmaInference.android.kt and iosApp/iosApp/InferenceBridge.swift for initialization; ToolPrompt.kt, Tooling.kt and pinned LiteRT-LM Kotlin Tool.kt/Config.kt for tool protocols.
 
-29:00–35:00
+Transition → Let’s use this exact clipboard tool on the phone and verify the native effect.
 
-Before switching examples: the flashlight call showed the dispatch path. For the live run, use another registered device tool whose result everyone can inspect: copy_to_clipboard.
+## 25. Live demo: copy text on the phone
 
-Ask someone for a two-digit number to make this input specific to the live run. Use it instead of 47 in the displayed request.
+30:00–35:00
 
-The phone has airplane mode on and Wi-Fi off. This demonstrated path uses local inference. Watch three things: the actual copy_to_clipboard proposal, the app's device result, then the phrase appearing when pasted into an empty local field on the phone. A generated “Copied!” sentence is not proof of a clipboard effect.
+We have seen the clipboard handler and both native effects. Now use the ordinary request on the slide: Copy 'Hello from offline AI' to my clipboard. The model has already been loaded, airplane mode is on, and Wi-Fi is off.
 
-If the model proposes the wrong action, show the failure honestly. The important pattern is an inspectable proposal followed by an observable native result.
+Before typing, tell attendees what to watch: the generated copy_to_clipboard proposal, the app’s reported result, and finally the exact phrase pasted into an empty local text field on the phone. The generated proposal asks for an action; the device API carries it out. Pasting verifies the visible native effect. The model merely printing 'Copied!' would not establish that effect.
 
 Presenter cues — preparation, not spoken script:
-Name the actual rehearsed artifact filename/precision, backend and phone before starting. These must come from the real setup; a model-family example or estimated size is not a measured setup.
-Rehearse the exact build, artifact and phone first. Provision and load the model before disconnecting. Mirror by USB without tethering. With scrcpy use --no-clipboard-autosync. Type and long-press Paste on the phone; a laptop paste shortcut can inject its clipboard.
-Expected shape, not captured output: <<{"tool":"copy_to_clipboard","arguments":{"text":"Essex lantern <number>"}}>>.
-Planned demonstration: four minutes. The remainder of this slot is reserved for audience interaction, device delays and recovery; do not fill it with another unplanned live feature. At 34:15 stop retrying and show the resources/Q&A page by 35:00. If the run finishes early, begin questions rather than adding filler.
+Name the actual rehearsed artifact filename/precision, backend and phone. Provision and load the model before disconnecting. Mirror by USB without tethering. With scrcpy, use --no-clipboard-autosync. Type and long-press Paste on the phone rather than using a laptop paste shortcut. Clear the destination field first. This is an offline clipboard action, not a fresh-weather demonstration.
 
-Transition → Keep the repository QR visible and open questions.
+Illustrative expected proposal, not a captured model result: <<{"tool":"copy_to_clipboard","arguments":{"text":"Hello from offline AI"}}>>.
 
-## 25. Code, setup and questions
+Plan four minutes for the demonstration and one minute for interaction or recovery. If generation fails, show the actual failure and trace the source code; do not pretend an illustrative output came from that run. Do not spend the reserve retrying repeatedly. Stop retries by 34:15, open the resources/Q&A page by 35:00, and finish at 40:00. If the run finishes early, begin questions.
+
+Transition → Keep these three takeaways and the repository QR visible while we take questions.
+
+## 26. Takeaways and questions
 
 35:00–40:00 | Q&A
 
-The repository contains the shared prompt, parser, handlers and native adapters. Follow ToolPrompt.kt for tool instructions, GenerateResponseUseCase.kt for extracting proposals, and Tooling.kt for registry and handler behavior. The live run used the actual artifact, backend and phone named during the demonstration. These are the sources to inspect if you want to reproduce that path. Let’s take questions.
+Choose a compatible model bundle, share application logic in Kotlin, and adapt native inference per platform. Those are the three steps to reproduce the feature we traced today. The repository contains the shared prompt and use case, tool handlers, and Android/iOS adapters. Let’s take questions.
 
-Presenter cue: Keep the project QR visible. Open Q&A no later than 35:00; finish at 40:00. Optional references begin at 26.
+Presenter cue: Recap in about 20 seconds while opening Q&A. Keep the three takeaways and project QR visible. The source is ToolPrompt.kt for instructions, GenerateResponseUseCase.kt for streaming/proposal extraction, Tooling.kt for handlers, and the native inference/AppActionsProvider actuals for platform behavior. Name the actual demonstrated artifact, backend and phone if asked about reproduction. Begin questions at 35:00; finish at 40:00. Optional references begin at 27.
 
 Source: https://github.com/SEAbdulbasit/OfflineAI-KMP
 
-## 26. Reference: A useful local feature
+## 27. Reference: A useful local feature
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -379,7 +394,7 @@ Sara will update the slides, but no deadline was agreed. We want that task, owne
 
 Sources: workshop/visuals/ios-notes-source.jpg; DemoSamples.kt in the current local project.
 
-## 27. Reference: Walkthrough: note to draft
+## 28. Reference: Walkthrough: note to draft
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -392,7 +407,7 @@ The parser checks that evidence occurs in the source, that task occurs in the ev
 
 Sources: DemoSamples.kt notesPrompt and parseNotes, DemoScreen.kt Action Items to Review.
 
-## 28. Reference: Walkthrough: local reference
+## 29. Reference: Walkthrough: local reference
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -407,7 +422,7 @@ If asked — parser details: parseFaq checks that the sourceId exists and the qu
 
 Sources: DemoSamples.kt sections, faqPrompt and parseFaq; DemoController.kt.
 
-## 29. Reference: A reusable evaluation method
+## 30. Reference: A reusable evaluation method
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -421,7 +436,7 @@ If asked: The note-extraction workflow needs its own cases for commitments, miss
 
 Sources: ToggleTorchTool in Tooling.kt; ToggleTorchToolTest.kt; current metrics and platform tool adapters.
 
-## 30. Reference: Failure and recovery
+## 31. Reference: Failure and recovery
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -434,7 +449,7 @@ Cancellation produces “Generation stopped. You can edit the input and try agai
 
 Sources: current DemoController.kt, DemoScreen.kt and Tooling.kt.
 
-## 31. Reference: Google’s original function-calling diagram
+## 32. Reference: Google’s original function-calling diagram
 
 BACKUP — Google’s original function-calling diagram
 
@@ -444,7 +459,7 @@ Source: https://ai.google.dev/gemini-api/docs/function-calling
 Image: https://www.gstatic.com/cloud-cms/6fae8435a773b720d5db0c8746efb318.png
 
 
-## 32. Reference: app-owned execution
+## 33. Reference: app-owned execution
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -461,7 +476,7 @@ Sources:
 https://gemma.ai/models/functiongemma/formatting/
 Local working tree: see the corresponding project source file.
 
-## 33. Reference: the Swift bridge
+## 34. Reference: the Swift bridge
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -478,7 +493,7 @@ Local working tree: corresponding project source file.
 Local working tree: corresponding project source file.
 https://developers.google.com/edge/litert-lm/swift
 
-## 34. Reference: a structured draft
+## 35. Reference: a structured draft
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -491,7 +506,7 @@ Here's the expected JSON shape behind our note-to-action-items demo in `DemoSamp
 Sources:
 Local working tree: corresponding project source file.
 
-## 35. Reference: source checks and meaning
+## 36. Reference: source checks and meaning
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -508,7 +523,7 @@ Sources:
 Local working tree: corresponding project source file.
 Local working tree: corresponding project source file.
 
-## 36. Reference: compatible deployment
+## 37. Reference: compatible deployment
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -526,7 +541,7 @@ https://gemma.ai/models/functiongemma/formatting/
 Local working tree: corresponding project source file.
 Local working tree: corresponding project source file.
 
-## 37. Reference: Model families
+## 38. Reference: Model families
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -548,7 +563,7 @@ https://gemma.ai/models/gemma-4/model-card/
 https://gemma.ai/models/functiongemma/model-card/
 https://gemma.ai/models/functiongemma/formatting/
 
-## 38. Reference: a local source or null
+## 39. Reference: a local source or null
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -563,7 +578,7 @@ A quote existing in the source does not prove it answers the question. Check rel
 Sources:
 Local working tree: corresponding project source file.
 
-## 39. Reference: choose a bounded task
+## 40. Reference: choose a bounded task
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -576,7 +591,7 @@ The tradeoff is a product decision per feature: evaluate task quality, target-de
 
 Sources: the task checks in DemoSamples.kt and Tooling.kt; model cards linked in the model-selection appendix.
 
-## 40. Reference: Native startup policies
+## 41. Reference: Native startup policies
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -591,7 +606,7 @@ If asked: This is a lesson drawn from the current implementation, not a claim th
 
 Sources: current local working tree, GemmaInference.android.kt, GemmaInference.ios.kt and iosApp/iosApp/InferenceBridge.swift.
 
-## 41. Reference: image requests on Android and iOS
+## 42. Reference: image requests on Android and iOS
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
