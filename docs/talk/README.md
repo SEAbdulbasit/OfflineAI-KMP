@@ -26,7 +26,7 @@ Main navigation stops at 25. References 26–41 are outside the timed talk. The 
 
 Plan 33 minutes of explanation and the live run, with 2 minutes reserved for audience interaction and device recovery. The live block 24 is 29:00–35:00: plan 4 minutes of demonstration and use the remainder only when needed. Stop retrying by 34:15. Begin questions no later than 35:00 and finish 40:00; if delivery finishes early, begin questions rather than filling the reserve.
 
-The main path is cloud → reasons for offline → model kinds/sizes/labels → bits and quantization → generation → LiteRT-LM and MediaPipe context → model-file formats (.litertlm / .task) → KMP API → Android/Swift initialization → first shared system/user prompt → weather function-call sequence adapted from Google’s guide → full local flashlight request → actual registry source screenshot → Android/Swift generation → shared streaming/completion/error handling → optional Android SDK route → shared dispatch/native execution → limits → live clipboard action → resources/Q&A.
+The main path is cloud → reasons for offline → model kinds/sizes/labels → bits and quantization → generation → LiteRT-LM and MediaPipe context → model-file formats (.litertlm / .task) → KMP API → Android/Swift initialization → first shared system/user prompt → function-calling section heading → weather function-call sequence adapted from Google’s guide → full local flashlight request → actual registry source screenshot → Android/Swift generation → shared streaming/completion/error handling → optional Android SDK route → limits → live clipboard action → resources/Q&A.
 
 Concrete headings replace the earlier vague labels. Note extraction, FAQ grounding and additional tests/recovery remain optional references. The quiz and generic slogan closing are removed.
 
@@ -34,11 +34,11 @@ Concrete headings replace the earlier vague labels. Note extraction, FAQ groundi
 
 [Speaker notes](speaker-notes.md), `notes.json` and embedded notes are synchronized. Update all three along with labels/counters/timings when reordering.
 
-[Complete default-chat request](complete-tool-request.md) and its JSON contain the source-derived nine-tool prompt; [teaching request](teaching-tool-request.txt) is the shorter flashlight example shown on 17.
+[Complete default-chat request](complete-tool-request.md) and its JSON contain the source-derived nine-tool prompt; [teaching request](teaching-tool-request.txt) is the shorter flashlight example shown on 18.
 
 The runtime page concerns MediaPipe’s LLM Inference API specifically: Google marks it maintenance-only and recommends LiteRT-LM. This is not a statement that every MediaPipe task is retired. This project uses LiteRT-LM through Android Kotlin and iOS Swift.
 
-Slide 14 uses source-derived abridged initialization excerpts. Slide 19 compares actual app generation paths with a model already loaded, empty history and omitted error/bridge details. Slide 21 is an available SDK registration option, not current app wiring. Current Android and iOS both use prompted proposals. Slide 18’s source screenshot shows the actual nine-handler application registry; that is separate from SDK ToolSet registration.
+Slide 14 uses source-derived abridged initialization excerpts. Slide 20 compares actual app generation paths with a model already loaded, empty history and omitted error/bridge details. Slide 22 is an available SDK registration option, not current app wiring. Current Android and iOS both use prompted proposals. Slide 19’s source screenshot shows the actual nine-handler application registry; that is separate from SDK ToolSet registration.
 
 The main weather slide adapts Google’s general cloud function-call flow; reference 31 preserves the unmodified official image. Weather values are mock teaching data, and this app does not implement weather lookup. Moving inference onto a phone does not remove a weather service’s network dependency. Native clipboard/flashlight actions are different tool effects.
 
@@ -52,6 +52,10 @@ The main weather sequence is a wide, weather-labelled adaptation of Google’s f
 
 The file-format comparison on 11 replaces the repeated cloud/local path. It distinguishes the .litertlm container from precision labels and older .task bundles. Both pinned native runtimes recognize .task; that does not guarantee every model is compatible. Avoid a universal all-platform artifact claim.
 
-Slide 20 teaches the actual shared sealed-result stream: cumulative text, completion/tool handling and errors, with the streaming branch highlighted. Reference 41 shows pinned Kotlin/Swift image requests as SDK integration illustrations. Image handling is not implemented in the current demo.
+Slide 21 teaches the actual shared sealed-result stream: cumulative text, completion/tool handling and errors, with the streaming branch highlighted. Reference 41 shows pinned Kotlin/Swift image requests as SDK integration illustrations. Image handling is not implemented in the current demo.
 
 Slide 15 follows initialization with a complete shared Kotlin system/user request and text-chunk collection. It precedes the weather function-calling example, so the talk introduces ordinary prompting before tools. The timed main path remains 40 minutes.
+
+Slide 16 introduces function calling as the model’s eyes and ears before the weather example on 17. This section opener takes 45 seconds; Q&A still starts at 35:00.
+
+The standalone JSON-handler dispatch slide is removed. The actual dispatch trace remains in the registry notes, and shared completion handling shows where execution begins. The recovered time supports the weather explanation and SDK code.

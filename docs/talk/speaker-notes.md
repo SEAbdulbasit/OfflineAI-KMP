@@ -210,9 +210,21 @@ Sources: composeApp/src/commonMain/kotlin/org/abma/offlinelai_kmp/inference/Gemm
 
 Transition → A prompt can ask the model to explain a concept. What if the question needs information the model does not have, such as today’s weather?
 
-## 16. Weather function calling: request to tool result
+## 16. Function calling: the model’s eyes and ears
 
-17:00–18:30
+17:00–17:45
+
+Think of tools as the model’s eyes and ears: a connection to information outside its training, through APIs, device sensors or app data. Function calling means the model requests a named function with arguments. Our application executes it and can return the result. Tools can also perform actions. Let’s start with a read: today’s weather.
+
+Presenter cue: Pause on the section heading, then explain the metaphor. The model does not gain automatic access to the internet or sensors; the app must provide and execute the tool.
+
+Source: https://ai.google.dev/gemini-api/docs/function-calling
+
+Transition → A weather question makes the need for an external tool concrete.
+
+## 17. Weather function calling: request to tool result
+
+17:45–19:15
 
 Ask: what is the weather in Riyadh today? Model weights alone are not a live weather feed. Function calling lets the model request information from a function the app has described.
 
@@ -232,9 +244,9 @@ Transition → Keep function calling, move inference locally, and change from re
 Diagram note: The main sequence is a presentation-width adaptation of the tool branch in Google’s general diagram. Google’s unmodified original is preserved on reference 31. The optional direct-answer/extra-function branches are in that original; this slide traces the weather lookup branch only.
 
 
-## 17. A complete function-calling request
+## 18. A complete function-calling request
 
-18:30–20:00
+19:15–20:45
 
 Move the inference step onto the phone. The contract, proposed call and app-owned execution remain the same idea, but today’s live weather would still require a network-backed tool. We now switch to a local device action: turn off the flashlight.
 
@@ -248,11 +260,13 @@ Sources: ToolPrompt.kt; ChatViewModel.kt currentCombinedSystemPrompt; PromptBuil
 
 Transition → Where does this tool contract come from in our application code?
 
-## 18. Register the available tool handlers
+## 19. Register the available tool handlers
 
-20:00–21:45
+20:45–22:30
 
 The screenshot is the real createDefaultToolRegistry function. It constructs the shared registry from nine handler instances. Point to ToggleTorchTool, which handles our running flashlight example, and CopyToClipboardTool, which we will use in the live demonstration. The model did not discover these functions; the app selected the available handlers.
+
+For our OFF example, the proposed toggle_torch name selects ToggleTorchTool. Its checks require the exact enable key and a JSON Boolean; enable=false then reaches the native adapter. The native result is shown in the UI. The current chat does not send that result back for another model turn.
 
 Each handler owns a ToolSpec with its name, description and argument contract. The shared prompt builder reads the registry’s specs to describe the tools. After generation, ToolRegistry matches a proposed name to one of these handlers. An unknown name produces an error result. The selected handler validates its inputs before delegating to native code.
 
@@ -264,9 +278,9 @@ Sources: Tooling.kt ToolRegistry, createDefaultToolRegistry and ToolHandler.spec
 
 Transition → How do both native runtimes receive the same system instructions and user request?
 
-## 19. Android and iOS: the same tool prompt
+## 20. Android and iOS: the same tool prompt
 
-21:45–23:45
+22:30–24:30
 
 Now the variables have a concrete meaning: systemPrompt contains the tool instructions we just read, and userPrompt asks to turn the flashlight off. The loaded engine is already available. These are shortened new-conversation excerpts, with empty history.
 
@@ -280,9 +294,9 @@ Sources: GemmaInference.android.kt generateConversationResponse; iosApp/iosApp/I
 
 Transition → How does that native text stream update shared UI state, and when is a tool proposal ready to dispatch?
 
-## 20. Streaming into shared UI state
+## 21. Streaming into shared UI state
 
-23:45–25:15
+24:30–26:00
 
 The native APIs stream text, but the UI needs more than an ever-growing string. Our shared use case exposes three sealed results: Streaming, Complete and Error. This is our KMP application API, not the Flutter package’s response types.
 
@@ -294,9 +308,9 @@ Sources: composeApp/src/commonMain/kotlin/org/abma/offlinelai_kmp/ui/viewmodel/C
 
 Transition → The preceding code uses our prompted proposal format. What can the Android SDK handle for us instead?
 
-## 21. LiteRT-LM SDK function calling
+## 22. LiteRT-LM SDK function calling
 
-25:15–26:30
+26:00–28:00
 
 SDK means Software Development Kit: the runtime library and APIs we integrate into our application. Google AI Edge LiteRT-LM’s Kotlin SDK can derive a tool contract from a ToolSet’s annotated Kotlin functions. @Tool supplies a description; @ToolParam supplies the parameter description; Kotlin’s function name and parameter type supply their corresponding contract information. The example deliberately calls the function toggle_torch to match that exposed name.
 
@@ -308,25 +322,7 @@ If asked — app wiring and integration details: Our current Android AND iOS cha
 
 Sources: https://raw.githubusercontent.com/google-ai-edge/LiteRT-LM/v0.14.0/kotlin/java/com/google/ai/edge/litertlm/Tool.kt ; https://raw.githubusercontent.com/google-ai-edge/LiteRT-LM/v0.14.0/kotlin/java/com/google/ai/edge/litertlm/Config.kt ; pinned v0.14.0 Kotlin getting_started.md; current local app code.
 
-Transition → Return to the prompted route this app implements and follow a proposal into native execution.
-
-## 22. A complete tool-call lifecycle
-
-26:30–28:00
-
-Trace the same flashlight-OFF request, rather than another abstract API. First define the name and Boolean argument in the shared ToolSpec. The prompt builder includes those instructions so the model knows the available tool and parameter. The model returns a proposal, not a completed action.
-
-In this app, extractToolCall normalizes generated text into a shared ToolCall with a JsonObject. The registered torch handler requires exactly the enable key and a real JSON Boolean. Invalid requests stop before native execution. A valid request reaches the platform adapter, which can still fail because hardware or permissions are unavailable. Show the resulting status in the UI.
-
-Our app displays the native result and ends this operation. Returning that result to the model for another turn would require an additional conversation loop.
-
-Presenter cue: Read the literal proposal on the slide. Follow its tool name through extractToolCall into ToggleTorchTool, then follow the enable value into the native call. Contrast a native success with a missing-hardware error; neither outcome is known at proposal time.
-
-If asked — continuing conversations: ChatViewModel.handleToolCall currently does not feed its result into another model turn. A continuing loop must submit the result, handle subsequent responses and enforce loop limits. Android SDK automatic mode offers orchestration; manual mode leaves it to the app. SDK arguments need adaptation before reuse of this app’s JsonObject checks.
-
-Sources: current local ToolPrompt.kt, Tooling.kt, GenerateResponseUseCase.kt and ChatViewModel.kt; pinned LiteRT-LM v0.14.0 Kotlin getting_started.md.
-
-Transition → What can still go wrong after parsing and type checks?
+Transition → Whether the contract comes from an SDK or a prompt, can a correctly typed proposal still choose the wrong action?
 
 ## 23. What validation does not prove
 
