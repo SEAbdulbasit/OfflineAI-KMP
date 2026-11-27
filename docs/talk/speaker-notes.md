@@ -182,7 +182,7 @@ Transition → Now follow loadModel into each native engine.
 
 ## 14. Android and iOS engine initialization
 
-14:15–16:15
+14:15–15:45
 
 The common loadModel method reaches these native initialization paths. Android constructs EngineConfig with the model path, selected backend and cache directory, creates Engine, and calls initialize. The helper is invoked with GPU first and CPU if GPU initialization fails. Swift constructs its EngineConfig with the same kind of model path and cache location, chooses GPU, creates Engine, and awaits initialize.
 
@@ -192,11 +192,27 @@ Presenter cue: Trace modelPath → config → Engine → initialize on both side
 
 Sources: GemmaInference.android.kt ; iosApp/iosApp/InferenceBridge.swift.
 
-Transition → With a loaded engine, how can generated text request an application action?
+Transition → The engine is loaded. Let’s send the first system and user prompt through our shared Kotlin API.
 
-## 15. Weather function calling: request to tool result
+## 15. Send the first prompt
 
-16:15–18:00
+15:45–17:00
+
+The engine is ready. Now use the shared Kotlin API to send a real request. The system instructions set the tutor role and a two-sentence response constraint. The user message asks what changes when the model is quantized from FP16 to INT4. We pass empty history because this is a first turn.
+
+The adapters preserve these as system and user roles; we do not manually concatenate special model-token markers here. The selected model’s conversation format still matters. The system instruction guides generation; it does not guarantee that the response follows every constraint.
+
+collect receives decoded text chunks, and answer accumulates them. This is the low-level chunk stream. Later, our shared use case wraps it in cumulative Streaming, Complete and Error results for the ViewModel. That later partialResponse must replace displayed text, rather than be appended again.
+
+Presenter cue: Trace systemPrompt, history and userPrompt, then the highlighted question into collect. The model is already loaded, inference is the shared GemmaInference instance, and this code runs inside a coroutine. This is an illustrative request using the existing API, not a captured model output. UI-state updates and error handling are omitted.
+
+Sources: composeApp/src/commonMain/kotlin/org/abma/offlinelai_kmp/inference/GemmaInference.kt ; Android and iOS GemmaInference actual implementations.
+
+Transition → A prompt can ask the model to explain a concept. What if the question needs information the model does not have, such as today’s weather?
+
+## 16. Weather function calling: request to tool result
+
+17:00–18:30
 
 Ask: what is the weather in Riyadh today? Model weights alone are not a live weather feed. Function calling lets the model request information from a function the app has described.
 
@@ -213,12 +229,12 @@ Source: https://ai.google.dev/gemini-api/docs/function-calling
 Diagram credit: Google Gemini API documentation, https://ai.google.dev/gemini-api/docs/function-calling . The supplied original diagram illustrates the general function-call flow, not a weather-specific API. Image licensed under the documentation’s stated terms; attribution retained here and in the slide caption.
 
 Transition → Keep function calling, move inference locally, and change from remote weather to a device flashlight action.
-Diagram note: The main sequence is a presentation-width adaptation of the tool branch in Google’s general diagram. Google’s unmodified original is preserved on reference 30. The optional direct-answer/extra-function branches are in that original; this slide traces the weather lookup branch only.
+Diagram note: The main sequence is a presentation-width adaptation of the tool branch in Google’s general diagram. Google’s unmodified original is preserved on reference 31. The optional direct-answer/extra-function branches are in that original; this slide traces the weather lookup branch only.
 
 
-## 16. A complete function-calling request
+## 17. A complete function-calling request
 
-18:00–19:45
+18:30–20:00
 
 Move the inference step onto the phone. The contract, proposed call and app-owned execution remain the same idea, but today’s live weather would still require a network-backed tool. We now switch to a local device action: turn off the flashlight.
 
@@ -232,9 +248,9 @@ Sources: ToolPrompt.kt; ChatViewModel.kt currentCombinedSystemPrompt; PromptBuil
 
 Transition → Where does this tool contract come from in our application code?
 
-## 17. Register the available tool handlers
+## 18. Register the available tool handlers
 
-19:45–21:45
+20:00–21:45
 
 The screenshot is the real createDefaultToolRegistry function. It constructs the shared registry from nine handler instances. Point to ToggleTorchTool, which handles our running flashlight example, and CopyToClipboardTool, which we will use in the live demonstration. The model did not discover these functions; the app selected the available handlers.
 
@@ -248,7 +264,7 @@ Sources: Tooling.kt ToolRegistry, createDefaultToolRegistry and ToolHandler.spec
 
 Transition → How do both native runtimes receive the same system instructions and user request?
 
-## 18. Android and iOS: the same tool prompt
+## 19. Android and iOS: the same tool prompt
 
 21:45–23:45
 
@@ -264,7 +280,7 @@ Sources: GemmaInference.android.kt generateConversationResponse; iosApp/iosApp/I
 
 Transition → How does that native text stream update shared UI state, and when is a tool proposal ready to dispatch?
 
-## 19. Streaming into shared UI state
+## 20. Streaming into shared UI state
 
 23:45–25:15
 
@@ -278,7 +294,7 @@ Sources: composeApp/src/commonMain/kotlin/org/abma/offlinelai_kmp/ui/viewmodel/C
 
 Transition → The preceding code uses our prompted proposal format. What can the Android SDK handle for us instead?
 
-## 20. LiteRT-LM SDK function calling
+## 21. LiteRT-LM SDK function calling
 
 25:15–26:30
 
@@ -294,7 +310,7 @@ Sources: https://raw.githubusercontent.com/google-ai-edge/LiteRT-LM/v0.14.0/kotl
 
 Transition → Return to the prompted route this app implements and follow a proposal into native execution.
 
-## 21. A complete tool-call lifecycle
+## 22. A complete tool-call lifecycle
 
 26:30–28:00
 
@@ -312,7 +328,7 @@ Sources: current local ToolPrompt.kt, Tooling.kt, GenerateResponseUseCase.kt and
 
 Transition → What can still go wrong after parsing and type checks?
 
-## 22. What validation does not prove
+## 23. What validation does not prove
 
 28:00–29:00
 
@@ -324,7 +340,7 @@ Sources: Tooling.kt ; ChatViewModel.kt ; current native action adapters.
 
 Transition → Inspect a real proposed call and its observable device effect.
 
-## 23. Live clipboard proof
+## 24. Live clipboard proof
 
 29:00–35:00
 
@@ -344,17 +360,17 @@ Planned demonstration: four minutes. The remainder of this slot is reserved for 
 
 Transition → Keep the repository QR visible and open questions.
 
-## 24. Code, setup and questions
+## 25. Code, setup and questions
 
 35:00–40:00 | Q&A
 
 The repository contains the shared prompt, parser, handlers and native adapters. Follow ToolPrompt.kt for tool instructions, GenerateResponseUseCase.kt for extracting proposals, and Tooling.kt for registry and handler behavior. The live run used the actual artifact, backend and phone named during the demonstration. These are the sources to inspect if you want to reproduce that path. Let’s take questions.
 
-Presenter cue: Keep the project QR visible. Open Q&A no later than 35:00; finish at 40:00. Optional references begin at 25.
+Presenter cue: Keep the project QR visible. Open Q&A no later than 35:00; finish at 40:00. Optional references begin at 26.
 
 Source: https://github.com/SEAbdulbasit/OfflineAI-KMP
 
-## 25. Reference: A useful local feature
+## 26. Reference: A useful local feature
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -367,7 +383,7 @@ Sara will update the slides, but no deadline was agreed. We want that task, owne
 
 Sources: workshop/visuals/ios-notes-source.jpg; DemoSamples.kt in the current local project.
 
-## 26. Reference: Walkthrough: note to draft
+## 27. Reference: Walkthrough: note to draft
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -380,7 +396,7 @@ The parser checks that evidence occurs in the source, that task occurs in the ev
 
 Sources: DemoSamples.kt notesPrompt and parseNotes, DemoScreen.kt Action Items to Review.
 
-## 27. Reference: Walkthrough: local reference
+## 28. Reference: Walkthrough: local reference
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -395,7 +411,7 @@ If asked — parser details: parseFaq checks that the sourceId exists and the qu
 
 Sources: DemoSamples.kt sections, faqPrompt and parseFaq; DemoController.kt.
 
-## 28. Reference: A reusable evaluation method
+## 29. Reference: A reusable evaluation method
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -409,7 +425,7 @@ If asked: The note-extraction workflow needs its own cases for commitments, miss
 
 Sources: ToggleTorchTool in Tooling.kt; ToggleTorchToolTest.kt; current metrics and platform tool adapters.
 
-## 29. Reference: Failure and recovery
+## 30. Reference: Failure and recovery
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -422,7 +438,7 @@ Cancellation produces “Generation stopped. You can edit the input and try agai
 
 Sources: current DemoController.kt, DemoScreen.kt and Tooling.kt.
 
-## 30. Reference: Google’s original function-calling diagram
+## 31. Reference: Google’s original function-calling diagram
 
 BACKUP — Google’s original function-calling diagram
 
@@ -432,7 +448,7 @@ Source: https://ai.google.dev/gemini-api/docs/function-calling
 Image: https://www.gstatic.com/cloud-cms/6fae8435a773b720d5db0c8746efb318.png
 
 
-## 31. Reference: app-owned execution
+## 32. Reference: app-owned execution
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -449,7 +465,7 @@ Sources:
 https://gemma.ai/models/functiongemma/formatting/
 Local working tree: see the corresponding project source file.
 
-## 32. Reference: the Swift bridge
+## 33. Reference: the Swift bridge
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -466,7 +482,7 @@ Local working tree: corresponding project source file.
 Local working tree: corresponding project source file.
 https://developers.google.com/edge/litert-lm/swift
 
-## 33. Reference: a structured draft
+## 34. Reference: a structured draft
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -479,7 +495,7 @@ Here's the expected JSON shape behind our note-to-action-items demo in `DemoSamp
 Sources:
 Local working tree: corresponding project source file.
 
-## 34. Reference: source checks and meaning
+## 35. Reference: source checks and meaning
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -496,7 +512,7 @@ Sources:
 Local working tree: corresponding project source file.
 Local working tree: corresponding project source file.
 
-## 35. Reference: compatible deployment
+## 36. Reference: compatible deployment
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -514,7 +530,7 @@ https://gemma.ai/models/functiongemma/formatting/
 Local working tree: corresponding project source file.
 Local working tree: corresponding project source file.
 
-## 36. Reference: Model families
+## 37. Reference: Model families
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -536,7 +552,7 @@ https://gemma.ai/models/gemma-4/model-card/
 https://gemma.ai/models/functiongemma/model-card/
 https://gemma.ai/models/functiongemma/formatting/
 
-## 37. Reference: a local source or null
+## 38. Reference: a local source or null
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -551,7 +567,7 @@ A quote existing in the source does not prove it answers the question. Check rel
 Sources:
 Local working tree: corresponding project source file.
 
-## 38. Reference: choose a bounded task
+## 39. Reference: choose a bounded task
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -564,7 +580,7 @@ The tradeoff is a product decision per feature: evaluate task quality, target-de
 
 Sources: the task checks in DemoSamples.kt and Tooling.kt; model cards linked in the model-selection appendix.
 
-## 39. Reference: Native startup policies
+## 40. Reference: Native startup policies
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -579,7 +595,7 @@ If asked: This is a lesson drawn from the current implementation, not a claim th
 
 Sources: current local working tree, GemmaInference.android.kt, GemmaInference.ios.kt and iosApp/iosApp/InferenceBridge.swift.
 
-## 40. Reference: image requests on Android and iOS
+## 41. Reference: image requests on Android and iOS
 
 OPTIONAL REFERENCE — outside the timed forward talk
 

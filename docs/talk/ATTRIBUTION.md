@@ -12,4 +12,4 @@ The function-calling sequence diagram is reproduced from [Google’s Gemini API 
 
 `assets/tool-source-screenshot.jpg` is a browser screenshot of the project’s actual `createDefaultToolRegistry()` source, rendered with syntax highlighting for the talk. The capture lists the registered handlers without altering their names or order.
 
-The main weather sequence is a wide, weather-labelled adaptation of Google’s function-calling diagram for legibility. Google’s unmodified original remains on reference 30. The generic slogan closing has been removed.
+The main weather sequence is a wide, weather-labelled adaptation of Google’s function-calling diagram for legibility. Google’s unmodified original remains on reference 31. The generic slogan closing has been removed.
