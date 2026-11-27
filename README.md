@@ -17,7 +17,7 @@ A **Kotlin Multiplatform** (KMP) application that runs Google's **Gemma LLM** co
 
 ## Talk demos
 
-Open **Offline demos** from chat after loading a model to try note-to-action-item extraction and a bundled local FAQ with source quotes. Both share the existing on-device model, support cancellation, and show measured response times. See the [demo rehearsal guide](workshop/DEMO_EDITION.md) and [revised slide deck](https://docs.google.com/presentation/d/1t0TN-4Gq12jiaSv_b8fnPEvqBks4kRbE1EKkKoA67L8/edit).
+Open **Offline demos** from chat after loading a model to try note-to-action-item extraction and a bundled local FAQ with source quotes. Both share the existing on-device model, support cancellation, and show measured response times. See the [presentation website and local serving instructions](docs/talk/README.md), [timed speaker notes](docs/talk/speaker-notes.md), and [demo rehearsal guide](workshop/DEMO_EDITION.md). The [earlier Google Slides deck](https://docs.google.com/presentation/d/1t0TN-4Gq12jiaSv_b8fnPEvqBks4kRbE1EKkKoA67L8/edit) is also available.
 
 ## ✨ Features
 

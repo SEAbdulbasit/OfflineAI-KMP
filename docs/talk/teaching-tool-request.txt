@@ -1,0 +1,13 @@
+SYSTEM
+You are an offline assistant.
+Available tool: toggle_torch
+Description: Turn the device flashlight on or off.
+Parameter: enable — required Boolean; true=on, false=off.
+Call it only when the user asks for that device action.
+Use a JSON Boolean and no extra arguments.
+For a tool call, return ONLY a proposal inside << >>.
+Example: <<{"tool":"toggle_torch","arguments":{"enable":true}}>>
+If no tool is needed, answer normally without a tool call.
+
+HISTORY: []
+USER: Turn off the flashlight.

@@ -1,0 +1,42 @@
+[
+  {
+    "file": "code-math.woff2",
+    "source": "https://fonts.gstatic.com/s/googlesanscode/v22/pxiSyogzv91QhV44Z_GQBHsGf5PuckJMZfIVTPZaiXEp_jEF8LS-gXBynSU.woff2"
+  },
+  {
+    "file": "code-symbols.woff2",
+    "source": "https://fonts.gstatic.com/s/googlesanscode/v22/pxiSyogzv91QhV44Z_GQBHsGf5PuckJMZfIVTPZaiXEp_jEX8LS-gXBynSU.woff2"
+  },
+  {
+    "file": "code-latin-ext.woff2",
+    "source": "https://fonts.gstatic.com/s/googlesanscode/v22/pxiSyogzv91QhV44Z_GQBHsGf5PuckJMZfIVTPZaiXEp_jF38LS-gXBynSU.woff2"
+  },
+  {
+    "file": "code-latin.woff2",
+    "source": "https://fonts.gstatic.com/s/googlesanscode/v22/pxiSyogzv91QhV44Z_GQBHsGf5PuckJMZfIVTPZaiXEp_jF58LS-gXBy.woff2"
+  },
+  {
+    "file": "sans-math.woff2",
+    "source": "https://fonts.gstatic.com/s/googlesansflex/v27/t5t2IQcYNIWbFgDgAAzZ34auoVyXkJCOjsOqNGFbN5hF8LHF72q8tLBxuto.woff2"
+  },
+  {
+    "file": "sans-symbols.woff2",
+    "source": "https://fonts.gstatic.com/s/googlesansflex/v27/t5t2IQcYNIWbFgDgAAzZ34auoVyXkJCOjsOqNGFbN5hF8LHX72q8tLBxuto.woff2"
+  },
+  {
+    "file": "sans-latin-ext.woff2",
+    "source": "https://fonts.gstatic.com/s/googlesansflex/v27/t5t2IQcYNIWbFgDgAAzZ34auoVyXkJCOjsOqNGFbN5hF8LG372q8tLBxuto.woff2"
+  },
+  {
+    "file": "sans-latin.woff2",
+    "source": "https://fonts.gstatic.com/s/googlesansflex/v27/t5t2IQcYNIWbFgDgAAzZ34auoVyXkJCOjsOqNGFbN5hF8LG572q8tLBx.woff2"
+  },
+  {
+    "file": "portrait.png",
+    "source": "User-owned image from supplied Google Slides deck"
+  },
+  {
+    "file": "repo-qr.png",
+    "source": "User-owned image from supplied Google Slides deck"
+  }
+]

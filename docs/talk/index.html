@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Offline AI with Kotlin Multiplatform — Abdul Basit</title>
+<link href="assets/favicon.svg" rel="icon" type="image/svg+xml"/>
+<link href="assets/fonts.css" rel="preconnect"/>
+<link href="assets/fonts.css" rel="stylesheet"/>
+<script src="deck-stage.js"></script>
+<script id="speaker-notes" type="application/json">["0:00–0:30\n\nToday we’ll move an AI feature from the cloud onto a phone. We’ll turn a short note into a reviewable draft, understand the model choices behind it, and use KMP to share the rules while native runtimes do the work. We’ll finish by checking a real offline device action.\n\nPresenter cue: Keep this promise under thirty seconds.\n\nTransition → Begin with the familiar cloud-model round trip.\n", "0:30–1:15\n\nMany AI features follow this familiar cloud-backed pattern. The app sends a request to a remote model and receives its answer over the network. Depending on the app, the input could be a question, photo or voice note. Trace the outward arrow, then the return arrow. This inference path depends on connectivity and a remote service, and the request leaves the phone for processing. Model execution adds its own time too.\n\nPresenter cue: Keep this to the diagram and network dependency; explain the reasons for moving it on the next slide.\n\nSource: https://developers.google.com/edge/litert-lm/overview\n\nTransition → What would make us move this inference step off the cloud?\n", "1:15–2:15\n\nImagine opening a useful feature on a train or flight and still being able to use it. That is the availability reason for local inference after model setup. A second reason is a deliberate data boundary: this inference request need not be uploaded to a cloud model. Third, removing the network hop can help responsiveness. Fourth, this path avoids hosted-model request charges.\n\nThose are reasons to evaluate local inference, not automatic wins. We pay in downloads, storage, runtime RAM, compute, battery and heat, and the chosen model must still pass the task. Local inference alone does not make the whole app private or compliant. Device generation can be slower, and fresh online facts may still require another architecture.\n\nPresenter cue: Lead with the use case, then point to the four reasons. Do not promise instant inference or zero total cost.\n\nSource: https://developers.google.com/edge/litert-lm/overview\n\nTransition → How does the local path change the architecture?\n", "2:15–3:00\n\nNow keep the user’s goal and move inference onto the phone. The model file holds learned numerical values. The runtime is the software that loads that file and runs generation. Follow the request into the local runtime and the reply back to the app. Once the compatible model and tokenizer are provisioned, this inference path can work without a cloud-model call. We will unpack those numerical values and text pieces shortly.\n\nPresenter cue: Trace the local boundary. Keep resource and privacy tradeoffs on the preceding slide rather than repeating them here. Provisioning or updating the model may still need a connection.\n\nSource: https://developers.google.com/edge/litert-lm/overview\n\nTransition → Give those benefits a concrete job: turn a short note into a useful draft.\n", "3:00–3:45\n\nHere is the useful feature: turn a short meeting note into a draft the user can inspect. The screenshot is our real iOS-simulator input screen before inference. It is UI evidence only; it is not a captured successful model response. The separate draft is illustrative expected output.\n\nSara will update the slides, but no deadline was agreed. We want that task, owner Sara, and deadline null. We do not want to infer a deadline from another person's sentence or turn a casual discussion into a commitment. That small, checkable transformation is our running example.\n\nPresenter cue: Keep this feature preview under one minute. Do not read the entire screenshot or imply its missing-model state is a successful inference run. If a real recorded result becomes available, label its exact setup separately.\n\n\nSources: workshop/visuals/ios-notes-source.jpg; DemoSamples.kt in the current local project.\n\nTransition → Which kinds of local model can do that job?\n", "3:45–4:30\n\nChoose the job first. A text instruction model can draft or extract. A multimodal model accepts other input types, such as images or audio, if the app implements that pipeline. A tool specialist focuses on selecting functions and arguments. Base models learn continuation; instruct models receive further training to follow requests. The examples shown illustrate those roles; they are not a list of verified demo artifacts.\n\nIf asked: Base and instruction tuning are another axis. A base model is trained to continue its inputs. An instruct model receives further training to respond to requests such as “extract these tasks.” Input type, tuning and specialization can overlap in one model. They are not mutually exclusive boxes or consequences of parameter count.\n\nThese are model-family examples, not a claim that each artifact was loaded or measured in our demo. Local AI also includes embedding, classification, vision and speech models; this talk focuses on generative models and app integration, not implementing every task family.\n\nSources: https://huggingface.co/google/gemma-3-1b-it ; https://gemma.ai/models/gemma-4/model-card/ ; https://gemma.ai/models/functiongemma/model-card/\n\nTransition → What actual model families and sizes could we evaluate?\n", "4:30–5:30\n\nM means million learned parameters; B means billion. We will unpack that term on the next slide. Gemma is one option, not the whole mobile-model landscape. Within Gemma 3, 270M and 1B are text-only; 4B adds image input, and the family also includes larger 12B and 27B variants. Do not assume every size fits a phone. Qwen3 has compact 0.6B and 1.7B text models. Llama 3.2 has 1B and 3B text variants. SmolLM2 spans 135M, 360M and 1.7B.\n\nThese examples compare learned parameter counts, not download sizes or speed. Pick a candidate for your task, then check the exact converted artifact, chat format, runtime support, license and phone resources. This talk does not claim every listed model ran in our app.\n\nIf asked: This is a deliberately small, non-exhaustive set rather than a claim about the latest releases. Gemma 3n E2B/E4B use effective-size naming, which is different from total stored parameters. FunctionGemma is specialized and needs its own protocol. The repository’s app-managed LiteRT-LM route is also distinct from system-provided models such as Gemini Nano or Apple Foundation Models.\n\nSources: https://gemma.ai/models/gemma-3/ ; https://huggingface.co/Qwen/Qwen3-0.6B ; https://huggingface.co/Qwen/Qwen3-1.7B ; https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct ; https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct\n\nTransition → Before choosing by size, what do the parts of a model label actually mean?\n", "5:30–6:30\n\nRead Gemma 3, 1B, and IT separately. Gemma 3 names the model family/generation. 1B means approximately one billion numerical parameters learned during training. IT means instruction-tuned. 270M means approximately 270 million parameters. A parameter count is not a download size, a speed benchmark, or a guarantee of quality.\n\nA converted artifact may also carry a precision label. That describes how stored numerical values are represented. The same parameter count at different precisions can have different weight-storage budgets. Check the exact artifact and runtime rather than guessing from a family name.\n\nIf asked: A context-window number is different again: it counts how many tokens can be considered during generation, not parameters or bits. We will see tokens after quantization. Some model names report effective rather than total parameters, so treat the simple 1B example as an introduction, not a parser for every model name.\n\nSources: official Gemma 3 artifact card; https://huggingface.co/docs/transformers/quantization/concept_guide\n\nTransition → What does that precision label mean in bits and bytes?\n", "6:30–7:30\n\nA bit has two possible values: zero or one. Two bits produce four patterns: 00, 01, 10 and 11. Four bits provide sixteen codes; eight bits provide 256. Eight bits make one byte. For a simple quantizer, these codes map onto a limited set of numerical levels.\n\nFP16 means 16-bit floating point. INT8 and INT4 mean 8-bit and 4-bit integer representations. A smaller representation needs fewer bytes per stored weight. Quantization uses those codes to approximate numerical values.\n\nThis is separate from parameter count, context length and a phone’s 64-bit architecture.\n\nIf asked: Real formats combine integer codes with scales and sometimes zero-points. Not every tensor uses the same precision, and runtime computation can use a different precision from stored weights.\n\nSources: https://huggingface.co/docs/transformers/quantization/concept_guide ; https://developers.google.com/edge/litert/quantization/quantization_spec\n\nTransition → How do those limited binary codes approximate learned numerical weights?\n", "7:30–9:00\n\nUse the four codes we just introduced. In this toy 2-bit quantizer, they map to 0.00, 0.25, 0.50 and 0.75. A weight of 0.73 is approximated by 0.75, introducing +0.02 error. Quantization changes representation precision; it does not remove parameters. This is intuition, not the exact algorithm used by a particular Gemma artifact.\n\nNow multiply. One billion weights times four bits is four billion bits. Divide by eight bits per byte to get half a billion bytes: 0.5 decimal GB of idealized INT4 weight payload. FP16 and INT8 give 2.0 and 1.0 GB respectively under the same simplified assumptions.\n\nReal files add scales, metadata and other tensors, and may mix precisions. Runtime RAM also includes caches, buffers and activations. A 0.5 GB weight payload does not mean the app fits into 0.5 GB RAM. Lower precision can affect quality, and hardware/kernel support determines speed. Re-test the actual task on the actual artifact and device.\n\nSources: https://developers.google.com/edge/litert/quantization/quantization_spec ; https://huggingface.co/docs/transformers/quantization/concept_guide\n\nTransition → The weights are stored. How does the runtime turn a prompt into generated text?\n", "9:00–10:15\n\nSaved weights were learned during training. Inference uses them with a prompt; a supplied fact changes the current context, not the saved weights. A tokenizer splits text into pieces and maps them to IDs. Tokens may be words, parts of words or punctuation; exact splits depend on the tokenizer. Prefill processes the supplied instructions, note and included history. At each decode step the model scores possible next tokens; the runtime selects one, appends it and repeats until a stop condition or output limit. Sampling can make successive runs differ.\n\nInstructions, input, history and the growing response share a context budget. More context can mean more prefill time and runtime memory. The app chooses what to include and leaves response headroom. Decoded chunks can stream into shared UI state through Kotlin Flow; a chunk need not equal one token.\n\n\nIf asked: Current shared defaults reserve 768 estimated output tokens from a 4096 baseline, leaving 3328 estimated input tokens. History preparation subtracts system/current-message estimates. Counts are heuristic, not the actual artifact tokenizer. iOS native capacity is not explicitly the same Android setting.\n\nSources: PromptBuilder.kt in the current local working tree; https://huggingface.co/docs/transformers/llm_tutorial\n\nTransition → Which runtime supplies those generation steps in this project?\n", "10:15–11:00\n\nLiteRT-LM is the Google AI Edge runtime and API layer we use for local language-model inference. It loads a compatible model, runs generation and streams output back to the app. Point across the diagram: model file, runtime, app.\n\nKeep three roles separate: Gemma is a model family, LiteRT-LM is the runtime, and KMP shares our app behavior. Android connects through the Kotlin SDK; iOS connects through Swift. Now those adapters in the next diagram have a concrete purpose.\n\nIf asked: LiteRT-LM builds on LiteRT for language-model inference. Supported model packages and CPU/GPU backends depend on the pinned runtime/platform. The current app’s Android GPU-to-CPU startup policy and iOS GPU path are described later. Do not assume every family in our model table has a compatible artifact for this exact app build.\n\nSources: https://developers.google.com/edge/litert-lm/overview ; GemmaInference.android.kt, GemmaInference.ios.kt and InferenceBridge.swift.\n\nTransition → Now place that runtime behind the Android and iOS adapters in our KMP architecture.\n", "11:00–12:15\n\nKMP shares the behavior around the model: Compose UI, prompts, state, parsing, argument checks and routing. The GemmaInference contract is in commonMain. Both platforms provide a Kotlin actual adapter.\n\nAndroid calls LiteRT-LM's Kotlin SDK. iOS connects its Kotlin adapter to Swift through notifications. Both adapters turn native runtime output into Kotlin Flow. Keep the focus here on ownership and boundaries; the startup-policy slide explains initialization after we see the shared API. Tool selection follows this demo's shared prompted-JSON route on both platforms.\n\nThe same clipboard tool can share its name, arguments and routing while Android uses ClipboardManager and iOS uses UIPasteboard. Lifecycle, permissions and hardware still need platform-specific implementation and tests.\n\n\nSources:\nLocal working tree: corresponding project source files.\nSources: current local working tree, reviewed for this revision.\ncomposeApp/src/androidMain/kotlin/org/abma/offlinelai_kmp/inference/GemmaInference.android.kt\ncomposeApp/src/iosMain/kotlin/org/abma/offlinelai_kmp/inference/GemmaInference.ios.kt\niosApp/iosApp/InferenceBridge.swift\n\nTransition → Put a small Kotlin boundary between shared behavior and native runtimes.\n", "12:15–13:15\n\nThe shared app sees a small Kotlin boundary: load a compatible local artifact, then collect decoded text chunks through Flow. The expect declaration defines the shared contract; each actual implementation connects to its native runtime.\n\nThis excerpt is abridged. A chunk need not be one token, and matching method signatures do not establish identical native behavior. Keep product rules in shared code and test startup, cancellation and effects on both platforms.\n\n\nIf asked: The current main chat uses generateConversationResponse to pass system instructions, history and the user prompt as structured roles. The full API also includes updateConfig, generateResponseWithHistory, isModelLoaded, getLoadingProgress and close. Android applies sampler settings. This iOS bridge intentionally uses native sampler defaults. Both current load paths await native initialization, and both forward cancellation/close. These are source-level facts, not a completed physical-device benchmark.\n\nSources: current local working tree, GemmaInference.kt, GemmaInference.android.kt, GemmaInference.ios.kt and iosApp/iosApp/InferenceBridge.swift.\n\nTransition → What does loading that model actually involve on each platform?\n", "13:15–14:15\n\nThe common method loads a model on both platforms, but startup policy differs. Android tries GPU, then CPU if initialization fails, and attempts warm-up. This iOS bridge initializes on GPU and preserves native sampler defaults.\n\nBoth current implementations await initialization and forward cancellation and close. Equal method signatures still do not establish equal resource cost or behavior.\n\nDefine the same phases before measuring: artifact provisioned, engine initialized, any warm-up, first visible chunk, then completion. Measure each device rather than comparing unlike phases.\n\n\nIf asked: This is a lesson drawn from the current implementation, not a claim that we observed a particular device failure or speedup. The iOS bridge shown has no Android-style CPU-fallback sequence. Swift samplerConfig is intentionally nil so the model/runtime defaults are used. Both adapters now forward cancel/close; older notes saying otherwise are obsolete.\n\nSources: current local working tree, GemmaInference.android.kt, GemmaInference.ios.kt and iosApp/iosApp/InferenceBridge.swift.\n\nTransition → Once the runtime is ready, follow the text into the note-to-draft feature.\n", "14:15–15:30\n\nRead the two fictional commitments. Ask whose task has Friday as a deadline. Sara owns the slide update; no deadline was agreed for that task. Omar owns the Android recording with Friday as its deadline.\n\nThe right side is one illustrative expected item, not a captured model result and not the complete response. The app expects an items array. Keep task and evidence as exact source substrings; keep absent deadline null. The original sample includes further commitments and discussion, omitted here to focus the example.\n\nThe parser checks that evidence occurs in the source, that task occurs in the evidence, and that non-null owner and deadline occur there too. This can reject unsupported fields, but an overly broad evidence span can still contain the wrong person’s deadline. Exact matches do not establish semantic attribution or whether a statement is a commitment. Keep the review step and evaluate those cases explicitly.\n\n\nSources: DemoSamples.kt notesPrompt and parseNotes, DemoScreen.kt Action Items to Review.\n\nTransition → The same source discipline can answer a question from a bundled local reference.\n", "15:30–16:45\n\nThis is a second narrow feature: answer only from a supplied local reference. The fictional workshop section has ID venue and says the workshop is in Room Cedar on level 2. The prompt includes the sections directly. There is no embedding pipeline, vector database, PDF ingestion or implemented retrieval system in this demo.\n\nFor the location question, an expected response names the known section and copies an exact quote. For a Wi-Fi password question, no supplied section contains that information, so the expected response is null/null. These examples are teaching outputs, not measured model results.\n\nIf asked — parser details: parseFaq checks that the sourceId exists and the quote is a nonblank exact substring of that section. It also handles null/null as no answer. Those checks do not prove the quote answers the question: a model can select a real but irrelevant sentence. Evaluate supported, unsupported and irrelevant-quote cases separately.\n\nKMP shares prompt construction, source data and response checks; platform runtimes supply generation. Presenter cue: This slot is a static walkthrough. Read both expected responses and ask why an existing quote could still be irrelevant. Keep the only live-device block on slide 27; an extra app demo would require trading time from that block.\n\n\nSources: DemoSamples.kt sections, faqPrompt and parseFaq; DemoController.kt.\n\nTransition → If the answer is not in our supplied context, how can the app obtain fresh information?\n", "16:45–18:00\n\nAsk: what is the weather in Riyadh today? Model weights alone are not a live weather feed. Function calling lets the model request information from a function the app has described.\n\nThe tool contract names get_weather, describes current conditions and requires a location string. The model proposes Riyadh as the location; it has not fetched anything yet. The app validates the argument, calls a weather provider, and sends the result back. Only then can the model compose an answer from that fresh result.\n\nThe displayed 26°C and sunny are mock values for teaching, not today’s observation or a captured response. This app does not implement the weather tool.\n\nPresenter cue: Trace contract → proposed call → provider lookup → returned result → model answer. Emphasize that the application performs the external call.\n\nIf asked: Google’s Gemini guide illustrates weather function calling. Provider APIs differ in exact schema and result messages; the slide’s function syntax is conceptual. A production lookup also needs location disambiguation, units, errors and an observation time. Do not silently turn provider failure into invented weather. A fresh data source is separate from model training.\n\nSource: https://ai.google.dev/gemini-api/docs/function-calling\n\nTransition → The model can also run locally. Which tools would still need a connection?\n", "18:00–18:45\n\nMove inference onto the phone; keep the tool contract, proposal, checks and execution. That move does not make a live weather API work offline. A cached report needs a timestamp and may be stale.\n\nNow switch to a device-local job: turn off the flashlight. The local model proposes toggle_torch with enable=false, and the app validates it before native execution.\n\nAndroid offers SDK tool APIs. Our current iOS AND Android code instead uses shared prompt instructions and parsing. Swift also has native tool APIs; prompting is our project choice.\n\nPresenter cue: Keep this overview within 45 seconds. Leave the annotation and SDK code walkthrough for slide 21.\n\nIf asked: The weather example explains obtaining new information; the torch example explains a local effect. Function calling can serve either purpose. Native tool availability is separate from whether a particular tool depends on the network. The Swift wrapper has ConversationConfig.tools and a Tool protocol. The current app displays its tool result without feeding it into an automatic next model turn.\n\nSources: ToolPrompt.kt, Tooling.kt; LiteRTWrapper Config.swift and Tool.swift; https://ai.google.dev/gemini-api/docs/function-calling\n\nTransition → Read the full local tool contract in the system prompt alongside the user’s flashlight request.\n", "18:45–20:30\n\nRead this as a complete small teaching request. The system role sets behavior, supplies one tool’s name and description, explains its required enable argument, and defines the response contract. History is empty because this is a new conversation. The user role asks to turn the flashlight off; the expected proposal therefore has enable=false. This is an illustrative expected response, not a captured successful model run.\n\nThe wording is deliberately self-contained and compact, not a verbatim capture of the app’s larger default prompt. The companion complete-tool-request.md includes a source-derived full default-persona request with the complete registry, all generated rules/examples, no pinned context and empty history.\n\nIf asked — actual app assembly: In the default-persona chat path, currentCombinedSystemPrompt combines persona instructions, optional pinned messages and tool instructions for each generation. GenerateResponseUseCase passes that system text, prepared history and current user text separately through generateConversationResponse. Android supplies systemInstruction; Swift creates a systemMessage. Tool instructions consume context budget alongside history and the user message. They are not permanent training or a discovery mechanism.\n\nThe actual ToolPrompt builder lists names, descriptions and parameter names with required/optional descriptions. It does not serialize the entire JSON schema or automatically expose every schema type. The torch examples and Boolean rule clarify its argument; the handler enforces the strict type/key checks. Specialized/custom chat personas and the separate note/FAQ workflows do not receive the default chat tool registry.\n\nSources: ToolPrompt.kt buildSystemPrompt/extractParamDetails; ChatViewModel.kt currentCombinedSystemPrompt/generateResponse; PromptBuilder.kt buildCombinedSystemPrompt; GenerateResponseUseCase.kt; both platform adapters and InferenceBridge.swift.\n\nTransition → Now compare the prompting approach with the Android SDK’s tool APIs.\n", "20:30–22:15\n\nSDK means Software Development Kit: the runtime library and APIs we integrate into our application. Google AI Edge LiteRT-LM’s Kotlin SDK can derive a tool contract from a ToolSet’s annotated Kotlin functions. @Tool supplies a description; @ToolParam supplies the parameter description; Kotlin’s function name and parameter type supply their corresponding contract information. The example deliberately calls the function toggle_torch to match that exposed name.\n\nPresenter cue: The left snippet is an illustrative integration option. Its injected run callback represents app-owned native work and status reporting; torchTools must be instantiated with that implementation. This is not code already wired into our demo. Engine creation, callback implementation and initialization are omitted. Calls that block belong off the UI thread.\n\nThe right snippet registers that instance with tools=listOf(tool(torchTools)). automaticToolCalling=false selects manual handling, so the application can inspect reply.toolCalls and apply its checks before dispatch. In automatic mode, the SDK invokes registered functions and returns their results to the model. Manual handling must submit results if another model turn should continue. Neither route establishes intent or permissions.\n\nIf asked — app wiring and integration details: Our current Android AND iOS chat implementations instead use the preceding prompted-proposal route. iOS prompting is an app choice; Swift also exposes native tool APIs. SDK tool calls use Map<String,Any?> arguments, while our shared handlers use JsonObject, so normalization is required to reuse those checks. Use a compatible tool-capable artifact/template and pin versions.\n\nSources: https://raw.githubusercontent.com/google-ai-edge/LiteRT-LM/v0.14.0/kotlin/java/com/google/ai/edge/litertlm/Tool.kt ; https://raw.githubusercontent.com/google-ai-edge/LiteRT-LM/v0.14.0/kotlin/java/com/google/ai/edge/litertlm/Config.kt ; pinned v0.14.0 Kotlin getting_started.md; current local app code.\n\nTransition → Follow our app’s prompted route from proposal to shared checks and native execution.\n", "22:15–23:45\n\nTrace the same flashlight-OFF request, rather than another abstract API. First define the name and Boolean argument. A runtime can expose that definition through SDK registration; our current app exposes it through shared prompt instructions. The model returns a proposal, not a completed action.\n\nIn this app, extractToolCall normalizes generated text into a shared ToolCall with a JsonObject. The registered torch handler requires exactly the enable key and a real JSON Boolean. Invalid requests stop before native execution. A valid request reaches the platform adapter, which can still fail because hardware or permissions are unavailable. Show the resulting status in the UI.\n\nOur app displays the native result and ends this operation. Returning that result to the model for another turn would require an additional conversation loop.\n\nPresenter cue: Read the literal proposal on the slide. Follow its tool name through extractToolCall into ToggleTorchTool, then follow the enable value into the native call. Contrast a native success with a missing-hardware error; neither outcome is known at proposal time. Leave the argument quiz unanswered until the next slide.\n\nIf asked — continuing conversations: ChatViewModel.handleToolCall currently does not feed its result into another model turn. A continuing loop must submit the result, handle subsequent responses and enforce loop limits. Android SDK automatic mode offers orchestration; manual mode leaves it to the app. SDK arguments need adaptation before reuse of this app’s JsonObject checks.\n\nSources: current local ToolPrompt.kt, Tooling.kt, GenerateResponseUseCase.kt and ChatViewModel.kt; pinned LiteRT-LM v0.14.0 Kotlin getting_started.md.\n\nTransition → Before any native call, which candidate arguments should the handler accept?\n", "23:45–25:00\n\nWhich proposals should be rejected? Give the audience fifteen seconds. A supplies a JSON Boolean. B supplies a quoted string, and C adds an undefined key. We reject B and C; A passes this argument guard.\n\nThe excerpt safely casts to JsonPrimitive, then excludes strings before reading booleanOrNull. That exclusion matters: booleanOrNull alone can parse the content of a quoted “true.” We also require exactly the enable key. Missing values, arrays, objects, strings and extra keys therefore fail before a native call. The real handler uses the same checks.\n\nPassing the guard does not prove intent or hardware success. The API still reports the execution outcome.\n\n\nPresenter cue: Keep the guard hidden during the fifteen-second vote. Press Right/Space or click Next once to reveal it, then explain B and C. Advance again to continue. The displayed guard is abridged from ToggleTorchTool's checks.\n\nIf asked: Other registered tools need their own checks. The clipboard tool currently has simpler string extraction, so do not imply universal strict schema enforcement.\n\nSources:\nLocal working tree: see the corresponding project source file.\n\nTransition → Passing the guard proves the input shape. Does it prove the user wanted that action?\n", "25:00–26:00\n\nThe happy path hides the difficult cases. If the user says “Do NOT turn the flashlight on,” a model may still propose enable=true. A type guard can pass while the action contradicts the request.\n\nA quoted sentence about discussing dark mode also does not establish a commitment. Test negative and no-action cases, check each handler, and add review for consequential effects. The current chat dispatches automatically after its implemented checks; confirmation is a design recommendation.\n\nLocal weights do not supply fresh facts. Provide current local references or choose another architecture when needed.\n\n\nSources:\nhttps://gemma.ai/models/gemma-3/\nhttps://gemma.ai/models/functiongemma/formatting/\nLocal working tree: see the corresponding project source file.\n\nTransition → That gap gives us a test plan: check task quality, proposals and actual effects separately.\n", "26:00–27:45\n\nGive attendees a method they can use on their own feature. First, a positive case: Sara's explicit commitment yields the task and owner, with null for the missing deadline. Second, a negative case: discussing dark theme does not invent a commitment. Third, an invalid tool request: a quoted Boolean or extra field is rejected before a native call. These are proposed expected test cases, not a claimed model pass rate.\n\nInspect separate properties: response shape, correct task/tool and arguments, consistency with the user's intent, and the actual native outcome. A valid JSON object or a generated success sentence proves only a small part of that chain.\n\nRecord the exact artifact/hash, runtime, backend, phone and OS. Measure cold load, first nonempty visible chunk and total completion separately; inspect memory on the device. Do not transfer another talk's benchmarks to this build.\n\n\nSources: DemoSamples.kt, DemoSamplesTest.kt, Tooling.kt and MetricsCollector.kt in the current local working tree.\n\nTransition → A test also needs an expected recovery path. What can the user do when a check fails?\n", "27:45–29:15\n\nWalk the audience through the actual recovery paths. Model readiness is checked before running; the model-required UI guides the user to Settings. The workflow preserves its input. A new run clears the previous result, and failed validation shows an error rather than a new validated result. Raw generated text remains available for inspection. The user can shorten or edit the input and retry.\n\nA rejected torch argument is a separate boundary: it produces an invalid-request tool result before native execution. Do not generalize this strict guard to every tool; clipboard parsing is currently simpler.\n\nCancellation produces “Generation stopped. You can edit the input and try again.” The controller releases the generation slot and restores its non-running state. This slide describes implemented branches, not a claimed set of observed model failures. A complete manual alternative is a recommended product extension.\n\n\nSources: current DemoController.kt, DemoScreen.kt and Tooling.kt.\n\nTransition → Now inspect a real proposal and verify its native effect on a prepared device.\n", "29:15–33:15\n\nAsk someone for a two-digit number to make this input specific to the live run. Use it instead of 47 in the displayed request.\n\nThe phone has airplane mode on and Wi-Fi off. This demonstrated path uses local inference. Watch three things: the actual copy_to_clipboard proposal, the app's device result, then the phrase appearing when pasted into an empty local field on the phone. A generated “Copied!” sentence is not proof of a clipboard effect.\n\nIf the model proposes the wrong action, show the failure honestly. The important pattern is an inspectable proposal followed by an observable native result.\n\nPresenter cues — preparation, not spoken script:\nName the actual rehearsed artifact filename/precision, backend and phone before starting. These must come from the real setup; a model-family example or estimated size is not a measured setup.\nRehearse the exact build, artifact and phone first. Provision and load the model before disconnecting. Mirror by USB without tethering. With scrcpy use --no-clipboard-autosync. Type and long-press Paste on the phone; a laptop paste shortcut can inject its clipboard.\nExpected shape, not captured output: <<{\"tool\":\"copy_to_clipboard\",\"arguments\":{\"text\":\"Essex lantern <number>\"}}>>.\nAt 32:30 stop retrying. Explain the observed outcome and move to the takeaways by 33:15.\n\nTransition → What should attendees reuse in their own offline feature?\n", "33:15–35:00\n\nChoose one bounded task and a compatible artifact that passes checks on a real target phone. Share the product rules—prompts, parsing, validation and routing—in commonMain. Prove the effect with no-action tests, rejected-argument tests and an observable native result.\n\nFor our note example, a useful draft keeps a missing deadline null and remains reviewable. For a device action, a generated claim is not enough: inspect the proposal and read the native outcome. That is the reusable pattern: model proposes, shared Kotlin checks, native code executes.\n\nPresenter cue: Keep the close concise, then leave the project QR on Q&A for scanning. At 35:00, open questions; references 30–37 are optional.\n\nSources: current project GemmaInference.kt, Tooling.kt and DemoSamples.kt.\n\nTransition → Keep the project QR visible and open questions.\n", "35:00–40:00 | Q&A\n\nKeep the project QR visible for at least twelve seconds, then take questions.\n\nBackup guide: 30 execution responsibilities; 31 Swift bridge; 32 structured draft; 33 source checks versus meaning; 34 compatibility; 35 model-family details; 36 local reference; 37 task-fit guidance. Optional, outside the timed forward talk.\n\nSource: https://github.com/SEAbdulbasit/OfflineAI-KMP\n", "BACKUP — App-owned execution responsibilities\n\nOnly step two belongs to the model. First, the app describes its tools in the prompt; the model does not discover Kotlin functions by itself. Second, the model proposes a name and arguments. Third, the registry checks the name and the registered handler checks its inputs. Our torch handler requires a JSON Boolean and exactly the allowed key. Validation strength is handler-specific; the clipboard handler currently uses simpler extraction.\n\nA schema in a prompt does not enforce those rules or establish intent. Fourth, the native API runs subject to permissions and hardware. Fifth, the app reports the actual API result or error.\n\nThis app displays the result directly. Feeding it into another model turn would require loop limits, state and recovery handling.\n\n\nSources:\nhttps://gemma.ai/models/functiongemma/formatting/\nLocal working tree: see the corresponding project source file.", "BACKUP — iOS Swift Bridge (iosApp/iosApp/InferenceBridge.swift)\n\nThis is the Swift side behind the same `Flow<String>` contract. `InferenceBridge` creates a LiteRT-LM conversation, loops over `conversation.sendMessageStream(message)`, and calls our helper `postToken(chunk.toString)`.\n\n`postToken` is a project helper—not a LiteRT-LM API—that posts `GemmaTokenResponse` via `NotificationCenter`, which `GemmaInference.ios.kt` observes inside `callbackFlow`.\n\nCurrent lifecycle: Kotlin loadModel resolves the artifact and waits for GemmaLoadDone or GemmaLoadError from Swift native initialization. Unfinished collection cancellation posts GemmaCancelRequest, and close posts GemmaCloseRequest. Swift cancels the active conversation/task and clears its engine reference on close. Kotlin includes sampling values in the generation payload, but Swift intentionally leaves samplerConfig nil and uses the model/runtime defaults. The bridge now creates a structured conversation with system/history messages. Native tool APIs also exist in the local Swift wrapper, but this app does not register them: it prompts for custom JSON and routes the parsed proposal through shared handlers. Describe these implemented paths separately from physical-device verification.\n\nSources:\nLocal working tree: corresponding project source file.\nLocal working tree: corresponding project source file.\nhttps://developers.google.com/edge/litert-lm/swift", "BACKUP — Structured Text Draft (DemoSamples.kt)\n\nHere's the expected JSON shape behind our note-to-action-items demo in `DemoSamples.kt`. The fictional rehearsal note has Sara (no deadline), Omar (Friday), Lina (Thursday), plus a dark-theme discussion with no commitment.\n\n`notesPrompt` asks for JSON, null for missing fields, and an exact evidence sentence copied from the note. The parser uses ignoreUnknownKeys=false to reject unknown fields; that is parser configuration, not prompt enforcement. `parseNotes` verifies the JSON shape and checks that each supplied task, owner and deadline matches text inside its evidence, and that `evidence` appears verbatim in the source note.\n\nSources:\nLocal working tree: corresponding project source file.", "BACKUP — Source Checks vs. Meaning (DemoSamples.kt & DemoSamplesTest.kt)\n\nDeterministic substring checks catch a lot, but not everything.\n- Sara + `null` passes and is a real commitment.\n- Sara + `Friday` is rejected *if* the evidence is Sara's own sentence (because \"Friday\" isn't in it)—though a multi-sentence evidence span could still smuggle in Omar's Friday.\n- The dark-theme sentence passes substring checks because the words are really in the note, even though nobody committed to building it.\n\nThat's why `DemoSamplesTest.kt` explicitly documents this boundary: deterministic checks verify grounding in text, not semantic intent.\n\nSources:\nLocal working tree: corresponding project source file.\nLocal working tree: corresponding project source file.", "BACKUP — Model & Runtime Compatibility\n\nFour things have to line up: exact converted artifact, pinned runtime version, chat template/input types, and device RAM + context budget + license.\n\nIn this repo: Kotlin 2.4.0, Compose Multiplatform 1.11.1, Android LiteRT-LM 0.14.0 (`libs.versions.toml`), and iOS `CLiteRTLM.xcframework` 0.13.1 (`LiteRTWrapper/Package.swift`).\n\nIf asked about system models: this app uses an app-managed compatible model artifact through LiteRT-LM. The on-device configurations of Gemini Nano / ML Kit GenAI and Apple's Foundation Models are separate system-model routes; availability, APIs and guarantees differ from this app-managed runtime.\n\nSources:\nhttps://developers.google.com/edge/litert-lm/overview\nhttps://gemma.ai/models/functiongemma/formatting/\nLocal working tree: corresponding project source file.\nLocal working tree: corresponding project source file.", "BACKUP — Model-family examples\n\nGemma 3 1B IT is a compact text-only instruction-tuned example. Gemma 4 E2B also accepts image and audio inputs, so using those capabilities needs a matching artifact, runtime and app input pipeline.\n\nFunctionGemma 270M specializes in tool use and has its own call format. It is not interchangeable with this project's prompted JSON envelope; supporting its protocol needs an appropriate integration.\n\nThese are selection examples, not measured performance results from this app. Start with a compatible artifact that passes task checks on the actual target phone. File size alone does not establish runtime RAM fit.\n\nUse only if asked about model families; return to Q&A.\n\nPresenter cue: Before presenting, rehearse and record the exact demo artifact filename/hash, device, backend and observed behavior. Name the verified setup aloud; do not substitute an estimated file-size range for a measurement.\n\nSources:\nhttps://gemma.ai/models/gemma-3/\nhttps://gemma.ai/models/gemma-4/model-card/\nhttps://gemma.ai/models/functiongemma/model-card/\nhttps://gemma.ai/models/functiongemma/formatting/", "BACKUP — Local Reference Answers (DemoSamples.kt)\n\nOur second bundled demo is a tiny local FAQ with four short fictional sections (`venue`, `setup`, `offline`, `help`) injected straight into the prompt—no vector database, no embeddings, and no PDF parser.\n\nFor \"Where is the workshop?\", the expected JSON quotes the exact sentence from `[venue]`. For \"What is the Wi-Fi password?\" (which isn't in the reference), it must return `null` for both `sourceId` and `quote`. `parseFaq` checks that `sourceId` exists and the quote appears verbatim in that section—great for small, curated offline references.\n\nA quote existing in the source does not prove it answers the question. Check relevance separately; an unsupported question should produce the null response rather than an invented answer.\n\nSources:\nLocal working tree: corresponding project source file.", "BACKUP — Choosing a bounded task\n\nStart with narrow transformations: extracting fields, classifying short text, or drafting a concise summary. Our note-to-task draft is useful because its fields can be checked against the source. Small local models are not a substitute for fresh external facts or dependable unrestricted multi-step reasoning.\n\nThe tradeoff is a product decision per feature: evaluate task quality, target-device resources and required information. A missing model or a failed generation should leave a usable manual workflow. That is a UX recommendation; the current screenshot shows the app's model-required state. Local and remote features can coexist.\n\n\nSources: the task checks in DemoSamples.kt and Tooling.kt; model cards linked in the model-selection appendix.\n\n"]</script>
+<!--
+  Design tokens and shared components live at the top of the <style> block.
+  Demo recordings are expected in assets/demo/ — each window shows the exact
+  filename and what to record until the file exists.
+-->
+<style>
+/* ==========================================================================
+   Building On-Device AI Apps with Flutter & Gemma — design system
+
+   Direction: Google, specifically Material 3 Expressive. Google Sans Flex for
+   everything set in type, Google Sans Code for code. Google's four brand
+   colours are used SEMANTICALLY — each maps to one idea (a benefit, a demo
+   capability) and holds that meaning for the whole talk — never as random
+   decoration. Section breaks are bold colour fields; content slides sit on a
+   dark neutral so demo video, code and device frames carry the contrast.
+
+   Canvas: 1920 × 1080, scaled by deck-stage.js.
+   ========================================================================== */
+
+:root {
+  /* Neutrals — Google's grey ramp, dark scheme */
+  --bg:        #0F1114;
+  --surface:   #17191D;
+  --surface-2: #1F2227;
+  --surface-3: #292C32;
+  --outline:   rgba(232, 234, 237, 0.10);
+  --outline-2: rgba(232, 234, 237, 0.18);
+  --ink:       #F1F3F4;
+  --ink-2:     #BDC1C6;
+  --ink-3:     #80868B;
+
+  /* Google brand colours, plus their dark-scheme tonal variants */
+  --blue:   #4285F4; --blue-hi:   #8AB4F8; --blue-lo:   #1A2A45; --blue-field:   #1A73E8;
+  --red:    #EA4335; --red-hi:    #F28B82; --red-lo:    #3B1F1D; --red-field:    #D93025;
+  --yellow: #FBBC04; --yellow-hi: #FDD663; --yellow-lo: #3A3116; --yellow-field: #F9AB00;
+  --green:  #34A853; --green-hi:  #81C995; --green-lo:  #1A3223; --green-field:  #188038;
+  --purple-hi: #C58AF9;
+
+  --r-sm: 20px; --r-md: 32px; --r-lg: 48px; --r-xl: 72px; --r-pill: 999px;
+
+  --font: 'Google Sans Flex', 'Google Sans', system-ui, sans-serif;
+  --mono: 'Google Sans Code', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: #000; }
+deck-stage { background: var(--bg); }
+
+section {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ---------- Layout ---------- */
+.pad    { position: absolute; inset: 0; padding: 92px 110px 110px; display: flex; flex-direction: column; }
+.center { justify-content: center; }
+.row    { display: flex; gap: 72px; }
+.grow   { flex: 1; min-width: 0; }
+.stack  { display: flex; flex-direction: column; }
+
+/* ---------- Type ---------- */
+.kicker {
+  font-size: 30px; font-weight: 500; letter-spacing: -0.005em;
+  color: var(--ink-3); margin: 0 0 22px;
+  display: flex; align-items: center; gap: 16px;
+}
+.kicker .tag { color: var(--ink); }
+.d1 { font-size: 184px; line-height: .9;  font-weight: 700; letter-spacing: -0.028em; margin: 0; font-variation-settings: "wdth" 100, "ROND" 100; }
+.d2 { font-size: 132px; line-height: .94; font-weight: 700; letter-spacing: -0.026em;  margin: 0; font-variation-settings: "ROND" 100; }
+.h1 { font-size: 88px;  line-height: 1;   font-weight: 650; letter-spacing: -0.022em; margin: 0; font-variation-settings: "ROND" 60; }
+.h2 { font-size: 64px;  line-height: 1.04; font-weight: 600; letter-spacing: -0.025em; margin: 0; }
+.h3 { font-size: 44px;  line-height: 1.12; font-weight: 600; letter-spacing: -0.015em; margin: 0; }
+.lead { font-size: 40px; line-height: 1.34; font-weight: 400; color: var(--ink-2); margin: 0; letter-spacing: -0.01em; }
+.body { font-size: 30px; line-height: 1.45; font-weight: 400; color: var(--ink-2); margin: 0; }
+.small { font-size: 24px; line-height: 1.45; color: var(--ink-3); margin: 0; }
+.dim  { color: var(--ink-3); }
+.ink  { color: var(--ink); }
+.nowrap { white-space: nowrap; }
+code, .code-inline { font-family: var(--mono); font-size: .88em; }
+.code-inline { background: var(--surface-3); padding: .06em .32em; border-radius: 10px; color: var(--ink); }
+
+.c-blue   { color: var(--blue-hi); }
+.c-red    { color: var(--red-hi); }
+.c-yellow { color: var(--yellow-hi); }
+.c-green  { color: var(--green-hi); }
+
+/* ---------- Footer: four-colour mark + talk name + page ---------- */
+.foot {
+  position: absolute; left: 110px; right: 110px; bottom: 44px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 22px; color: var(--ink-3); font-weight: 500;
+}
+.foot .mark { display: flex; align-items: center; gap: 14px; }
+/* Event branding. The logo art is transparent with solid letters, but the
+   coloured section dividers and the demo slides are left clean anyway. */
+.evt-title { position: absolute; top: 46px; right: 110px; width: 360px; z-index: 5; opacity: .95; }
+/* Thank you: the heading runs to the right edge, so the logo sits top-left. */
+.evt-title.evt-left { left: 110px; right: auto; }
+.evt-corner { position: absolute; top: 44px; right: 110px; width: 250px; z-index: 5; opacity: .85; }
+.g4 { display: inline-flex; gap: 6px; }
+.g4 i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+.g4 i:nth-child(1) { background: var(--blue); }
+.g4 i:nth-child(2) { background: var(--red); }
+.g4 i:nth-child(3) { background: var(--yellow); }
+.g4 i:nth-child(4) { background: var(--green); }
+.foot .pg { font-variant-numeric: tabular-nums; }
+
+/* ---------- Surfaces ---------- */
+.card {
+  background: var(--surface); border-radius: var(--r-lg);
+  padding: 48px; position: relative; overflow: hidden;
+}
+.card.tight { padding: 36px 40px; }
+.card.outline { background: transparent; box-shadow: inset 0 0 0 2px var(--outline-2); }
+.tonal-blue   { background: var(--blue-lo); }
+.tonal-red    { background: var(--red-lo); }
+.tonal-yellow { background: var(--yellow-lo); }
+.tonal-green  { background: var(--green-lo); }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 12px;
+  height: 56px; padding: 0 26px; border-radius: var(--r-pill);
+  font-size: 26px; font-weight: 500; background: var(--surface-3); color: var(--ink);
+}
+.chip .dot { width: 14px; height: 14px; border-radius: 50%; }
+
+.icon-tile {
+  width: 104px; height: 104px; border-radius: 34px;
+  display: grid; place-items: center; flex-shrink: 0;
+}
+.icon-tile svg { width: 54px; height: 54px; }
+
+/* ---------- Colour-field section slides ---------- */
+section.field { color: #fff; }
+section.field.blue   { background: var(--blue-field); }
+section.field.red    { background: var(--red-field); }
+section.field.green  { background: var(--green-field); }
+section.field.yellow { background: var(--yellow-field); color: #202124; }
+section.field .foot { color: rgba(255,255,255,.72); }
+section.field.yellow .foot { color: rgba(32,33,36,.66); }
+section.field .num {
+  font-size: 34px; font-weight: 600; letter-spacing: .01em;
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 72px; min-width: 72px; padding: 0 24px; border-radius: var(--r-pill);
+  background: rgba(255,255,255,.18);
+}
+section.field.yellow .num { background: rgba(32,33,36,.12); }
+.field-shape { position: absolute; pointer-events: none; }
+.field-shape svg { width: 100%; height: 100%; display: block; }
+
+/* ---------- Code ---------- */
+.code {
+  background: #0A0B0D; border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 2px var(--outline);
+  font-family: var(--mono); font-size: 24px; line-height: 1.5;
+  color: #E8EAED; padding: 36px 44px; margin: 0; white-space: pre;
+  overflow: hidden; position: relative;
+}
+.code .file {
+  display: flex; align-items: center; gap: 14px;
+  font-family: var(--font); font-size: 22px; color: var(--ink-3);
+  margin: -4px 0 16px; font-weight: 500;
+}
+.code .file::before { content: ""; width: 12px; height: 12px; border-radius: 4px; background: var(--blue); }
+.k  { color: #8AB4F8; }            /* keyword  */
+.s  { color: #81C995; }            /* string   */
+.n  { color: #FDD663; }            /* number   */
+.t  { color: #F28B82; }            /* type     */
+.f  { color: #C58AF9; }            /* function */
+.cm { color: #80868B; font-style: italic; }
+/* Full-width highlight rows: inline-block spanning the padded code box, so a
+   multi-line highlight is one even band instead of per-line text slivers. */
+.hl, .hl-y { display: inline-block; width: calc(100% + 88px); margin: 0 -44px; padding: 0 44px; }
+.hl   { background: rgba(138,180,248,.14); box-shadow: inset 5px 0 0 #8AB4F8; }
+.hl-y { background: rgba(253,214,99,.13);  box-shadow: inset 5px 0 0 #FDD663; }
+
+/* ---------- Device window (the demo runs as a macOS app) ---------- */
+.window {
+  border-radius: 26px; overflow: hidden; background: #0A0A0F;
+  box-shadow: 0 0 0 2px var(--outline-2), 0 40px 90px rgba(0,0,0,.55);
+  display: flex; flex-direction: column;
+}
+.window .bar {
+  height: 52px; flex-shrink: 0; display: flex; align-items: center; gap: 10px;
+  padding: 0 20px; background: #1C1E22; position: relative;
+}
+.window .bar i { width: 15px; height: 15px; border-radius: 50%; display: block; }
+.window .bar i:nth-child(1) { background: #FF5F57; }
+.window .bar i:nth-child(2) { background: #FEBC2E; }
+.window .bar i:nth-child(3) { background: #28C840; }
+.window .bar span {
+  position: absolute; left: 0; right: 0; text-align: center; pointer-events: none;
+  font-size: 18px; color: var(--ink-3); font-weight: 500;
+}
+.window .screen { position: relative; flex: 1; background: #0A0A0F; }
+/* contain, not cover: cropping a chat UI hides the very thing being demoed */
+.window video, .window img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
+
+/* Shown until the recording exists — tells you exactly what to capture. */
+.asset-needed {
+  position: absolute; inset: 0; display: none; flex-direction: column;
+  align-items: center; justify-content: center; gap: 18px; padding: 48px;
+  text-align: center;
+  background:
+    repeating-linear-gradient(135deg, rgba(255,255,255,.025) 0 18px, transparent 18px 36px),
+    #121418;
+}
+.asset-needed.show { display: flex; }
+.asset-needed b { font-size: 30px; font-weight: 600; color: var(--ink); }
+.asset-needed code { font-size: 22px; color: var(--yellow-hi); background: var(--surface-3); padding: 6px 14px; border-radius: 10px; }
+.asset-needed p { font-size: 22px; line-height: 1.45; color: var(--ink-3); margin: 0; max-width: 560px; }
+
+/* ---------- MacBook mockup for the demo recordings ---------- */
+.mac { width: 1040px; position: relative; flex-shrink: 0; }
+.mac-lid {
+  width: 966px; margin: 0 auto; padding: 14px 14px 20px;
+  background: #0c0d0f; border-radius: 34px 34px 12px 12px;
+  box-shadow: 0 0 0 2px #3b3e44, inset 0 0 0 1px #1b1c1f, 0 60px 120px rgba(0,0,0,.55);
+}
+.mac-screen { position: relative; aspect-ratio: 16 / 10; border-radius: 18px 18px 5px 5px; overflow: hidden; background: #000; }
+.mac-notch {
+  position: absolute; top: 0; left: 50%; width: 124px; height: 20px; margin-left: -62px;
+  background: #0c0d0f; border-radius: 0 0 13px 13px; z-index: 6;
+}
+.mac-base {
+  width: 1040px; height: 22px; margin: -1px auto 0; position: relative;
+  background: linear-gradient(#63666c, #3a3c41 45%, #1d1e21);
+  border-radius: 3px 3px 28px 28px / 3px 3px 20px 20px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.28);
+}
+.mac-lip {
+  position: absolute; top: 0; left: 50%; width: 190px; height: 9px; margin-left: -95px;
+  background: linear-gradient(#26272b, #45474c); border-radius: 0 0 14px 14px;
+}
+.mac-full, .mac-desktop { position: absolute; inset: 0; }
+.mac-full video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.mac-desktop {
+  background:
+    radial-gradient(60% 70% at 18% 110%, rgba(66,133,244,.55), transparent 70%),
+    radial-gradient(55% 60% at 92% -10%, rgba(161,66,244,.45), transparent 70%),
+    radial-gradient(40% 45% at 70% 95%, rgba(52,168,83,.25), transparent 70%),
+    linear-gradient(160deg, #10131c, #07080c);
+}
+.mac-menubar {
+  position: absolute; top: 0; left: 0; right: 0; height: 20px; z-index: 2;
+  display: flex; align-items: center; gap: 15px; padding: 0 16px;
+  font-size: 10.5px; color: rgba(255,255,255,.9); background: rgba(8,10,16,.42);
+  font-family: -apple-system, "Google Sans Flex", system-ui, sans-serif; letter-spacing: 0;
+}
+.mac-menubar b { font-weight: 700; }
+.mac-status { margin-left: auto; display: flex; align-items: center; gap: 12px; font-style: normal; }
+.mac-batt { width: 20px; height: 9px; border-radius: 3px; box-shadow: inset 0 0 0 1.2px rgba(255,255,255,.85); position: relative; display: block; }
+.mac-batt::after { content: ""; position: absolute; left: 2px; top: 2px; bottom: 2px; width: 11px; border-radius: 1px; background: rgba(255,255,255,.85); }
+.mac-cc { width: 13px; height: 9px; display: block; border-top: 2px solid rgba(255,255,255,.85); border-bottom: 2px solid rgba(255,255,255,.85); box-sizing: border-box; }
+.mac-app {
+  position: absolute; top: 36px; bottom: 22px; left: 50%; transform: translateX(-50%);
+  border-radius: 10px; overflow: hidden; background: #0A0A0F;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.14), 0 28px 70px rgba(0,0,0,.65);
+}
+.mac-app video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.mac .asset-needed { gap: 12px; padding: 30px; }
+.mac .asset-needed b { font-size: 24px; }
+.mac .asset-needed code { font-size: 17px; }
+.mac .asset-needed p { font-size: 17px; }
+
+/* Large MacBook for the full-slide demo layout */
+.mac.lg { width: 1480px; }
+.mac.lg .mac-lid { width: 1380px; padding: 16px 16px 22px; border-radius: 40px 40px 14px 14px; }
+.mac.lg .mac-screen { border-radius: 22px 22px 6px 6px; }
+.mac.lg .mac-notch { width: 150px; height: 24px; margin-left: -75px; border-radius: 0 0 15px 15px; }
+.mac.lg .mac-base { width: 1480px; height: 26px; }
+.mac.lg .mac-lip { width: 230px; height: 10px; margin-left: -115px; }
+.mac.lg .mac-menubar { height: 26px; font-size: 13px; gap: 18px; padding: 0 20px; }
+.mac.lg .mac-app { top: 34px; bottom: 10px; border-radius: 12px; }
+
+/* ---------- Demo slides: header row + large MacBook ---------- */
+.demo-stage { position: absolute; inset: 0; padding: 34px 110px 12px; display: flex; flex-direction: column; align-items: center; }
+.demo-head { width: 100%; height: 96px; flex-shrink: 0; display: flex; align-items: center; gap: 22px; }
+.demo-titles { display: flex; flex-direction: column; gap: 4px; }
+.demo-titles .kicker { font-size: 24px; margin: 0; }
+.demo-title { margin: 0; font-size: 54px; line-height: 1.02; font-weight: 650; letter-spacing: -0.02em; white-space: nowrap; font-variation-settings: "ROND" 60; }
+.demo-prompt { margin-left: auto; max-width: 780px; border-radius: 24px; padding: 14px 28px; }
+.demo-prompt .small { font-size: 18px; }
+.demo-prompt-text { font-size: 24px; line-height: 1.3; color: var(--ink); margin-top: 2px; }
+.demo-mac { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+
+/* ---------- Entrance motion (replays on every visit) ---------- */
+@keyframes rise { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
+@keyframes pop  { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+section[data-deck-active] .r  { animation: rise .6s cubic-bezier(.2,.8,.2,1) both; }
+section[data-deck-active] .p  { animation: pop  .7s cubic-bezier(.2,.8,.2,1) both; }
+section[data-deck-active] .d1s { animation-delay: .08s; }
+section[data-deck-active] .d2s { animation-delay: .16s; }
+section[data-deck-active] .d3s { animation-delay: .24s; }
+section[data-deck-active] .d4s { animation-delay: .32s; }
+section[data-deck-active] .d5s { animation-delay: .40s; }
+section[data-deck-active] .d6s { animation-delay: .48s; }
+section[data-deck-active] .spin { animation: spin 60s linear infinite; }
+@media print { section .r, section .p { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { section .r, section .p, section .spin { animation: none !important; } }
+
+</style>
+<style id="presenter-ui-only">
+#quiz-guard{visibility:hidden;opacity:0;transition:opacity .35s ease}#quiz-guard[data-revealed]{visibility:visible;opacity:1}
+#presenter-notes{position:fixed;z-index:9999;top:0;right:0;width:min(600px,45vw);height:100vh;background:#17191df5;color:#f1f3f4;padding:30px;overflow:auto;font:18px/1.55 system-ui;white-space:pre-wrap;box-shadow:-15px 0 60px #0009}#presenter-notes[hidden]{display:none}#notes-heading{display:block;font-weight:700;margin-bottom:20px}#kmp-controls{position:fixed;z-index:9998;right:18px;top:18px;display:flex;gap:8px;opacity:.08;transition:opacity .2s}#kmp-controls:hover,#kmp-controls:focus-within{opacity:1}#kmp-controls button{font:13px system-ui;color:#f1f3f4;background:#292c32;border:1px solid #80868b;padding:8px 12px;border-radius:8px;cursor:pointer}#progress{position:fixed;z-index:9990;bottom:0;left:0;height:3px;background:var(--blue);transition:width .2s}#runtime-status{position:fixed;left:22px;top:16px;z-index:9998;color:#bdc1c6;font:13px system-ui;pointer-events:none}
+@media(prefers-reduced-motion:reduce){#quiz-guard,#progress{transition:none}}@media print{#presenter-notes,#kmp-controls,#progress,#runtime-status{display:none!important}#quiz-guard{visibility:visible!important;opacity:1!important}}
+</style><style id="personal-accent">:root{--blue:#9277D8;--blue-hi:#B9A5F4;--blue-lo:#282238;--blue-field:#64508F}</style></head>
+<body>
+<svg aria-hidden="true" height="0" style="position:absolute" width="0"><symbol id="sh-cookie12" viewbox="0 0 100 100"><path d="M98.00,50.00 L97.81,51.25 L97.25,52.48 L96.37,53.65 L95.26,54.76 L94.02,55.80 L92.75,56.77 L91.58,57.71 L90.58,58.63 L89.84,59.57 L89.41,60.56 L89.29,61.64 L89.46,62.82 L89.86,64.11 L90.41,65.51 L91.02,66.99 L91.58,68.51 L91.98,70.03 L92.16,71.48 L92.03,72.82 L91.57,74.00 L90.78,74.99 L89.68,75.77 L88.34,76.35 L86.82,76.75 L85.22,77.03 L83.64,77.24 L82.15,77.46 L80.83,77.76 L79.72,78.21 L78.85,78.85 L78.21,79.72 L77.76,80.83 L77.46,82.15 L77.24,83.64 L77.03,85.22 L76.75,86.82 L76.35,88.34 L75.77,89.68 L74.99,90.78 L74.00,91.57 L72.82,92.03 L71.48,92.16 L70.03,91.98 L68.51,91.58 L66.99,91.02 L65.51,90.41 L64.11,89.86 L62.82,89.46 L61.64,89.29 L60.56,89.41 L59.57,89.84 L58.63,90.58 L57.71,91.58 L56.77,92.75 L55.80,94.02 L54.76,95.26 L53.65,96.37 L52.48,97.25 L51.25,97.81 L50.00,98.00 L48.75,97.81 L47.52,97.25 L46.35,96.37 L45.24,95.26 L44.20,94.02 L43.23,92.75 L42.29,91.58 L41.37,90.58 L40.43,89.84 L39.44,89.41 L38.36,89.29 L37.18,89.46 L35.89,89.86 L34.49,90.41 L33.01,91.02 L31.49,91.58 L29.97,91.98 L28.52,92.16 L27.18,92.03 L26.00,91.57 L25.01,90.78 L24.23,89.68 L23.65,88.34 L23.25,86.82 L22.97,85.22 L22.76,83.64 L22.54,82.15 L22.24,80.83 L21.79,79.72 L21.15,78.85 L20.28,78.21 L19.17,77.76 L17.85,77.46 L16.36,77.24 L14.78,77.03 L13.18,76.75 L11.66,76.35 L10.32,75.77 L9.22,74.99 L8.43,74.00 L7.97,72.82 L7.84,71.48 L8.02,70.03 L8.42,68.51 L8.98,66.99 L9.59,65.51 L10.14,64.11 L10.54,62.82 L10.71,61.64 L10.59,60.56 L10.16,59.57 L9.42,58.63 L8.42,57.71 L7.25,56.77 L5.98,55.80 L4.74,54.76 L3.63,53.65 L2.75,52.48 L2.19,51.25 L2.00,50.00 L2.19,48.75 L2.75,47.52 L3.63,46.35 L4.74,45.24 L5.98,44.20 L7.25,43.23 L8.42,42.29 L9.42,41.37 L10.16,40.43 L10.59,39.44 L10.71,38.36 L10.54,37.18 L10.14,35.89 L9.59,34.49 L8.98,33.01 L8.42,31.49 L8.02,29.97 L7.84,28.52 L7.97,27.18 L8.43,26.00 L9.22,25.01 L10.32,24.23 L11.66,23.65 L13.18,23.25 L14.78,22.97 L16.36,22.76 L17.85,22.54 L19.17,22.24 L20.28,21.79 L21.15,21.15 L21.79,20.28 L22.24,19.17 L22.54,17.85 L22.76,16.36 L22.97,14.78 L23.25,13.18 L23.65,11.66 L24.23,10.32 L25.01,9.22 L26.00,8.43 L27.18,7.97 L28.52,7.84 L29.97,8.02 L31.49,8.42 L33.01,8.98 L34.49,9.59 L35.89,10.14 L37.18,10.54 L38.36,10.71 L39.44,10.59 L40.43,10.16 L41.37,9.42 L42.29,8.42 L43.23,7.25 L44.20,5.98 L45.24,4.74 L46.35,3.63 L47.52,2.75 L48.75,2.19 L50.00,2.00 L51.25,2.19 L52.48,2.75 L53.65,3.63 L54.76,4.74 L55.80,5.98 L56.77,7.25 L57.71,8.42 L58.63,9.42 L59.57,10.16 L60.56,10.59 L61.64,10.71 L62.82,10.54 L64.11,10.14 L65.51,9.59 L66.99,8.98 L68.51,8.42 L70.03,8.02 L71.48,7.84 L72.82,7.97 L74.00,8.43 L74.99,9.22 L75.77,10.32 L76.35,11.66 L76.75,13.18 L77.03,14.78 L77.24,16.36 L77.46,17.85 L77.76,19.17 L78.21,20.28 L78.85,21.15 L79.72,21.79 L80.83,22.24 L82.15,22.54 L83.64,22.76 L85.22,22.97 L86.82,23.25 L88.34,23.65 L89.68,24.23 L90.78,25.01 L91.57,26.00 L92.03,27.18 L92.16,28.52 L91.98,29.97 L91.58,31.49 L91.02,33.01 L90.41,34.49 L89.86,35.89 L89.46,37.18 L89.29,38.36 L89.41,39.44 L89.84,40.43 L90.58,41.37 L91.58,42.29 L92.75,43.23 L94.02,44.20 L95.26,45.24 L96.37,46.35 L97.25,47.52 L97.81,48.75 Z"></path></symbol><symbol id="sh-cookie9" viewbox="0 0 100 100"><path d="M98.00,50.00 L97.85,51.25 L97.41,52.48 L96.71,53.68 L95.77,54.81 L94.65,55.88 L93.41,56.88 L92.11,57.80 L90.81,58.67 L89.57,59.50 L88.45,60.30 L87.50,61.11 L86.74,61.94 L86.21,62.82 L85.90,63.78 L85.81,64.83 L85.92,65.99 L86.18,67.26 L86.55,68.62 L86.98,70.08 L87.41,71.60 L87.79,73.16 L88.06,74.72 L88.17,76.23 L88.09,77.67 L87.79,79.00 L87.26,80.17 L86.49,81.16 L85.50,81.96 L84.30,82.55 L82.95,82.95 L81.46,83.16 L79.90,83.21 L78.30,83.14 L76.71,82.99 L75.18,82.82 L73.73,82.67 L72.40,82.59 L71.20,82.64 L70.13,82.85 L69.20,83.26 L68.39,83.86 L67.67,84.68 L67.03,85.70 L66.42,86.89 L65.83,88.21 L65.21,89.63 L64.55,91.08 L63.81,92.50 L62.98,93.83 L62.06,95.01 L61.04,95.99 L59.93,96.72 L58.74,97.18 L57.50,97.35 L56.22,97.23 L54.92,96.83 L53.63,96.17 L52.37,95.32 L51.16,94.31 L50.00,93.20 L48.90,92.07 L47.85,90.96 L46.86,89.96 L45.89,89.10 L44.94,88.43 L43.98,87.99 L43.00,87.77 L41.97,87.79 L40.87,88.03 L39.70,88.45 L38.44,89.02 L37.11,89.67 L35.71,90.37 L34.25,91.03 L32.77,91.61 L31.28,92.04 L29.83,92.29 L28.45,92.30 L27.16,92.07 L26.00,91.57 L24.99,90.81 L24.14,89.82 L23.46,88.61 L22.95,87.23 L22.58,85.73 L22.34,84.16 L22.19,82.56 L22.09,81.00 L21.99,79.52 L21.85,78.15 L21.63,76.92 L21.29,75.85 L20.79,74.95 L20.11,74.20 L19.25,73.60 L18.19,73.11 L16.97,72.70 L15.60,72.34 L14.12,71.99 L12.59,71.60 L11.05,71.15 L9.57,70.60 L8.19,69.94 L6.99,69.15 L5.99,68.23 L5.24,67.18 L4.77,66.02 L4.57,64.76 L4.65,63.43 L4.99,62.06 L5.55,60.67 L6.29,59.29 L7.15,57.94 L8.07,56.64 L8.99,55.40 L9.84,54.22 L10.57,53.10 L11.13,52.04 L11.48,51.01 L11.60,50.00 L11.48,48.99 L11.13,47.96 L10.57,46.90 L9.84,45.78 L8.99,44.60 L8.07,43.36 L7.15,42.06 L6.29,40.71 L5.55,39.33 L4.99,37.94 L4.65,36.57 L4.57,35.24 L4.77,33.98 L5.24,32.82 L5.99,31.77 L6.99,30.85 L8.19,30.06 L9.57,29.40 L11.05,28.85 L12.59,28.40 L14.12,28.01 L15.60,27.66 L16.97,27.30 L18.19,26.89 L19.25,26.40 L20.11,25.80 L20.79,25.05 L21.29,24.15 L21.63,23.08 L21.85,21.85 L21.99,20.48 L22.09,19.00 L22.19,17.44 L22.34,15.84 L22.58,14.27 L22.95,12.77 L23.46,11.39 L24.14,10.18 L24.99,9.19 L26.00,8.43 L27.16,7.93 L28.45,7.70 L29.83,7.71 L31.28,7.96 L32.77,8.39 L34.25,8.97 L35.71,9.63 L37.11,10.33 L38.44,10.98 L39.70,11.55 L40.87,11.97 L41.97,12.21 L43.00,12.23 L43.98,12.01 L44.94,11.57 L45.89,10.90 L46.86,10.04 L47.85,9.04 L48.90,7.93 L50.00,6.80 L51.16,5.69 L52.37,4.68 L53.63,3.83 L54.92,3.17 L56.22,2.77 L57.50,2.65 L58.74,2.82 L59.93,3.28 L61.04,4.01 L62.06,4.99 L62.98,6.17 L63.81,7.50 L64.55,8.92 L65.21,10.37 L65.83,11.79 L66.42,13.11 L67.03,14.30 L67.67,15.32 L68.39,16.14 L69.20,16.74 L70.13,17.15 L71.20,17.36 L72.40,17.41 L73.73,17.33 L75.18,17.18 L76.71,17.01 L78.30,16.86 L79.90,16.79 L81.46,16.84 L82.95,17.05 L84.30,17.45 L85.50,18.04 L86.49,18.84 L87.26,19.83 L87.79,21.00 L88.09,22.33 L88.17,23.77 L88.06,25.28 L87.79,26.84 L87.41,28.40 L86.98,29.92 L86.55,31.38 L86.18,32.74 L85.92,34.01 L85.81,35.17 L85.90,36.22 L86.21,37.18 L86.74,38.06 L87.50,38.89 L88.45,39.70 L89.57,40.50 L90.81,41.33 L92.11,42.20 L93.41,43.12 L94.65,44.12 L95.77,45.19 L96.71,46.32 L97.41,47.52 L97.85,48.75 Z"></path></symbol><symbol id="sh-cookie4" viewbox="0 0 100 100"><path d="M98.00,50.00 L97.95,51.26 L97.79,52.50 L97.52,53.74 L97.16,54.96 L96.70,56.15 L96.14,57.31 L95.50,58.43 L94.78,59.52 L93.98,60.56 L93.12,61.55 L92.20,62.50 L91.23,63.40 L90.23,64.25 L89.19,65.05 L88.14,65.80 L87.07,66.50 L86.00,67.17 L84.93,67.80 L83.88,68.39 L82.84,68.96 L81.83,69.50 L80.85,70.03 L79.90,70.55 L79.00,71.07 L78.13,71.59 L77.31,72.11 L76.53,72.66 L75.79,73.22 L75.10,73.81 L74.44,74.44 L73.81,75.10 L73.22,75.79 L72.66,76.53 L72.11,77.31 L71.59,78.13 L71.07,79.00 L70.55,79.90 L70.03,80.85 L69.50,81.83 L68.96,82.84 L68.39,83.88 L67.80,84.93 L67.17,86.00 L66.50,87.07 L65.80,88.14 L65.05,89.19 L64.25,90.23 L63.40,91.23 L62.50,92.20 L61.55,93.12 L60.56,93.98 L59.52,94.78 L58.43,95.50 L57.31,96.14 L56.15,96.70 L54.96,97.16 L53.74,97.52 L52.50,97.79 L51.26,97.95 L50.00,98.00 L48.74,97.95 L47.50,97.79 L46.26,97.52 L45.04,97.16 L43.85,96.70 L42.69,96.14 L41.57,95.50 L40.48,94.78 L39.44,93.98 L38.45,93.12 L37.50,92.20 L36.60,91.23 L35.75,90.23 L34.95,89.19 L34.20,88.14 L33.50,87.07 L32.83,86.00 L32.20,84.93 L31.61,83.88 L31.04,82.84 L30.50,81.83 L29.97,80.85 L29.45,79.90 L28.93,79.00 L28.41,78.13 L27.89,77.31 L27.34,76.53 L26.78,75.79 L26.19,75.10 L25.56,74.44 L24.90,73.81 L24.21,73.22 L23.47,72.66 L22.69,72.11 L21.87,71.59 L21.00,71.07 L20.10,70.55 L19.15,70.03 L18.17,69.50 L17.16,68.96 L16.12,68.39 L15.07,67.80 L14.00,67.17 L12.93,66.50 L11.86,65.80 L10.81,65.05 L9.77,64.25 L8.77,63.40 L7.80,62.50 L6.88,61.55 L6.02,60.56 L5.22,59.52 L4.50,58.43 L3.86,57.31 L3.30,56.15 L2.84,54.96 L2.48,53.74 L2.21,52.50 L2.05,51.26 L2.00,50.00 L2.05,48.74 L2.21,47.50 L2.48,46.26 L2.84,45.04 L3.30,43.85 L3.86,42.69 L4.50,41.57 L5.22,40.48 L6.02,39.44 L6.88,38.45 L7.80,37.50 L8.77,36.60 L9.77,35.75 L10.81,34.95 L11.86,34.20 L12.93,33.50 L14.00,32.83 L15.07,32.20 L16.12,31.61 L17.16,31.04 L18.17,30.50 L19.15,29.97 L20.10,29.45 L21.00,28.93 L21.87,28.41 L22.69,27.89 L23.47,27.34 L24.21,26.78 L24.90,26.19 L25.56,25.56 L26.19,24.90 L26.78,24.21 L27.34,23.47 L27.89,22.69 L28.41,21.87 L28.93,21.00 L29.45,20.10 L29.97,19.15 L30.50,18.17 L31.04,17.16 L31.61,16.12 L32.20,15.07 L32.83,14.00 L33.50,12.93 L34.20,11.86 L34.95,10.81 L35.75,9.77 L36.60,8.77 L37.50,7.80 L38.45,6.88 L39.44,6.02 L40.48,5.22 L41.57,4.50 L42.69,3.86 L43.85,3.30 L45.04,2.84 L46.26,2.48 L47.50,2.21 L48.74,2.05 L50.00,2.00 L51.26,2.05 L52.50,2.21 L53.74,2.48 L54.96,2.84 L56.15,3.30 L57.31,3.86 L58.43,4.50 L59.52,5.22 L60.56,6.02 L61.55,6.88 L62.50,7.80 L63.40,8.77 L64.25,9.77 L65.05,10.81 L65.80,11.86 L66.50,12.93 L67.17,14.00 L67.80,15.07 L68.39,16.12 L68.96,17.16 L69.50,18.17 L70.03,19.15 L70.55,20.10 L71.07,21.00 L71.59,21.87 L72.11,22.69 L72.66,23.47 L73.22,24.21 L73.81,24.90 L74.44,25.56 L75.10,26.19 L75.79,26.78 L76.53,27.34 L77.31,27.89 L78.13,28.41 L79.00,28.93 L79.90,29.45 L80.85,29.97 L81.83,30.50 L82.84,31.04 L83.88,31.61 L84.93,32.20 L86.00,32.83 L87.07,33.50 L88.14,34.20 L89.19,34.95 L90.23,35.75 L91.23,36.60 L92.20,37.50 L93.12,38.45 L93.98,39.44 L94.78,40.48 L95.50,41.57 L96.14,42.69 L96.70,43.85 L97.16,45.04 L97.52,46.26 L97.79,47.50 L97.95,48.74 Z"></path></symbol><symbol id="sh-clover4" viewbox="0 0 100 100"><path d="M98.00,50.00 L97.96,51.26 L97.86,52.51 L97.68,53.75 L97.42,54.98 L97.10,56.20 L96.71,57.40 L96.26,58.57 L95.73,59.72 L95.15,60.84 L94.50,61.92 L93.80,62.97 L93.04,63.98 L92.22,64.95 L91.36,65.88 L90.45,66.75 L89.50,67.59 L88.51,68.37 L87.48,69.10 L86.42,69.77 L85.33,70.40 L84.22,70.97 L83.09,71.49 L81.94,71.95 L80.78,72.37 L79.61,72.72 L78.44,73.03 L77.26,73.28 L76.09,73.49 L74.92,73.65 L73.76,73.76 L73.65,74.92 L73.49,76.09 L73.28,77.26 L73.03,78.44 L72.72,79.61 L72.37,80.78 L71.95,81.94 L71.49,83.09 L70.97,84.22 L70.40,85.33 L69.77,86.42 L69.10,87.48 L68.37,88.51 L67.59,89.50 L66.75,90.45 L65.88,91.36 L64.95,92.22 L63.98,93.04 L62.97,93.80 L61.92,94.50 L60.84,95.15 L59.72,95.73 L58.57,96.26 L57.40,96.71 L56.20,97.10 L54.98,97.42 L53.75,97.68 L52.51,97.86 L51.26,97.96 L50.00,98.00 L48.74,97.96 L47.49,97.86 L46.25,97.68 L45.02,97.42 L43.80,97.10 L42.60,96.71 L41.43,96.26 L40.28,95.73 L39.16,95.15 L38.08,94.50 L37.03,93.80 L36.02,93.04 L35.05,92.22 L34.12,91.36 L33.25,90.45 L32.41,89.50 L31.63,88.51 L30.90,87.48 L30.23,86.42 L29.60,85.33 L29.03,84.22 L28.51,83.09 L28.05,81.94 L27.63,80.78 L27.28,79.61 L26.97,78.44 L26.72,77.26 L26.51,76.09 L26.35,74.92 L26.24,73.76 L25.08,73.65 L23.91,73.49 L22.74,73.28 L21.56,73.03 L20.39,72.72 L19.22,72.37 L18.06,71.95 L16.91,71.49 L15.78,70.97 L14.67,70.40 L13.58,69.77 L12.52,69.10 L11.49,68.37 L10.50,67.59 L9.55,66.75 L8.64,65.88 L7.78,64.95 L6.96,63.98 L6.20,62.97 L5.50,61.92 L4.85,60.84 L4.27,59.72 L3.74,58.57 L3.29,57.40 L2.90,56.20 L2.58,54.98 L2.32,53.75 L2.14,52.51 L2.04,51.26 L2.00,50.00 L2.04,48.74 L2.14,47.49 L2.32,46.25 L2.58,45.02 L2.90,43.80 L3.29,42.60 L3.74,41.43 L4.27,40.28 L4.85,39.16 L5.50,38.08 L6.20,37.03 L6.96,36.02 L7.78,35.05 L8.64,34.12 L9.55,33.25 L10.50,32.41 L11.49,31.63 L12.52,30.90 L13.58,30.23 L14.67,29.60 L15.78,29.03 L16.91,28.51 L18.06,28.05 L19.22,27.63 L20.39,27.28 L21.56,26.97 L22.74,26.72 L23.91,26.51 L25.08,26.35 L26.24,26.24 L26.35,25.08 L26.51,23.91 L26.72,22.74 L26.97,21.56 L27.28,20.39 L27.63,19.22 L28.05,18.06 L28.51,16.91 L29.03,15.78 L29.60,14.67 L30.23,13.58 L30.90,12.52 L31.63,11.49 L32.41,10.50 L33.25,9.55 L34.12,8.64 L35.05,7.78 L36.02,6.96 L37.03,6.20 L38.08,5.50 L39.16,4.85 L40.28,4.27 L41.43,3.74 L42.60,3.29 L43.80,2.90 L45.02,2.58 L46.25,2.32 L47.49,2.14 L48.74,2.04 L50.00,2.00 L51.26,2.04 L52.51,2.14 L53.75,2.32 L54.98,2.58 L56.20,2.90 L57.40,3.29 L58.57,3.74 L59.72,4.27 L60.84,4.85 L61.92,5.50 L62.97,6.20 L63.98,6.96 L64.95,7.78 L65.88,8.64 L66.75,9.55 L67.59,10.50 L68.37,11.49 L69.10,12.52 L69.77,13.58 L70.40,14.67 L70.97,15.78 L71.49,16.91 L71.95,18.06 L72.37,19.22 L72.72,20.39 L73.03,21.56 L73.28,22.74 L73.49,23.91 L73.65,25.08 L73.76,26.24 L74.92,26.35 L76.09,26.51 L77.26,26.72 L78.44,26.97 L79.61,27.28 L80.78,27.63 L81.94,28.05 L83.09,28.51 L84.22,29.03 L85.33,29.60 L86.42,30.23 L87.48,30.90 L88.51,31.63 L89.50,32.41 L90.45,33.25 L91.36,34.12 L92.22,35.05 L93.04,36.02 L93.80,37.03 L94.50,38.08 L95.15,39.16 L95.73,40.28 L96.26,41.43 L96.71,42.60 L97.10,43.80 L97.42,45.02 L97.68,46.25 L97.86,47.49 L97.96,48.74 Z"></path></symbol><symbol id="sh-clover8" viewbox="0 0 100 100"><path d="M98.00,50.00 L97.95,51.26 L97.79,52.50 L97.52,53.74 L97.16,54.96 L96.70,56.15 L96.14,57.31 L95.50,58.43 L94.78,59.52 L93.98,60.56 L93.12,61.55 L92.20,62.50 L91.23,63.40 L90.23,64.25 L89.19,65.05 L88.14,65.80 L88.35,67.08 L88.52,68.37 L88.63,69.68 L88.68,71.00 L88.66,72.32 L88.56,73.63 L88.39,74.93 L88.14,76.21 L87.79,77.46 L87.37,78.67 L86.85,79.84 L86.25,80.96 L85.56,82.02 L84.79,83.02 L83.94,83.94 L83.02,84.79 L82.02,85.56 L80.96,86.25 L79.84,86.85 L78.67,87.37 L77.46,87.79 L76.21,88.14 L74.93,88.39 L73.63,88.56 L72.32,88.66 L71.00,88.68 L69.68,88.63 L68.37,88.52 L67.08,88.35 L65.80,88.14 L65.05,89.19 L64.25,90.23 L63.40,91.23 L62.50,92.20 L61.55,93.12 L60.56,93.98 L59.52,94.78 L58.43,95.50 L57.31,96.14 L56.15,96.70 L54.96,97.16 L53.74,97.52 L52.50,97.79 L51.26,97.95 L50.00,98.00 L48.74,97.95 L47.50,97.79 L46.26,97.52 L45.04,97.16 L43.85,96.70 L42.69,96.14 L41.57,95.50 L40.48,94.78 L39.44,93.98 L38.45,93.12 L37.50,92.20 L36.60,91.23 L35.75,90.23 L34.95,89.19 L34.20,88.14 L32.92,88.35 L31.63,88.52 L30.32,88.63 L29.00,88.68 L27.68,88.66 L26.37,88.56 L25.07,88.39 L23.79,88.14 L22.54,87.79 L21.33,87.37 L20.16,86.85 L19.04,86.25 L17.98,85.56 L16.98,84.79 L16.06,83.94 L15.21,83.02 L14.44,82.02 L13.75,80.96 L13.15,79.84 L12.63,78.67 L12.21,77.46 L11.86,76.21 L11.61,74.93 L11.44,73.63 L11.34,72.32 L11.32,71.00 L11.37,69.68 L11.48,68.37 L11.65,67.08 L11.86,65.80 L10.81,65.05 L9.77,64.25 L8.77,63.40 L7.80,62.50 L6.88,61.55 L6.02,60.56 L5.22,59.52 L4.50,58.43 L3.86,57.31 L3.30,56.15 L2.84,54.96 L2.48,53.74 L2.21,52.50 L2.05,51.26 L2.00,50.00 L2.05,48.74 L2.21,47.50 L2.48,46.26 L2.84,45.04 L3.30,43.85 L3.86,42.69 L4.50,41.57 L5.22,40.48 L6.02,39.44 L6.88,38.45 L7.80,37.50 L8.77,36.60 L9.77,35.75 L10.81,34.95 L11.86,34.20 L11.65,32.92 L11.48,31.63 L11.37,30.32 L11.32,29.00 L11.34,27.68 L11.44,26.37 L11.61,25.07 L11.86,23.79 L12.21,22.54 L12.63,21.33 L13.15,20.16 L13.75,19.04 L14.44,17.98 L15.21,16.98 L16.06,16.06 L16.98,15.21 L17.98,14.44 L19.04,13.75 L20.16,13.15 L21.33,12.63 L22.54,12.21 L23.79,11.86 L25.07,11.61 L26.37,11.44 L27.68,11.34 L29.00,11.32 L30.32,11.37 L31.63,11.48 L32.92,11.65 L34.20,11.86 L34.95,10.81 L35.75,9.77 L36.60,8.77 L37.50,7.80 L38.45,6.88 L39.44,6.02 L40.48,5.22 L41.57,4.50 L42.69,3.86 L43.85,3.30 L45.04,2.84 L46.26,2.48 L47.50,2.21 L48.74,2.05 L50.00,2.00 L51.26,2.05 L52.50,2.21 L53.74,2.48 L54.96,2.84 L56.15,3.30 L57.31,3.86 L58.43,4.50 L59.52,5.22 L60.56,6.02 L61.55,6.88 L62.50,7.80 L63.40,8.77 L64.25,9.77 L65.05,10.81 L65.80,11.86 L67.08,11.65 L68.37,11.48 L69.68,11.37 L71.00,11.32 L72.32,11.34 L73.63,11.44 L74.93,11.61 L76.21,11.86 L77.46,12.21 L78.67,12.63 L79.84,13.15 L80.96,13.75 L82.02,14.44 L83.02,15.21 L83.94,16.06 L84.79,16.98 L85.56,17.98 L86.25,19.04 L86.85,20.16 L87.37,21.33 L87.79,22.54 L88.14,23.79 L88.39,25.07 L88.56,26.37 L88.66,27.68 L88.68,29.00 L88.63,30.32 L88.52,31.63 L88.35,32.92 L88.14,34.20 L89.19,34.95 L90.23,35.75 L91.23,36.60 L92.20,37.50 L93.12,38.45 L93.98,39.44 L94.78,40.48 L95.50,41.57 L96.14,42.69 L96.70,43.85 L97.16,45.04 L97.52,46.26 L97.79,47.50 L97.95,48.74 Z"></path></symbol></svg>
+<deck-stage height="1080" width="1920"><section data-label="Cover">
+<div class="pad" style="padding-top:96px">
+<div class="row" style="flex:1;align-items:center;gap:30px">
+<div class="grow stack" style="justify-content:center;gap:0">
+<div class="r"><span class="chip">Kotlin · LiteRT-LM · On-device</span></div>
+<h1 class="r d1s" style="font-size:112px;line-height:.98;font-weight:700;letter-spacing:-.028em;margin:48px 0 0;font-variation-settings:'ROND' 100">Building<br/>Offline AI Apps<br/><span style="color:var(--ink-3)">with</span> KMP<span style="color:var(--ink-3)"></span></h1>
+<div class="r d3s" style="margin-top:64px;display:flex;align-items:center;gap:28px">
+<div>
+<div style="font-size:46px;font-weight:600;letter-spacing:-.02em">Abdul Basit</div>
+<div class="body" style="font-size:28px;margin-top:6px">Senior Software Engineer</div>
+<div class="body" style="font-size:26px;color:var(--ink-3)">Google Developer Expert in Android</div>
+<div class="body" style="font-size:26px;color:var(--ink-3)">Local models · shared Kotlin · native actions</div>
+</div>
+</div>
+</div>
+<div class="p d2s" style="position:relative;width:560px;height:560px;flex-shrink:0">
+<div class="field-shape" style="inset:20px"><svg style="fill:var(--blue-lo)" viewbox="0 0 100 100"><circle cx="50" cy="50" r="48"></circle></svg></div>
+<div style="position:absolute;inset:36px"><svg height="488" style="display:block;overflow:visible" viewbox="0 0 100 100" width="488"><defs><clippath id="hs-title"><circle cx="50" cy="50" r="48"></circle></clippath></defs><image alt="Abdul Basit" clip-path="url(#hs-title)" height="100" href="assets/portrait.png" preserveaspectratio="xMidYMid slice" width="100" x="0" y="0"/></svg></div>
+</div>
+</div>
+</div>
+<div class="foot"><span class="pg" style="margin-left:auto">1 / 37</span></div>
+</section>
+<section data-label="The cloud round trip">
+
+<div class="pad">
+<p class="kicker r">How cloud AI features work</p>
+<h2 class="h1 r d1s">Many AI features follow<br/>the <span class="c-blue">same pattern.</span></h2>
+<div class="r d2s" style="flex:1;display:flex;align-items:center;justify-content:space-between;margin-top:40px;position:relative">
+<div class="card p" style="width:430px;height:360px;display:flex;flex-direction:column;justify-content:space-between;"><div class="icon-tile" style="background:var(--surface-3);color:var(--ink)"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><rect height="20" rx="3" width="11" x="6.5" y="2"></rect><path d="M11 18h2"></path></svg></div><div><div class="h3">Your app</div><div class="small" style="margin-top:8px;font-size:26px">Sends the user's request</div></div></div>
+<div style="flex:1;position:relative;height:360px">
+<svg fill="none" style="position:absolute;inset:0;width:100%;height:100%" viewbox="0 0 600 360">
+<defs>
+<marker id="s2-arrow" markerheight="36" markerunits="userSpaceOnUse" markerwidth="36" orient="auto" refx="20" refy="12" viewbox="0 0 24 24">
+<path d="M5 4 L20 12 L5 20" fill="none" stroke="var(--ink-3)" stroke-linecap="round" stroke-linejoin="round" stroke-width="3.2"></path>
+</marker>
+</defs>
+<path d="M40 150 C 190 50, 410 50, 560 150" marker-end="url(#s2-arrow)" pathlength="100" stroke="var(--ink-3)" stroke-dasharray="3.4 3.04" stroke-linecap="round" stroke-width="4"></path>
+<path d="M560 210 C 410 310, 190 310, 40 210" marker-end="url(#s2-arrow)" pathlength="100" stroke="var(--ink-3)" stroke-dasharray="3.4 3.04" stroke-linecap="round" stroke-width="4"></path>
+</svg>
+<div class="body" style="position:absolute;left:0;right:0;top:0;text-align:center">a question, a photo, a voice note →</div>
+<div class="body" style="position:absolute;left:0;right:0;bottom:0;text-align:center">← the answer, after a round trip</div>
+</div>
+<div class="card p" style="width:430px;height:360px;display:flex;flex-direction:column;justify-content:space-between;background:var(--surface-2)"><div class="icon-tile" style="background:var(--surface-3);color:var(--ink)"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><path d="M17.5 19H7a5 5 0 1 1 .9-9.9A6 6 0 0 1 19 11a4 4 0 0 1-1.5 8z"></path></svg></div><div><div class="h3">Cloud model</div><div class="small" style="margin-top:8px;font-size:26px">Runs the model and replies</div></div></div>
+</div>
+</div>
+<div class="foot"><span class="pg" style="margin-left:auto">2 / 37</span></div>
+</section>
+<section data-label="Why run models offline"><div class="pad"><p class="kicker r">The product reason</p><h2 class="h1 r d1s">Why put the model <span class="c-blue">on the phone?</span></h2><div class="r d2s" style="display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-top:40px"><div class="card" style="padding:36px"><div class="h3">Availability</div><p class="body" style="margin-top:16px">Keep the feature working without signal, once the model is provisioned.</p></div><div class="card" style="padding:36px;background:var(--blue-lo)"><div class="h3">Privacy boundary</div><p class="body" style="margin-top:16px">Avoid sending this inference request to a cloud model.</p></div><div class="card" style="padding:36px"><div class="h3">Network latency</div><p class="body" style="margin-top:16px">Remove the cloud round trip. Still measure generation on the phone.</p></div><div class="card" style="padding:36px"><div class="h3">Serving cost</div><p class="body" style="margin-top:16px">Avoid hosted-model request charges for this path; device resources still cost.</p></div></div><p class="small r d3s" style="margin-top:28px">Choose per feature. Local inference trades cloud dependencies for model downloads, RAM, battery, heat and quality constraints.</p></div><div class="foot"><span class="pg" style="margin-left:auto">3 / 37</span></div></section>
+<section data-label="Inference on the phone"><div class="pad"><p class="kicker r">Change where inference happens</p><h2 class="h1 r d1s">Run the model <span class="c-blue">on the phone.</span></h2>
+<div class="card r d2s" style="margin-top:54px;padding:42px;background:var(--blue-lo)"><div class="small c-blue">ON THE DEVICE · MODEL ALREADY PROVISIONED</div><div class="row" style="margin-top:42px;align-items:center;gap:30px"><div style="flex:1"><div class="h3">User request</div><p class="body" style="margin-top:18px">A question or a note</p></div><div class="h2">→</div><div style="flex:1.4"><div class="h3">Local model + runtime</div><p class="body" style="margin-top:18px">Model file: learned values<br>Runtime: software that runs inference</p></div><div class="h2">→</div><div style="flex:1"><div class="h3">Generated reply</div><p class="body" style="margin-top:18px">Returned to your app</p></div></div></div>
+<div class="row r d3s" style="margin-top:42px;gap:60px"><div class="grow"><div class="h3">No cloud-model round trip</div><p class="body" style="margin-top:18px">This inference path can work without a connection.</p></div><div class="grow"><div class="h3">The phone does the work</div><p class="body" style="margin-top:18px">Budget storage, runtime RAM, compute, battery and heat.</p></div></div></div><div class="foot"><span class="pg" style="margin-left:auto">4 / 37</span></div></section>
+<section data-label="A useful local feature"><div class="pad"><p class="kicker r">The feature we will build around</p><h2 class="h1 r d1s">A note becomes <span class="c-blue">a useful draft.</span></h2>
+<div class="row r d2s" style="flex:1;align-items:center;margin-top:34px;gap:70px">
+<div style="width:620px;flex-shrink:0"><svg aria-label="App input screen captured in the iOS simulator, before inference" height="600" role="img" viewbox="1045 570 600 720" width="500"><image height="1600" href="assets/app-notes-input.jpg" width="2200"/></svg><p class="small">Our app UI · input screen only</p></div>
+<div class="grow stack" style="gap:28px"><p class="body">“Sara will update the slides.<br/>No deadline was agreed.”</p><div class="card" style="background:var(--blue-lo)"><p class="kicker">One illustrative expected item</p><p class="h3">Task: update the slides</p><p class="body" style="margin-top:20px">Owner: Sara<br/>Deadline: <span class="c-yellow">null</span></p></div><p class="body">Extract → check the source → review.</p></div></div></div><div class="foot"><span class="pg" style="margin-left:auto">5 / 37</span></div></section>
+<section data-label="Model kinds and capabilities"><div class="pad"><p class="kicker r">Choose the job before the file</p><h2 class="h1 r d1s">What kinds of models <span class="c-blue">can run locally?</span></h2><div class="row r d2s" style="gap:28px;margin-top:42px;align-items:stretch"><div class="card grow" style="padding:36px;"><div class="h3">Text instructions</div><p class="body" style="margin-top:18px">Extract, summarize or draft.<br><br><span class="c-blue">Gemma 3 1B IT</span><br>Text-only instruction model.</p></div><div class="card grow" style="padding:36px;"><div class="h3">Multimodal input</div><p class="body" style="margin-top:18px">Use text with images or audio, where supported.<br><br><span class="c-blue">Gemma 4 E2B</span><br>Needs matching input pipelines.</p></div><div class="card grow" style="padding:36px;"><div class="h3">Tool specialization</div><p class="body" style="margin-top:18px">Propose functions and arguments.<br><br><span class="c-blue">FunctionGemma 270M</span><br>Needs its own call protocol.</p></div></div><div class="card r d3s" style="padding:28px 36px;margin-top:28px;background:var(--blue-lo)"><p class="body"><b>Base:</b> trained for continuation. <b>Instruct / IT:</b> further trained to follow requests.<br>Training, input types and specialization overlap. These are examples, not verified demo artifacts.</p></div></div><div class="foot"><span class="pg" style="margin-left:auto">6 / 37</span></div></section>
+<section data-label="Mobile model families and sizes"><div class="pad"><p class="kicker r">M = million · B = billion learned parameters</p><h2 class="h1 r d1s">Compare families. <span class="c-blue">Then verify the artifact.</span></h2><div class="r d2s" style="margin-top:42px"><div class="row small" style="padding:0 26px 18px;gap:30px"><div style="width:330px">FAMILY</div><div style="width:540px">EXAMPLE PARAMETER COUNTS</div><div class="grow">INPUT / ROLE</div></div><div class="row" style="align-items:center;gap:30px;padding:25px 26px;border-top:2px solid var(--outline)"><div class="h3" style="width:330px">Gemma 3</div><div class="body c-blue" style="width:540px">270M · 1B · 4B</div><div class="body grow">270M / 1B: text · 4B: text + image</div></div><div class="row" style="align-items:center;gap:30px;padding:25px 26px;border-top:2px solid var(--outline)"><div class="h3" style="width:330px">Qwen3</div><div class="body c-blue" style="width:540px">0.6B · 1.7B</div><div class="body grow">Text generation</div></div><div class="row" style="align-items:center;gap:30px;padding:25px 26px;border-top:2px solid var(--outline)"><div class="h3" style="width:330px">Llama 3.2</div><div class="body c-blue" style="width:540px">1B · 3B</div><div class="body grow">Text · base / instruct variants</div></div><div class="row" style="align-items:center;gap:30px;padding:25px 26px;border-top:2px solid var(--outline)"><div class="h3" style="width:330px">SmolLM2</div><div class="body c-blue" style="width:540px">135M · 360M · 1.7B</div><div class="body grow">Compact text models</div></div></div><div class="card r d3s" style="padding:28px 36px;margin-top:28px;background:var(--blue-lo)"><p class="body">A family name is not a runnable artifact. Match the converted file, runtime and phone.</p></div><p class="small r d4s" style="margin-top:24px">Examples to evaluate, not an exhaustive list or a claim that every variant was tested in this app. Larger sizes need more device resources.</p></div><div class="foot"><span class="pg" style="margin-left:auto">7 / 37</span></div></section>
+<section data-label="Read a model label"><div class="pad"><p class="kicker r">Parameter count is not a download size</p><h2 class="h1 r d1s">Read the label <span class="c-blue">one part at a time.</span></h2><div class="card r d2s" style="margin-top:44px;padding:36px;background:var(--blue-lo)"><div class="h2">Gemma 3 · 1B · IT</div><p class="body" style="margin-top:20px">Family / generation · parameter count · instruction tuning</p></div><div class="row r d3s" style="gap:32px;margin-top:30px"><div class="card grow" style="padding:36px;"><div class="h3">1B parameters</div><p class="body" style="margin-top:18px">One billion learned numerical values.<br><br>270M means 270 million.<br>1B does not mean 1 GB.</p></div><div class="card grow" style="padding:36px;"><div class="h3">A separate precision label</div><p class="body" style="margin-top:18px">FP16, INT8 or INT4 describes how numerical values are represented.<br><br>It changes storage per weight.</p></div></div><p class="body r d4s" style="margin-top:28px">Parameter count × bits per weight → a first estimate of weight storage.</p></div><div class="foot"><span class="pg" style="margin-left:auto">8 / 37</span></div></section>
+<section data-label="Bits bytes and weight precision"><div class="pad"><p class="kicker r">The storage prerequisite</p><h2 class="h1 r d1s">What does <span class="c-blue">4-bit</span> mean?</h2><div class="row r d2s" style="gap:32px;margin-top:42px"><div class="card grow" style="padding:36px;"><div class="h3">Bits are binary digits</div><p class="body" style="margin-top:18px">A bit is 0 or 1.<br><br><b>2 bits → 4 codes</b><br><code class="code-inline">00 · 01 · 10 · 11</code><br><br><b>8 bits = 1 byte</b></p></div><div class="card grow" style="padding:36px;background:var(--blue-lo)"><div class="h3">Precision labels</div><p class="body" style="margin-top:18px"><b>FP16</b> · 16-bit floating point<br><br><b>INT8</b> · 8-bit integers<br><br><b>INT4</b> · 4-bit integers</p></div></div><p class="body r d3s" style="margin-top:28px">More bits can represent more values. Quantization maps codes to approximate numerical levels.</p><p class="small r d4s" style="margin-top:22px">Weight precision is separate from parameter count, context length and the phone’s 64-bit architecture.</p></div><div class="foot"><span class="pg" style="margin-left:auto">9 / 37</span></div></section>
+<section data-label="Quantization and weight storage"><div class="pad"><p class="kicker r">Fewer stored levels · an approximation</p><h2 class="h1 r d1s">Quantization trades precision <span class="c-blue">for storage.</span></h2><div class="row r d2s" style="gap:32px;margin-top:42px"><div class="card grow" style="padding:36px;background:var(--blue-lo)"><div class="small c-blue">TOY 2-BIT QUANTIZER</div><div class="h2" style="margin-top:24px">0.73 → 0.75</div><p class="body" style="margin-top:24px">Four codes map to four levels:<br>0.00 · 0.25 · 0.50 · 0.75<br><br>Approximation error: +0.02<br>Same weight count, fewer stored bits.</p></div><div class="card grow" style="padding:36px"><div class="h3">One billion stored weights</div><p class="body" style="margin-top:22px">FP16 → <b>2.0 GB</b><br>INT8 → <b>1.0 GB</b><br>INT4 → <b>0.5 GB</b></p><p class="body c-blue" style="margin-top:28px">1 billion × 4 bits ÷ 8<br>= 0.5 billion bytes</p><p class="small" style="margin-top:20px">Idealized weight payload · decimal GB</p></div></div><p class="small r d3s" style="margin-top:28px">Real formats add scales and metadata. Runtime RAM adds caches and buffers. Re-test quality; lower precision does not guarantee faster inference.</p></div><div class="foot"><span class="pg" style="margin-left:auto">10 / 37</span></div></section>
+<section data-label="Generation">
+<div class="pad">
+<p class="kicker r">Weights → tokens → shared UI</p>
+<h2 class="h1 r d1s">Generate within a token budget.</h2>
+<div class="r d2s" style="margin-top:30px">
+<div style="display:grid;grid-template-columns:420px 1fr;gap:40px;align-items:baseline;padding:30px 0;border-top:2px solid var(--outline)"><div class="h2" style="font-size:58px;display:flex;align-items:center;gap:22px">Tokenize</div><p class="body" style="font-size:31px">Split text into pieces and map them to IDs. A token may be a word, part of a word or punctuation.</p></div>
+<div style="display:grid;grid-template-columns:420px 1fr;gap:40px;align-items:baseline;padding:30px 0;border-top:2px solid var(--outline)"><div class="h2" style="font-size:58px;display:flex;align-items:center;gap:22px">Prefill</div><p class="body" style="font-size:31px">Process instructions, input and included history to build the working context.</p></div>
+<div style="display:grid;grid-template-columns:420px 1fr;gap:40px;align-items:baseline;padding:30px 0;border-top:2px solid var(--outline)"><div class="h2" style="font-size:58px;display:flex;align-items:center;gap:22px">Decode</div><p class="body" style="font-size:31px">Score possible next tokens, select one and append it. Repeat until a stop condition or output limit.</p></div>
+<div style="display:grid;grid-template-columns:420px 1fr;gap:40px;align-items:baseline;padding:30px 0;border-top:2px solid var(--outline)"><div class="h2" style="font-size:58px;display:flex;align-items:center;gap:22px">Context</div><p class="body" style="font-size:31px">Input, history and output share one window. Leave room for the response.</p></div>
+<div style="display:grid;grid-template-columns:420px 1fr;gap:40px;align-items:baseline;padding:30px 0;border-top:2px solid var(--outline)"><div class="h2" style="font-size:58px;display:flex;align-items:center;gap:22px">Stream</div><p class="body" style="font-size:31px">Forward decoded chunks through Kotlin Flow. A chunk need not equal a tokenizer token.</p></div>
+<div style="border-top:2px solid var(--outline)"></div>
+</div>
+</div>
+<div class="foot"><span class="pg" style="margin-left:auto">11 / 37</span></div>
+</section>
+<section data-label="What LiteRT-LM is"><div class="pad"><p class="kicker r">Meet the runtime before the KMP adapters</p><h2 class="h1 r d1s">LiteRT-LM runs <span class="c-blue">the local model.</span></h2><p class="body r d1s" style="margin-top:26px">Google AI Edge’s runtime and APIs for on-device language-model inference.</p><div class="row r d2s" style="margin-top:40px;gap:30px;align-items:stretch"><div class="card grow" style="padding:36px;"><div class="h3">Compatible model file</div><p class="body" style="margin-top:20px">The converted model package you provision on the device.</p></div><div class="h2" style="align-self:center">→</div><div class="card grow" style="padding:36px;background:var(--blue-lo)"><div class="h3">LiteRT-LM</div><p class="body" style="margin-top:20px">Load the model.<br>Run conversations and generation.<br>Stream output chunks.</p></div><div class="h2" style="align-self:center">→</div><div class="card grow" style="padding:36px;"><div class="h3">Your app</div><p class="body" style="margin-top:20px">Collect the text.<br>Check the result.<br>Update UI or route an action.</p></div></div><div class="card r d3s" style="margin-top:32px;padding:28px 36px"><p class="body"><b>Gemma:</b> model family &nbsp;·&nbsp; <b>LiteRT-LM:</b> inference runtime &nbsp;·&nbsp; <b>KMP:</b> shared app code</p></div><p class="small r d4s" style="margin-top:24px">This project uses the Kotlin SDK on Android and a Swift bridge on iOS. Exact artifact and backend support still matter.</p></div><div class="foot"><span class="pg" style="margin-left:auto">12 / 37</span></div></section>
+<section data-label="KMP owns the product rules"><div class="pad"><p class="kicker r">Kotlin Multiplatform</p><h2 class="h1 r d1s">Share the rules. <span class="c-blue">Adapt the runtime.</span></h2>
+<div class="card r d2s" style="margin-top:42px;background:var(--blue-lo)"><p class="kicker">commonMain</p><div class="row" style="justify-content:space-between;gap:20px"><div class="h3">Compose UI</div><div class="h3">Prompts</div><div class="h3">Parsing + checks</div><div class="h3">Tool routing</div></div></div>
+<div class="row r d3s" style="margin-top:28px;gap:40px"><div class="grow stack" style="gap:16px"><p class="body c-blue">↓ actual · Android</p><div class="card"><div class="h3">LiteRT-LM Kotlin SDK</div><p class="body" style="margin-top:20px">Callbacks → Kotlin Flow<br/>Android native device APIs</p></div></div><div class="grow stack" style="gap:16px"><p class="body c-blue">↓ actual · iOS</p><div class="card"><div class="h3">Kotlin → Swift LiteRT-LM</div><p class="body" style="margin-top:20px">Notifications → Kotlin Flow<br/>iOS native device APIs</p></div></div></div>
+<p class="body r d4s" style="margin-top:30px">One shared contract. Platform-specific initialization, permissions and effects.</p></div><div class="foot"><span class="pg" style="margin-left:auto">13 / 37</span></div></section>
+<section data-label="The shared inference API">
+<div class="pad">
+<p class="kicker r">The shared Kotlin boundary</p>
+<h2 class="h1 r d1s">One shared <span class="c-blue">Kotlin API.</span></h2>
+<div class="row" style="margin-top:44px;gap:36px;flex:1;align-items:flex-start">
+<div class="r d2s" style="flex:1.2">
+<pre class="code" style="font-size:23px"><div class="file">GemmaInference.kt</div><span class="k">expect</span> <span class="k">class</span> GemmaInference() {
+  <span class="k">suspend</span> <span class="k">fun</span> loadModel(
+    modelPath: <span class="t">String</span>,
+    config: <span class="t">ModelConfig</span>
+  )
+  <span class="k">fun</span> generateResponse(
+    prompt: <span class="t">String</span>
+  ): <span class="t">Flow</span>&lt;<span class="t">String</span>&gt;
+}</pre>
+</div>
+<div class="stack r d3s" style="flex:.8;gap:24px">
+<div class="card" style="background:var(--surface)">
+<div class="h3" style="font-size:36px">Shared Flow</div>
+<p class="body" style="font-size:27px;margin-top:10px"><code class="code-inline">Flow&lt;String&gt;</code> emits runtime text chunks. A shared contract does not guarantee identical native lifecycle behavior.</p>
+</div>
+<div class="card" style="background:var(--blue-lo)">
+<div class="h3 c-blue" style="font-size:36px">Collect text chunks</div>
+<pre class="code" style="margin-top:18px;font-size:23px;padding:26px 30px;background:rgba(0,0,0,.35)">inference.generateResponse(prompt)
+  .collect { chunk -&gt;
+    answer += chunk
+  }</pre>
+</div>
+</div>
+</div>
+</div>
+<div class="foot"><span class="pg" style="margin-left:auto">14 / 37</span></div>
+</section>
+<section data-label="Native startup policies"><div class="pad"><p class="kicker r">What implementing both platforms exposes</p><h2 class="h1 r d1s">Same API. <span class="c-blue">Different startup policy.</span></h2>
+<div class="row" style="margin-top:48px;gap:36px"><div class="grow card r d2s"><p class="kicker">Android adapter</p><div class="h3">GPU → CPU fallback</div><p class="body" style="margin-top:25px">Try GPU initialization.<br/>If it fails, try CPU.<br/>Then attempt warm-up.</p></div><div class="grow card r d3s" style="background:var(--blue-lo)"><p class="kicker">iOS adapter</p><div class="h3">GPU through Swift</div><p class="body" style="margin-top:25px">Load waits for native initialization.<br/>No CPU fallback in this bridge.<br/>Keep native sampler defaults.</p></div></div>
+<p class="lead r d4s" style="margin-top:45px">Measure the same phases on each device.</p><p class="body r d5s" style="margin-top:20px">Both current adapters forward cancellation and close.<br/>Shared signatures do not establish performance or behavior parity.</p></div><div class="foot"><span class="pg" style="margin-left:auto">15 / 37</span></div></section>
+<section data-label="Walkthrough: note to draft"><div class="pad"><p class="kicker r">Illustrative expected output · one item</p><h2 class="h1 r d1s">Missing information <span class="c-blue">stays missing.</span></h2><div class="row" style="margin-top:40px;gap:44px;align-items:flex-start"><div class="stack r d2s" style="flex:1;gap:24px"><div class="card"><div class="small c-blue">FICTIONAL SOURCE NOTE</div><p class="body" style="margin-top:18px">Sara will update the slides. No deadline was agreed.<br><br>Omar will record the Android demo by Friday.</p></div><p class="body">Extract → preserve evidence → check fields → user reviews.</p><p class="small">Friday belongs to Omar’s task.<br>Do not attach it to Sara’s task.</p></div><div class="r d3s" style="flex:1"><pre class="code" style="font-size:23px;white-space:pre-wrap"><div class="file">One item inside the response’s items array</div>{
+  "task": "update the slides",
+  "owner": "Sara",
+  "deadline": null,
+  "evidence": "Sara will update the slides."
+}</pre><p class="body" style="margin-top:28px">Exact source matches help catch invented fields. They do not prove the model understood the commitment.</p></div></div></div><div class="foot"><span class="pg" style="margin-left:auto">16 / 37</span></div></section>
+<section data-label="Walkthrough: local reference"><div class="pad"><p class="kicker r">Supplied-context grounding · fictional workshop FAQ</p><h2 class="h1 r d1s">An answer needs <span class="c-blue">a source.</span></h2><div class="card r d2s" style="margin-top:34px"><div class="small c-blue">BUNDLED REFERENCE · sourceId: venue</div><p class="body" style="margin-top:12px">The Offline AI workshop takes place in Room Cedar on level 2.</p></div><div class="row r d3s" style="margin-top:26px;gap:30px;align-items:stretch"><div class="card grow"><div class="h3">Where is the workshop?</div><pre class="code" style="font-size:23px;margin-top:22px;white-space:pre-wrap">{
+ "sourceId": "venue",
+ "quote": "The Offline AI workshop takes place in Room Cedar on level 2."
+}</pre></div><div class="card grow" style="background:var(--blue-lo)"><div class="h3">What is the Wi-Fi password?</div><pre class="code" style="font-size:23px;margin-top:22px;white-space:pre-wrap">{
+ "sourceId": null,
+ "quote": null
+}</pre><p class="body" style="margin-top:20px">The supplied reference has no answer.</p></div></div><p class="small r d4s" style="margin-top:24px">Illustrative expected responses. Known source + exact quote are checked; question relevance still needs evaluation. No vector search is implemented in this demo.</p></div><div class="foot"><span class="pg" style="margin-left:auto">17 / 37</span></div></section>
+<section data-label="Cloud function calling: fresh weather"><div class="pad"><p class="kicker r">Why function calling? · a conceptual cloud example</p><h2 class="h1 r d1s">Today’s weather needs <span class="c-blue">fresh data.</span></h2><p class="body r d1s" style="margin-top:24px">“What is the weather in Riyadh today?” Model weights are not a live weather feed.</p><div class="row" style="gap:32px;margin-top:32px;align-items:stretch"><div class="card grow r d2s" style="padding:32px"><div class="h3">1 · Describe → propose</div><p class="body" style="margin-top:18px"><b>Tool:</b> <code class="code-inline">get_weather</code><br><b>Description:</b> get current conditions<br><b>Parameter:</b> <code class="code-inline">location: String</code> · required</p><pre class="code" style="font-size:28px;line-height:1.35;margin-top:24px;padding:24px 28px"><div class="file">Model proposes · conceptual call</div>get_weather(location = "Riyadh")</pre></div><div class="card grow r d3s" style="padding:32px;background:var(--blue-lo)"><div class="h3">2 · Fetch → report → answer</div><p class="body" style="margin-top:18px">The app validates the location and queries a weather provider, then returns the tool result to the model.</p><pre class="code" style="font-size:28px;line-height:1.35;margin-top:22px;padding:24px 28px;white-space:pre-wrap"><div class="file">Illustrative tool result · not today’s observation</div>{"tempC":26, "condition":"sunny"}</pre><p class="body" style="margin-top:20px">Model: “The tool reports 26°C and sunny.”</p></div></div><p class="small r d4s" style="margin-top:26px">Function calling: the model proposes a function and arguments; the app executes it. Mock weather values; this app does not implement a weather tool.</p></div><div class="foot"><span class="pg" style="margin-left:auto">18 / 37</span></div></section>
+<section data-label="Function calling on the device"><div class="pad"><p class="kicker r">From fresh weather data to a local device action</p><h2 class="h1 r d1s">Keep the contract. <span class="c-blue">Move the model.</span></h2><div class="card r d2s" style="margin-top:40px;padding:32px 36px;background:var(--blue-lo)"><p class="body">“Turn off the flashlight.” → <b>on-device model</b> → <code class="code-inline">toggle_torch(enable=false)</code> → <b>app checks + native API</b></p></div><div class="row r d3s" style="gap:32px;margin-top:30px"><div class="card grow" style="padding:36px;"><div class="h3">Android SDK option</div><p class="body" style="margin-top:20px">Register annotated Kotlin tools with LiteRT-LM.<br><br>Inspect returned tool calls before dispatch in manual mode.</p></div><div class="card grow" style="padding:36px;"><div class="h3">iOS in this project</div><p class="body" style="margin-top:20px">Supply tool instructions in the system prompt.<br><br>Swift streams text; shared Kotlin parses the proposal and validates it.</p></div></div><p class="body r d4s" style="margin-top:28px">Local inference can run offline. A live weather lookup still needs a data connection.</p><p class="small r d4s" style="margin-top:20px">Current Android and iOS use shared prompting. Swift also exposes native tool APIs; prompting is a project choice.</p></div><div class="foot"><span class="pg" style="margin-left:auto">19 / 37</span></div></section>
+<section data-label="A complete function-calling request"><div class="pad"><p class="kicker r">Complete teaching example · one tool · empty history</p><h2 class="h1 r d1s">The tool contract <span class="c-blue">travels with the request.</span></h2><pre class="code r d2s" style="font-size:28px;line-height:1.35;padding:26px 32px;margin-top:30px;white-space:pre-wrap"><span class="c-blue" style="font-weight:650">SYSTEM</span>
+You are an offline assistant.
+Available tool: toggle_torch
+Description: Turn the device flashlight on or off.
+Parameter: enable — required Boolean; true=on, false=off.
+Call it only when the user asks for that device action.
+Use a JSON Boolean and no extra arguments.
+For a tool call, return ONLY a proposal inside &lt;&lt; &gt;&gt;.
+Example: &lt;&lt;{&quot;tool&quot;:&quot;toggle_torch&quot;,&quot;arguments&quot;:{&quot;enable&quot;:true}}&gt;&gt;
+If no tool is needed, answer normally without a tool call.
+
+<span class="c-blue" style="font-weight:650">HISTORY:</span> []
+<span class="c-blue" style="font-weight:650">USER:</span> Turn off the flashlight.</pre><p class="body r d3s" style="margin-top:22px">Expected proposal: <code class="code-inline">&lt;&lt;{"tool":"toggle_torch","arguments":{"enable":false}}&gt;&gt;</code></p><p class="small r d4s" style="margin-top:18px">Self-contained teaching request, not a raw app capture. Default chat rebuilds system instructions with the tool list; history and user text are separate.</p></div><div class="foot"><span class="pg" style="margin-left:auto">20 / 37</span></div></section>
+<section data-label="LiteRT-LM SDK function calling"><div class="pad"><p class="kicker r">Android SDK option · compatible tool-capable artifact required</p><h2 class="h1 r d1s">The SDK builds <span class="c-blue">the tool contract.</span></h2><p class="body r d1s" style="margin-top:24px">SDK = Software Development Kit. LiteRT-LM can derive tool definitions from Kotlin functions.</p><div class="row" style="gap:32px;margin-top:28px;align-items:stretch"><div class="card grow r d2s" style="padding:28px"><div class="h3">Describe a Kotlin function</div><pre class="code" style="font-size:26px;line-height:1.35;padding:24px 26px;margin-top:20px"><div class="file">Illustrative · import com.google.ai.edge.litertlm.*</div><span class="k">class</span> <span class="t">TorchTools</span>(
+  <span class="k">private</span> <span class="k">val</span> run: (<span class="t">Boolean</span>) -&gt; <span class="t">String</span>
+) : <span class="t">ToolSet</span> {
+  <span class="c-blue">@Tool</span>(description = <span class="s">&quot;Control torch&quot;</span>)
+  <span class="k">fun</span> toggle_torch(
+    <span class="c-blue">@ToolParam</span>(description = <span class="s">&quot;Enable torch&quot;</span>)
+    enable: <span class="t">Boolean</span>
+  ): <span class="t">String</span> = run(enable)
+}</pre></div><div class="card grow r d3s" style="padding:28px;background:var(--blue-lo)"><div class="h3">Register, then inspect</div><pre class="code" style="font-size:26px;line-height:1.35;padding:24px 26px;margin-top:20px"><div class="file">LiteRT-LM Kotlin 0.14.0 · abridged</div><span class="k">val</span> config = <span class="t">ConversationConfig</span>(
+  tools = listOf(tool(torchTools)),
+  automaticToolCalling = <span class="k">false</span>
+)
+<span class="k">val</span> conversation =
+  engine.createConversation(config)
+<span class="k">val</span> reply = conversation.sendMessage(prompt)
+<span class="comment">// App inspects reply.toolCalls.</span></pre></div></div><p class="small r d4s" style="margin-top:24px">Available SDK route, not this demo’s wiring. Current Android + iOS use prompted proposals. Swift also exposes native tool APIs.</p></div><div class="foot"><span class="pg" style="margin-left:auto">21 / 37</span></div></section>
+<section data-label="A complete tool-call lifecycle"><div class="pad"><p class="kicker r">Concrete example · toggle_torch</p><h2 class="h1 r d1s">Follow one call <span class="c-blue">end to end.</span></h2><div class="row" style="margin-top:38px;gap:44px;align-items:flex-start"><div class="stack r d2s" style="flex:1;gap:18px"><div class="card" style="padding:36px"><div class="h3">1 · Define + expose</div><p class="body" style="margin-top:12px">Tool name + Boolean <code class="code-inline">enable</code>.<br>SDK registration or shared prompt instructions.</p></div><div class="card" style="padding:36px"><div class="h3">2 · Model proposes</div><pre class="code" style="margin-top:18px;font-size:23px;padding:20px 28px;white-space:pre-wrap">&lt;&lt;{
+ "tool": "toggle_torch",
+ "arguments": {"enable": false}
+}&gt;&gt;</pre><p class="small" style="margin-top:12px">Illustrative proposal · no device action yet</p></div></div><div class="stack r d3s" style="flex:1;gap:18px"><div class="card" style="padding:36px"><div class="h3">3 · Kotlin checks</div><p class="body" style="margin-top:12px"><code class="code-inline">extractToolCall</code> → <code class="code-inline">ToggleTorchTool</code><br>Check exact keys + types → native adapter.</p></div><div class="card" style="background:var(--blue-lo);padding:36px"><div class="h3">4 · Device reports</div><p class="body" style="margin-top:12px">Native API result or error → <code class="code-inline">ToolResult</code> → visible UI.</p></div></div></div><p class="body r d4s" style="margin-top:30px">This app stops at the displayed result. A continuing model conversation also needs the tool result sent back to the model.</p></div><div class="foot"><span class="pg" style="margin-left:auto">22 / 37</span></div></section>
+<section data-label="Argument quiz">
+<div class="pad">
+<p class="kicker r" id="quiz-cue">Audience check · exactly one Boolean argument</p>
+<h2 class="h1 r d1s">Which inputs <span class="c-blue">should we reject?</span></h2>
+<div class="row" style="margin-top:44px;gap:36px;flex:1;align-items:flex-start">
+<div class="r d2s" style="flex:1.2">
+<pre class="code" style="font-size:23px"><div class="file">toggle_torch · enable: Boolean</div>// A
+{<span class="s">"enable"</span>: <span class="k">true</span>}
+
+// B
+{<span class="s">"enable"</span>: <span class="s">"true"</span>}
+
+// C
+{<span class="s">"enable"</span>: <span class="k">true</span>,
+ <span class="s">"mode"</span>: <span class="s">"blink"</span>}</pre>
+</div>
+<div class="stack r d3s" id="quiz-guard" style="flex:.8;gap:24px">
+<div class="card" style="background:var(--surface)">
+<div class="h3" style="font-size:36px">B and C are rejected</div>
+<p class="body" style="font-size:27px;margin-top:10px"><code class="code-inline">A</code> passes the argument guard. B is a string; C has an extra key. Type validity still does not prove intent.</p>
+</div>
+<div class="card" style="background:var(--blue-lo)">
+<div class="h3 c-blue" style="font-size:36px">Shared Kotlin guard</div>
+<pre class="code" style="margin-top:18px;font-size:23px;padding:26px 30px;background:rgba(0,0,0,.35)"><span class="k">val</span> arg = arguments[<span class="s">"enable"</span>]
+  <span class="k">as</span>? <span class="t">JsonPrimitive</span>
+<span class="k">val</span> flag = arg?.takeUnless {
+  it.isString
+}?.booleanOrNull
+<span class="k">val</span> ok = arguments.keys ==
+  setOf(<span class="s">"enable"</span>) &amp;&amp; flag != <span class="k">null</span></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="foot"><span class="pg" style="margin-left:auto">23 / 37</span></div>
+</section>
+<section data-label="Limits">
+<div class="pad">
+<p class="kicker r">What can still go wrong?</p>
+<h2 class="h1 r d1s">Valid types. <span class="c-yellow">Wrong intent.</span></h2>
+<div class="card r d2s" style="margin-top:50px;background:var(--surface-2);padding:48px 56px;border-radius:var(--r-lg) var(--r-lg) var(--r-lg) 12px">
+<div class="small" style="font-size:23px">An illustrative negative-intent case</div>
+<p class="lead ink" style="font-size:44px;line-height:1.35;margin-top:16px">User: “Do NOT turn the flashlight on.” Model proposes <span style="background:var(--yellow);color:#202124;padding:0 10px;border-radius:10px">enable=true</span>.</p>
+</div>
+<div class="row" style="margin-top:36px;gap:32px;flex:1">
+<div class="card r d3s" style="flex:1;background:var(--surface)">
+<div class="h3" style="font-size:38px">Why</div>
+<p class="body" style="font-size:28px;margin-top:14px">A Boolean can pass type checks while the action <span class="ink">contradicts</span> the user’s request.</p>
+</div>
+<div class="card r d4s" style="flex:1.25;background:var(--yellow-lo)">
+<div class="h3 c-yellow" style="font-size:38px">What to check</div>
+<ul class="body ink" style="font-size:27px;margin:14px 0 0;padding-left:30px;display:flex;flex-direction:column;gap:10px">
+<li>Test negation and no-action requests</li>
+<li>Validate each tool’s arguments in shared Kotlin</li>
+<li>Add review before consequential effects</li>
+</ul>
+<p class="small" style="font-size:24px;margin-top:18px;color:var(--yellow-hi)">The current chat dispatches automatically after its implemented checks.</p>
+</div>
+</div>
+</div>
+<div class="foot"><span class="pg" style="margin-left:auto">24 / 37</span></div>
+</section>
+<section data-label="A reusable evaluation method"><div class="pad"><p class="kicker r">Test cases, not measured results</p><h2 class="h1 r d1s">Test the feature, <span class="c-blue">not just the JSON.</span></h2>
+<div class="stack" style="gap:22px;margin-top:45px"><div class="card r d2s"><div class="row" style="align-items:center"><div class="h3" style="width:440px">A real commitment</div><p class="body">Sara’s task + owner; missing deadline stays null.</p></div></div><div class="card r d3s"><div class="row" style="align-items:center"><div class="h3" style="width:440px">No commitment</div><p class="body">A discussion does not become an invented task.</p></div></div><div class="card r d4s" style="background:var(--blue-lo)"><div class="row" style="align-items:center"><div class="h3" style="width:440px">Invalid tool arguments</div><p class="body">Reject the request; expect zero native calls.</p></div></div></div>
+<p class="body r d5s" style="margin-top:34px">Record artifact + runtime + backend + device.<br/>Measure cold load, first visible chunk and total completion; inspect the native effect.</p></div><div class="foot"><span class="pg" style="margin-left:auto">25 / 37</span></div></section>
+<section data-label="Failure and recovery"><div class="pad"><p class="kicker r">Current app behavior</p><h2 class="h1 r d1s">Make failure <span class="c-blue">recoverable.</span></h2><div class="r d2s" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:42px"><div class="card"><div class="h3">Model not ready</div><p class="body" style="margin-top:14px">Import/load in Settings; wait for readiness. Keep the input available.</p></div><div class="card"><div class="h3">Unverifiable output</div><p class="body" style="margin-top:14px">Show a validation error. Retain raw output for inspection; edit the input and retry.</p></div><div class="card"><div class="h3">Invalid torch arguments</div><p class="body" style="margin-top:14px">Return an invalid-request result before calling the native function.</p></div><div class="card"><div class="h3">User cancels</div><p class="body" style="margin-top:14px">Stop generation, preserve the input, and let the user edit or retry.</p></div></div><p class="small r d3s" style="margin-top:30px">Product extension: offer a manual workflow when generation cannot produce a useful result.</p></div><div class="foot"><span class="pg" style="margin-left:auto">26 / 37</span></div></section>
+<section data-label="Live clipboard proof">
+<div class="pad center" style="position:relative">
+<p class="lead r" style="font-size:52px">Live demo · airplane mode on · Wi-Fi off</p>
+<p class="r d1s" style="font-size:96px;line-height:1.06;font-weight:650;letter-spacing:-.03em;margin:34px 0 0;max-width:1560px">“Essex lantern 47”: <span class="c-red">inspect</span> → <span class="c-green">read</span> → <span class="c-yellow">paste</span>.</p>
+</div>
+<div class="foot"><span class="pg" style="margin-left:auto">27 / 37</span></div>
+</section>
+<section data-label="Three things to take home"><div class="pad"><p class="kicker r">Your next offline feature</p><h2 class="h1 r d1s">Choose. Share. <span class="c-blue">Prove.</span></h2>
+<div class="row" style="margin-top:80px;gap:50px"><div class="grow r d2s"><div class="h2">Choose a fit</div><p class="body" style="margin-top:28px">A narrow task.<br/>A compatible artifact.<br/>A real target phone.</p></div><div class="grow r d3s"><div class="h2">Share the rules</div><p class="body" style="margin-top:28px">Prompts, parsing, validation and routing in commonMain.</p></div><div class="grow r d4s"><div class="h2">Prove the effect</div><p class="body" style="margin-top:28px">Test no-action cases.<br/>Inspect the proposal.<br/>Verify the native result.</p></div></div>
+<p class="lead r d5s" style="margin-top:85px">Model proposes → shared Kotlin checks → native code executes.</p><p class="small r d5s" style="margin-top:25px">The project QR is on the next slide. Start with GemmaInference.kt, Tooling.kt and DemoSamples.kt.</p></div><div class="foot"><span class="pg" style="margin-left:auto">28 / 37</span></div></section>
+<section data-role="qa" data-label="Questions">
+<div class="pad">
+<div class="row" style="flex:1;align-items:center;gap:80px">
+<div class="p" style="position:relative;width:560px;height:560px;flex-shrink:0">
+<div class="field-shape" style="inset:20px"><svg style="fill:var(--surface-2)" viewbox="0 0 100 100"><circle cx="50" cy="50" r="48"></circle></svg></div>
+<div style="position:absolute;inset:30px"><svg height="500" style="display:block;overflow:visible" viewbox="0 0 100 100" width="500"><defs><clippath id="hs-thanks"><circle cx="50" cy="50" r="48"></circle></clippath></defs><image alt="Abdul Basit" clip-path="url(#hs-thanks)" height="100" href="assets/portrait.png" preserveaspectratio="xMidYMid slice" width="100" x="0" y="0"/></svg></div>
+</div>
+<div class="grow stack">
+<h2 class="r" style="font-size:140px;line-height:.9;font-weight:700;letter-spacing:-.03em;margin:0;font-variation-settings:'ROND' 100">Questions</h2>
+<div class="r d1s" style="margin-top:36px">
+<div style="font-size:52px;font-weight:600;letter-spacing:-.02em">Abdul Basit</div>
+<div class="body" style="font-size:30px;margin-top:6px">Senior Software Engineer</div>
+<div class="body" style="font-size:28px;margin-top:2px;color:var(--ink-3)">Android GDE</div>
+</div>
+<div class="r d2s" style="margin-top:30px">
+<div class="card tight" style="background:var(--green-lo);display:flex;align-items:center;gap:30px;padding:22px 34px 22px 22px">
+<div style="background:#fff;padding:12px;border-radius:20px;flex-shrink:0"><img alt="Demo repository" src="assets/repo-qr.png" style="width:186px;height:186px;display:block;image-rendering:pixelated"/></div>
+<div><div class="h3" style="font-size:38px">Project</div><div class="body" style="font-size:26px;margin-top:4px">OfflineAI-KMP</div></div>
+</div>
+</div>
+<div class="row r d3s" style="margin-top:18px;gap:28px">
+<div class="card tight" style="background:var(--surface);display:flex;align-items:center;gap:28px;padding:26px 34px 26px 26px">
+<div style="background:#fff;padding:12px;border-radius:22px"><img alt="Google Slides fallback" src="assets/slides-qr.png" style="width:186px;height:186px;display:block;image-rendering:pixelated"/></div>
+<div><div class="small" style="font-size:23px">Talk</div><div class="h3" style="font-size:36px">Slides</div></div>
+</div>
+<div class="card tight" style="background:var(--surface);display:flex;align-items:center;gap:28px;padding:26px 34px 26px 26px">
+<div style="background:#fff;padding:12px;border-radius:22px"><img alt="LiteRT-LM documentation" src="assets/models-qr.png" style="width:186px;height:186px;display:block;image-rendering:pixelated"/></div>
+<div><div class="small" style="font-size:23px">Read</div><div class="h3" style="font-size:36px">Docs</div></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="foot"><span class="pg" style="margin-left:auto">29 / 37</span></div>
+</section>
+<section data-backup="true" data-label="Reference: app-owned execution">
+<div class="pad">
+<p class="kicker r">Reference · execution responsibilities</p>
+<h2 class="h1 r d1s">The app owns execution.</h2>
+<div class="row" style="margin-top:46px;flex:1;gap:56px;align-items:flex-start">
+<div class="r d2s" style="flex:1.35;position:relative;padding:28px;border-radius:64px;box-shadow:inset 0 0 0 5px var(--blue)">
+<div class="small c-blue" style="position:absolute;top:-22px;left:60px;background:var(--bg);padding:0 18px">the application</div>
+<div class="stack" style="gap:12px">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:96px;border-radius:var(--r-md);background:var(--blue-lo)"><div class="h3" style="font-size:38px">App defines</div><div class="small" style="font-size:25px;color:var(--blue-hi)">Known tools and argument types</div></div>
+<div style="display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:96px;border-radius:var(--r-md);background:var(--surface-2)"><div class="h3" style="font-size:38px">Model proposes</div><div class="small" style="font-size:25px;">Tool name and candidate arguments</div></div>
+<div style="display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:96px;border-radius:var(--r-md);background:var(--surface-2)"><div class="h3" style="font-size:38px">App validates</div><div class="small" style="font-size:25px;">Registered handler checks inputs</div></div>
+<div style="display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:96px;border-radius:var(--r-md);background:var(--surface-2)"><div class="h3" style="font-size:38px">App executes</div><div class="small" style="font-size:25px;">Native API and permissions</div></div>
+<div style="display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:96px;border-radius:var(--r-md);background:var(--surface-3)"><div class="h3" style="font-size:38px">App reports</div><div class="small" style="font-size:25px;">API result or error</div></div>
+</div>
+</div>
+<div class="stack r d3s" style="flex:.65;gap:28px;justify-content:center">
+<div class="card" style="background:var(--surface)">
+<div class="h3" style="font-size:36px">Shared Kotlin</div>
+<p class="body" style="font-size:28px;margin-top:12px">Steps 1, 3 and 5 live in commonMain: definitions, validation and reporting.</p>
+</div>
+<div class="card" style="background:var(--surface)">
+<div class="h3" style="font-size:36px">Native adapters</div>
+<p class="body" style="font-size:28px;margin-top:12px">Each platform connects to its runtime and <code class="code-inline">native APIs</code>. The model proposes; the app owns execution.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="foot"><span class="pg" style="margin-left:auto">30 / 37</span></div>
+</section>
+<section data-backup="true" data-label="Reference: the Swift bridge">
+<div class="pad">
+<p class="kicker r">Reference · the iOS bridge</p>
+<h2 class="h1 r d1s">Swift streams <span class="c-blue">to shared Kotlin.</span></h2>
+<div class="row" style="margin-top:44px;gap:36px;flex:1;align-items:flex-start">
+<div class="r d2s" style="flex:1.2">
+<pre class="code" style="font-size:23px"><div class="file">InferenceBridge.swift</div>let conversation =
+  <span class="k">try</span> <span class="k">await</span> engine.createConversation()
+let message = <span class="t">Message</span>(prompt)
+<span class="k">for</span> <span class="k">try</span> <span class="k">await</span> chunk <span class="k">in</span>
+    conversation.sendMessageStream(message) {
+  postToken(chunk.toString)
+}</pre>
+</div>
+<div class="stack r d3s" style="flex:.8;gap:24px">
+<div class="card" style="background:var(--surface)">
+<div class="h3" style="font-size:36px">Swift chunks</div>
+<p class="body" style="font-size:27px;margin-top:10px"><code class="code-inline">postToken forwards text through notifications. Kotlin observes the stream through callbackFlow. Cancellation and close are also forwarded.</code></p>
+</div>
+<div class="card" style="background:var(--blue-lo)">
+<div class="h3 c-blue" style="font-size:36px">Native lifecycle</div>
+<pre class="code" style="margin-top:18px;font-size:23px;padding:26px 30px;background:rgba(0,0,0,.35)">// load waits for native initialization
+// cancel is forwarded to Swift
+// close clears native engine state</pre>
+</div>
+</div>
+</div>
+</div>
+<div class="foot"><span class="pg" style="margin-left:auto">31 / 37</span></div>
+</section>
+<section data-backup="true" data-label="Reference: a structured draft">
+<div class="pad">
+<p class="kicker r">Reference · illustrative output</p>
+<h2 class="h1 r d1s">Extract a <span class="c-blue">structured draft.</span></h2>
+<div class="row" style="margin-top:44px;gap:36px;flex:1;align-items:flex-start">
+<div class="r d2s" style="flex:1.2">
+<pre class="code" style="font-size:23px"><div class="file">Expected JSON</div>{<span class="s">"items"</span>:[{
+  <span class="s">"task"</span>:<span class="s">"update the slides"</span>,
+  <span class="s">"owner"</span>:<span class="s">"Sara"</span>,
+  <span class="s">"deadline"</span>:<span class="k">null</span>,
+  <span class="s">"evidence"</span>:<span class="s">"Sara will update the slides."</span>
+}]}</pre>
+</div>
+<div class="stack r d3s" style="flex:.8;gap:24px">
+<div class="card" style="background:var(--surface)">
+<div class="h3" style="font-size:36px">Shape checks</div>
+<p class="body" style="font-size:27px;margin-top:10px"><code class="code-inline">parseNotes</code> checks fields and source substrings. This expected output is illustrative, not a captured model run or proof of meaning.</p>
+</div>
+<div class="card" style="background:var(--blue-lo)">
+<div class="h3 c-blue" style="font-size:36px">No commitments</div>
+<pre class="code" style="margin-top:18px;font-size:23px;padding:26px 30px;background:rgba(0,0,0,.35)">{<span class="s">"items"</span>:[]}</pre>
+</div>
+</div>
+</div>
+</div>
+<div class="foot"><span class="pg" style="margin-left:auto">32 / 37</span></div>
+</section>
+<section data-backup="true" data-label="Reference: source checks and meaning">
+<div class="pad">
+<p class="kicker r">Reference · text and meaning</p>
+<h2 class="h1 r d1s">Source checks have limits.</h2>
+<div class="r d2s" style="margin-top:30px">
+<div style="display:grid;grid-template-columns:420px 1fr;gap:40px;align-items:baseline;padding:30px 0;border-top:2px solid var(--outline)"><div class="h2" style="font-size:58px;display:flex;align-items:center;gap:22px">Task</div><p class="body" style="font-size:31px">Sara explicitly commits to updating the slides; her task can pass the source checks.</p></div>
+<div style="display:grid;grid-template-columns:420px 1fr;gap:40px;align-items:baseline;padding:30px 0;border-top:2px solid var(--outline)"><div class="h2" style="font-size:58px;display:flex;align-items:center;gap:22px">Owner</div><p class="body" style="font-size:31px">Sara is named in her evidence, while no deadline was agreed.</p></div>
+<div style="display:grid;grid-template-columns:420px 1fr;gap:40px;align-items:baseline;padding:30px 0;border-top:2px solid var(--outline)"><div class="h2" style="font-size:58px;display:flex;align-items:center;gap:22px">Friday</div><p class="body" style="font-size:31px">Friday is rejected using Sara's own sentence. A broader evidence span can still misattribute it.</p></div>
+<div style="display:grid;grid-template-columns:420px 1fr;gap:40px;align-items:baseline;padding:30px 0;border-top:2px solid var(--outline)"><div class="h2" style="font-size:58px;display:flex;align-items:center;gap:22px">Dark theme</div><p class="body" style="font-size:31px">Exact matching can pass a real discussion even when nobody committed to an action.</p></div>
+<div style="display:grid;grid-template-columns:420px 1fr;gap:40px;align-items:baseline;padding:30px 0;border-top:2px solid var(--outline)"><div class="h2" style="font-size:58px;display:flex;align-items:center;gap:22px">Meaning</div><p class="body" style="font-size:31px">Source matching verifies text, not the meaning or intent of that text.</p></div>
+<div style="border-top:2px solid var(--outline)"></div>
+</div>
+</div>
+<div class="foot"><span class="pg" style="margin-left:auto">33 / 37</span></div>
+</section>
+<section data-backup="true" data-label="Reference: compatible deployment">
+<div class="pad">
+<p class="kicker r">Reference · model compatibility</p>
+<h2 class="h1 r d1s">Match the full setup.</h2>
+<div class="r d2s" style="margin-top:30px">
+<div style="display:grid;grid-template-columns:420px 1fr;gap:40px;align-items:baseline;padding:30px 0;border-top:2px solid var(--outline)"><div class="h2" style="font-size:58px;display:flex;align-items:center;gap:22px">Artifact</div><p class="body" style="font-size:31px">Choose the exact converted model file that the selected runtime can load.</p></div>
+<div style="display:grid;grid-template-columns:420px 1fr;gap:40px;align-items:baseline;padding:30px 0;border-top:2px solid var(--outline)"><div class="h2" style="font-size:58px;display:flex;align-items:center;gap:22px">Engine</div><p class="body" style="font-size:31px">Pin versions; SDK capability does not guarantee app-level support.</p></div>
+<div style="display:grid;grid-template-columns:420px 1fr;gap:40px;align-items:baseline;padding:30px 0;border-top:2px solid var(--outline)"><div class="h2" style="font-size:58px;display:flex;align-items:center;gap:22px">Format</div><p class="body" style="font-size:31px">Check chat formatting, input types and context limits for the exact artifact.</p></div>
+<div style="display:grid;grid-template-columns:420px 1fr;gap:40px;align-items:baseline;padding:30px 0;border-top:2px solid var(--outline)"><div class="h2" style="font-size:58px;display:flex;align-items:center;gap:22px">Device</div><p class="body" style="font-size:31px">Measure peak memory and latency on the target phone, including runtime caches.</p></div>
+<div style="display:grid;grid-template-columns:420px 1fr;gap:40px;align-items:baseline;padding:30px 0;border-top:2px solid var(--outline)"><div class="h2" style="font-size:58px;display:flex;align-items:center;gap:22px">License</div><p class="body" style="font-size:31px">Read the terms for the model artifact and its distribution.</p></div>
+<div style="border-top:2px solid var(--outline)"></div>
+</div>
+</div>
+<div class="foot"><span class="pg" style="margin-left:auto">34 / 37</span></div>
+</section>
+<section data-backup="true" data-label="Model families">
+<div class="pad">
+<p class="kicker r">Model families in practice</p>
+<h2 class="h1 r d1s">Three examples, <span class="c-blue">different roles.</span></h2>
+<div class="stack" style="margin-top:50px;gap:22px;flex:1">
+<div class="card r d2s" style="background:var(--surface);display:flex;align-items:center;gap:36px;padding:34px 46px">
+<div style="flex:.8"><code class="h2" style="font-size:40px;color:var(--ink)">Gemma 3</code><p class="small" style="font-size:25px;margin-top:6px">1B IT</p></div>
+<div style="flex:1.2"><p class="body ink" style="font-size:29px">Text input. A compact instruction-tuned starting point.</p></div>
+</div>
+<div class="card r d3s" style="background:var(--blue-lo);display:flex;align-items:center;gap:36px;padding:34px 46px">
+<div style="flex:.8"><code class="h2" style="font-size:40px;color:var(--ink)">Gemma 4</code><p class="small" style="font-size:25px;margin-top:6px">E2B</p></div>
+<div style="flex:1.2"><p class="body ink" style="font-size:29px">Text, image <span class="ink">and audio</span>. Requires the matching app pipeline.</p></div>
+</div>
+<div class="card r d4s" style="background:var(--surface);display:flex;align-items:center;gap:36px;padding:34px 46px">
+<div style="flex:.8"><code class="h2" style="font-size:40px;color:var(--ink)">FunctionGemma</code><p class="small" style="font-size:25px;margin-top:6px">270M</p></div>
+<div style="flex:1.2"><p class="body ink" style="font-size:29px">A tool-calling specialist, with its own call format and integration needs.</p></div>
+</div>
+</div>
+<p class="lead r d5s" style="margin-top:40px;font-size:34px">Start small. <span class="ink">Use the smallest compatible artifact that passes your task checks.</span></p>
+</div>
+<div class="foot"><span class="pg" style="margin-left:auto">35 / 37</span></div>
+</section>
+<section data-backup="true" data-label="Reference: a local source or null">
+<div class="pad">
+<p class="kicker r">Reference · grounding</p>
+<h2 class="h1 r d1s">Use a source <span class="c-blue">or return null.</span></h2>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:36px;margin-top:60px;flex:1">
+<div class="card r d2s" style="background:var(--blue-lo);padding:56px">
+<code class="h2" style="font-size:66px;color:var(--blue-hi)">[venue]</code>
+<p class="body ink" style="font-size:30px;margin:18px 0 30px">“Room Cedar on level 2.”</p>
+<div style="display:flex;align-items:center;gap:18px;padding:18px 0;border-top:2px solid var(--outline)"><span style="width:40px;height:40px;flex-shrink:0;color:var(--green-hi)"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span><span class="body ink" style="font-size:32px">Cedar</span></div><div style="display:flex;align-items:center;gap:18px;padding:18px 0;border-top:2px solid var(--outline)"><span style="width:40px;height:40px;flex-shrink:0;color:var(--green-hi)"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span><span class="body ink" style="font-size:32px">level 2</span></div><div style="display:flex;align-items:center;gap:18px;padding:18px 0;border-top:2px solid var(--outline)"><span style="width:40px;height:40px;flex-shrink:0;color:var(--green-hi)"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span><span class="body ink" style="font-size:32px">Verbatim source quote</span></div>
+</div>
+<div class="card r d3s" style="background:var(--surface);padding:56px">
+<code class="h2" style="font-size:66px;color:var(--ink-2)">Null</code>
+<p class="body" style="font-size:30px;margin:18px 0 30px">No Wi-Fi password is supplied.</p>
+<div style="display:flex;align-items:center;gap:18px;padding:18px 0;border-top:2px solid var(--outline)"><span style="width:40px;height:40px;flex-shrink:0;color:var(--green-hi)"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span><span class="body ink" style="font-size:32px">No data</span></div><div style="display:flex;align-items:center;gap:18px;padding:18px 0;border-top:2px solid var(--outline)"><span style="width:40px;height:40px;flex-shrink:0;color:var(--green-hi)"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span><span class="body ink" style="font-size:32px">—</span></div><div style="display:flex;align-items:center;gap:18px;padding:18px 0;border-top:2px solid var(--outline)"><span style="width:40px;height:40px;flex-shrink:0;color:var(--red-hi)"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"></path></svg></span><span class="body ink" style="font-size:32px">Invented password</span></div>
+</div>
+</div>
+</div>
+<div class="foot"><span class="pg" style="margin-left:auto">36 / 37</span></div>
+</section>
+<section data-backup="true" data-label="Reference: choose a bounded task">
+<div class="pad">
+<p class="kicker r">Reference · task selection</p>
+<h2 class="h1 r d1s">Choose a bounded, checkable task.<span class="c-red"></span></h2>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:28px;margin-top:70px;flex:1">
+<div class="r d2s"><div class="card" style="display:flex;flex-direction:column;gap:30px;background:var(--surface);height:100%"><div class="icon-tile" style="background:var(--surface-3);color:var(--ink-2)"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.2 2"></path></svg></div><div class="h3">Good starting point</div><p class="body" style="font-size:31px">Extract fields from a short note. Let the user review the result.</p></div></div>
+<div class="r d3s"><div class="card" style="display:flex;flex-direction:column;gap:30px;background:var(--surface);height:100%"><div class="icon-tile" style="background:var(--surface-3);color:var(--ink-2)"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><path d="M5 3h14v18l-2.5-1.7L14 21l-2-1.7L10 21l-2.5-1.7L5 21z"></path><path d="M9 8h6M9 12h6M9 16h3"></path></svg></div><div class="h3">Check on the phone</div><p class="body" style="font-size:31px">Measure quality, latency and RAM with the exact model and device.</p></div></div>
+<div class="r d4s"><div class="card" style="display:flex;flex-direction:column;gap:30px;background:var(--surface);height:100%"><div class="icon-tile" style="background:var(--surface-3);color:var(--ink-2)"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><rect height="10" rx="2.5" width="14" x="5" y="11"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></div><div class="h3">Know the boundary</div><p class="body" style="font-size:31px">Small models can invent details or misread intent. A valid shape is not enough.</p></div></div>
+<div class="r d5s"><div class="card" style="display:flex;flex-direction:column;gap:30px;background:var(--surface);height:100%"><div class="icon-tile" style="background:var(--surface-3);color:var(--ink-2)"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><defs><mask id="icon-mask-6"><rect fill="#fff" height="24" stroke="none" width="24"></rect><path d="M3 3l18 18" stroke="#000" stroke-width="4.6"></path></mask></defs><g mask="url(#icon-mask-6)"><path d="M1.5 9.3a15 15 0 0 1 21 0"></path><path d="M5 12.9a10 10 0 0 1 14 0"></path><path d="M8.5 16.4a5 5 0 0 1 7 0"></path><path d="M12 20h.01"></path></g><path d="M3 3l18 18"></path></svg></div><div class="h3">Keep a fallback</div><p class="body" style="font-size:31px">A missing model or failed generation should leave a usable manual path.</p></div></div>
+</div>
+</div>
+<div class="foot"><span class="pg" style="margin-left:auto">37 / 37</span></div>
+</section></deck-stage>
+<script>
+/* Media: load every recording, show the "recording needed" card when a file is
+   missing, and restart the active slide's video on every visit. */
+(() => {
+  const deck = document.querySelector('deck-stage');
+
+  document.querySelectorAll('[data-src]').forEach((el) => {
+    const note = el.parentElement.querySelector('.asset-needed');
+    el.addEventListener('error', () => note && note.classList.add('show'));
+    el.addEventListener(el.tagName === 'VIDEO' ? 'loadeddata' : 'load',
+      () => note && note.classList.remove('show'));
+    el.src = el.dataset.src;
+  });
+
+  const play = (slide) => {
+    if (!slide) return;
+    slide.querySelectorAll('video').forEach((v) => {
+      try { v.currentTime = 0; } catch (e) {}
+      const attempt = v.play();
+      if (!attempt) return;
+      // The voice demo plays with sound. Browsers block unmuted autoplay until
+      // the page has had a key press or click — advancing the slide counts —
+      // so fall back to muted rather than showing a frozen frame.
+      attempt.catch(() => {
+        if (v.hasAttribute('data-audio')) { v.muted = true; v.play().catch(() => {}); }
+      });
+    });
+  };
+  const pause = (slide) => slide && slide.querySelectorAll('video').forEach((v) => v.pause());
+
+  deck.addEventListener('slidechange', (e) => {
+    pause(e.detail.previousSlide);
+    play(e.detail.slide);
+  });
+  window.addEventListener('load', () => play(document.querySelector('section[data-deck-active]')));
+})();
+</script>
+<aside aria-label="Speaker notes" hidden="" id="presenter-notes"><strong id="notes-heading"></strong><div id="notes-content"></div></aside><nav aria-label="Presentation controls" id="kmp-controls"><button id="notes-toggle" title="N">Notes N</button><button id="fullscreen-toggle" title="F">Fullscreen F</button><button id="backup-toggle" title="B">References B</button></nav><div id="progress"></div><div id="runtime-status"></div><script src="presenter-controls.js"></script></body>
+</html>

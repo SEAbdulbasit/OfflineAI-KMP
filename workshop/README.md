@@ -4,6 +4,8 @@ Welcome to the **Building Offline AI Apps with Gemma + Kotlin Multiplatform** wo
 
 > **Current talk:** Use [DEMO_EDITION.md](DEMO_EDITION.md) for the LiteRT-LM demos and verification status. The older long-form workshop files below retain MediaPipe examples, historical device guidance and illustrative performance figures. They are not current setup instructions or measured results for this app.
 
+The current 40-minute presentation is available as a [static website](../docs/talk/README.md), with [timed speaker notes](../docs/talk/speaker-notes.md) and a [complete tool-request example](../docs/talk/complete-tool-request.md).
+
 ## 📁 Contents
 
 ### Workshop Documentation
