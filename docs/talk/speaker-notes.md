@@ -32,19 +32,11 @@ Presenter cue: Lead with the use case, then point to the four reasons. Do not pr
 
 Source: https://developers.google.com/edge/litert-lm/overview
 
-Transition → What components must the phone run?
+Transition → Which model capabilities can an app choose?
 
-## 4. What runs on the phone
+## 4. Model kinds and capabilities
 
-2:15–3:00
-
-The model file holds learned numerical values. The runtime loads that compatible artifact and performs generation. The application supplies a request and receives generated output. Once the model and tokenizer are provisioned, this inference path does not need a cloud-model call. Follow the device boundary in the diagram; the phone now supplies storage, memory and compute.
-
-Transition → Which kinds of model can perform the job?
-
-## 5. Model kinds and capabilities
-
-3:00–4:00
+2:15–3:15
 
 Choose the job first. A text instruction model can draft or extract. A multimodal model accepts other input types, such as images or audio, if the app implements that pipeline. A tool specialist focuses on selecting functions and arguments. Base models learn continuation; instruct models receive further training to follow requests. The examples shown illustrate those roles; they are not a list of verified demo artifacts.
 
@@ -56,13 +48,13 @@ Sources: https://huggingface.co/google/gemma-3-1b-it ; https://gemma.ai/models/g
 
 Transition → What model families and sizes could we evaluate?
 
-## 6. Mobile model families and sizes
+## 5. Mobile model families and sizes
 
-4:00–5:00
+3:15–4:15
 
 M means million learned parameters; B means billion. We will unpack that term on the next slide. Gemma is one option, not the whole mobile-model landscape. Within Gemma 3, 270M and 1B are text-only; 4B adds image input, and the family also includes larger 12B and 27B variants. Do not assume every size fits a phone. Qwen3 has compact 0.6B and 1.7B text models. Llama 3.2 has 1B and 3B text variants. SmolLM2 spans 135M, 360M and 1.7B.
 
-These examples compare learned parameter counts, not download sizes or speed. Pick a candidate for your task, then check the exact converted artifact, chat format, runtime support, license and phone resources. This talk does not claim every listed model ran in our app.
+The practical point is that choosing LiteRT-LM does not force us to choose Gemma. Other supported model exports can use the same engine API. A swap can still change the expected chat template, tokenizer, input capabilities and tool format, so evaluate the complete export rather than promising a two-line universal switch. These examples compare learned parameter counts, not download sizes or speed. Pick a candidate for your task, then check the exact converted artifact, chat format, runtime support, license and phone resources. This talk does not claim every listed model ran in our app.
 
 If asked: This is a deliberately small, non-exhaustive set rather than a claim about the latest releases. Gemma 3n E2B/E4B use effective-size naming, which is different from total stored parameters. FunctionGemma is specialized and needs its own protocol. The repository’s app-managed LiteRT-LM route is also distinct from system-provided models such as Gemini Nano or Apple Foundation Models.
 
@@ -70,9 +62,9 @@ Sources: https://gemma.ai/models/gemma-3/ ; https://huggingface.co/Qwen/Qwen3-0.
 
 Transition → What do the parts of those model names mean?
 
-## 7. What 1B IT and INT4 mean
+## 6. What 1B IT and INT4 mean
 
-5:00–6:15
+4:15–5:15
 
 Read Gemma 3, 1B, and IT separately. Gemma 3 names the model family/generation. 1B means approximately one billion numerical parameters learned during training. IT means instruction-tuned. 270M means approximately 270 million parameters. A parameter count is not a download size, a speed benchmark, or a guarantee of quality.
 
@@ -84,27 +76,23 @@ Sources: official Gemma 3 artifact card; https://huggingface.co/docs/transformer
 
 Transition → How many bits store each numerical value?
 
-## 8. Bits bytes and weight precision
+## 7. Bits bytes and weight precision
 
-6:15–7:15
+5:15–6:00
 
-A bit has two possible values: zero or one. Two bits produce four patterns: 00, 01, 10 and 11. Four bits provide sixteen codes; eight bits provide 256. Eight bits make one byte. For a simple quantizer, these codes map onto a limited set of numerical levels.
+For model storage, the useful consequence is the number of codes per weight. Four bits provide 16 possible codes. Eight bits make one byte, so two packed 4-bit weight codes can fit in a byte before scales, metadata and alignment. Those codes represent approximate levels; the original floating-point weights are not simply chopped into decimal digits. FP16, INT8 and INT4 name different numerical representations, not different parameter counts.
 
-FP16 means 16-bit floating point. INT8 and INT4 mean 8-bit and 4-bit integer representations. A smaller representation needs fewer bytes per stored weight. Quantization uses those codes to approximate numerical values.
+Presenter cue: Spend at most 45 seconds here. Establish the byte calculation, then demonstrate the approximation on the quantization slide.
 
-This is separate from parameter count, context length and a phone’s 64-bit architecture.
+Source: https://developers.google.com/edge/litert/models/post_training_quantization
 
-If asked: Real formats combine integer codes with scales and sometimes zero-points. Not every tensor uses the same precision, and runtime computation can use a different precision from stored weights.
+Transition → How do we map a learned value to one of those smaller codes?
 
-Sources: https://huggingface.co/docs/transformers/quantization/concept_guide ; https://developers.google.com/edge/litert/quantization/quantization_spec
+## 8. Quantization and weight storage
 
-Transition → How do limited numerical levels approximate learned weights?
+6:00–7:30
 
-## 9. Quantization and weight storage
-
-7:15–8:45
-
-Use the four codes we just introduced. In this toy 2-bit quantizer, they map to 0.00, 0.25, 0.50 and 0.75. A weight of 0.73 is approximated by 0.75, introducing +0.02 error. Quantization changes representation precision; it does not remove parameters. This is intuition, not the exact algorithm used by a particular Gemma artifact.
+For a smaller toy example, use 2 bits, which give four codes. Map them to 0.00, 0.25, 0.50 and 0.75. A weight of 0.73 is approximated by 0.75, introducing +0.02 error. Quantization changes representation precision; it does not remove parameters. This is intuition, not the exact algorithm used by a particular Gemma artifact.
 
 Now multiply. One billion weights times four bits is four billion bits. Divide by eight bits per byte to get half a billion bytes: 0.5 decimal GB of idealized INT4 weight payload. FP16 and INT8 give 2.0 and 1.0 GB respectively under the same simplified assumptions.
 
@@ -114,9 +102,9 @@ Sources: https://developers.google.com/edge/litert/quantization/quantization_spe
 
 Transition → How do those saved weights produce text?
 
-## 10. How a prompt becomes streamed text
+## 9. How a prompt becomes streamed text
 
-8:45–10:15
+7:30–9:15
 
 Saved weights were learned during training. Inference uses them with a prompt; a supplied fact changes the current context, not the saved weights. A tokenizer splits text into pieces and maps them to IDs. Tokens may be words, parts of words or punctuation; exact splits depend on the tokenizer. Prefill processes the supplied instructions, note and included history. At each decode step the model scores possible next tokens; the runtime selects one, appends it and repeats until a stop condition or output limit. Sampling can make successive runs differ.
 
@@ -127,19 +115,35 @@ If asked: Current shared defaults reserve 768 estimated output tokens from a 409
 
 Sources: PromptBuilder.kt in the current local working tree; https://huggingface.co/docs/transformers/llm_tutorial
 
-Transition → Which runtime performs these generation steps in this app?
+Transition → Which runtime handles this generation on our phones?
 
-## 11. LiteRT-LM and MediaPipe LLM Inference
+## 10. LiteRT-LM and MediaPipe LLM Inference
 
-10:15–11:45
+9:15–10:30
 
-LiteRT-LM is Google AI Edge’s runtime and APIs for on-device language-model inference. It loads a compatible model, runs conversations and streams generated text. Our app supplies prompts and decides what to do with the response.
+LiteRT is the layer that executes converted model computation on the selected device backend. LiteRT-LM adds the language-model orchestration: model resources, tokenization, prefill and decode through LiteRT, conversation management and streamed text. Our KMP app supplies the prompts and decides what the generated response means for the product. Keeping those layers distinct explains why choosing a model file and choosing a runtime library are separate decisions.
 
 You may also recognize MediaPipe’s LLM Inference API from older examples. That specific API is now maintenance-only; Google recommends migrating it to LiteRT-LM. This does not mean all MediaPipe tasks are retired. This repository already uses LiteRT-LM: Kotlin on Android and a Swift bridge on iOS. Gemma is the model family, LiteRT-LM is the runtime, and KMP shares the application behavior.
 
 Sources: https://developers.google.com/edge/litert-lm/overview ; https://developers.google.com/edge/mediapipe/solutions/genai/llm_inference ; current platform adapters.
 
-Transition → Place LiteRT-LM behind the Android and iOS adapters.
+Transition → Which model file should we give that runtime?
+
+## 11. Model file formats: .litertlm and .task
+
+10:30–11:45
+
+A model family and precision still do not tell us which file to download. A .litertlm bundle packages converted model components, weights, a tokenizer and metadata for LiteRT-LM. Start with a compatible pre-converted export for the runtime we chose.
+
+Older MediaPipe LLM examples often use .task bundles. Some LiteRT-LM paths also recognize these, so do not treat the suffix as a complete support matrix. Renaming a file does not convert its contents.
+
+For KMP, a compatible bundle can be reused on Android and iOS. The native runtime libraries and initialization remain platform-specific. Match the export to both runtime versions and chosen backends.
+
+If asked: Both pinned native format detectors recognize .task, .litertlm and .tflite. Recognition alone does not establish operator, tokenizer, modality or memory compatibility. INT4 is a numerical representation, while .litertlm is a container format. This talk does not claim a particular bundle was physically verified on every platform. GGUF or Safetensors downloads are not direct substitutes for these adapters; obtain a supported conversion.
+
+Sources: https://developers.google.com/edge/litert-lm/file_builder ; https://raw.githubusercontent.com/google-ai-edge/LiteRT-LM/v0.14.0/runtime/util/file_format_util.cc ; https://raw.githubusercontent.com/google-ai-edge/LiteRT-LM/v0.13.1/runtime/util/file_format_util.cc
+
+Transition → The bundle is shared data. How do we share the application code while keeping the native engines?
 
 ## 12. KMP owns the product rules
 
@@ -167,7 +171,7 @@ Transition → Read the common Kotlin boundary first.
 
 The shared app sees a small Kotlin boundary: load a compatible local artifact, then collect decoded text chunks through Flow. The expect declaration defines the shared contract; each actual implementation connects to its native runtime.
 
-This excerpt is abridged. A chunk need not be one token, and matching method signatures do not establish identical native behavior. Keep product rules in shared code and test startup, cancellation and effects on both platforms.
+On Android, callbacks from the Kotlin SDK are forwarded into the Flow. On iOS, the Swift bridge forwards native stream events to the Kotlin adapter, which emits into the same shared Flow. That lets the shared ViewModel update the answer without knowing which native API produced the text. This excerpt is abridged; lifecycle and error handling stay in the implementations.
 
 
 If asked: The current main chat uses generateConversationResponse to pass system instructions, history and the user prompt as structured roles. The full API also includes updateConfig, generateResponseWithHistory, isModelLoaded, getLoadingProgress and close. Android applies sampler settings. This iOS bridge intentionally uses native sampler defaults. Both current load paths await native initialization, and both forward cancellation/close. These are source-level facts, not a completed physical-device benchmark.
@@ -209,7 +213,7 @@ Source: https://ai.google.dev/gemini-api/docs/function-calling
 Diagram credit: Google Gemini API documentation, https://ai.google.dev/gemini-api/docs/function-calling . The supplied original diagram illustrates the general function-call flow, not a weather-specific API. Image licensed under the documentation’s stated terms; attribution retained here and in the slide caption.
 
 Transition → Keep function calling, move inference locally, and change from remote weather to a device flashlight action.
-Diagram note: The main sequence is a presentation-width adaptation of the tool branch in Google’s general diagram. Google’s unmodified original is preserved on reference29. The optional direct-answer/extra-function branches are in that original; this slide traces the weather lookup branch only.
+Diagram note: The main sequence is a presentation-width adaptation of the tool branch in Google’s general diagram. Google’s unmodified original is preserved on reference 30. The optional direct-answer/extra-function branches are in that original; this slide traces the weather lookup branch only.
 
 
 ## 16. A complete function-calling request
@@ -258,11 +262,25 @@ If asked: The snippets use shorter local names and assume a nonblank systemPromp
 
 Sources: GemmaInference.android.kt generateConversationResponse; iosApp/iosApp/InferenceBridge.swift; GemmaInference.ios.kt callbackFlow bridge.
 
-Transition → The Android SDK also offers tool registration; compare that optional route with the app’s implementation.
+Transition → How does that native text stream update shared UI state, and when is a tool proposal ready to dispatch?
 
-## 19. LiteRT-LM SDK function calling
+## 19. Streaming into shared UI state
 
 23:45–25:15
+
+The native APIs stream text, but the UI needs more than an ever-growing string. Our shared use case exposes three sealed results: Streaming, Complete and Error. This is our KMP application API, not the Flutter package’s response types.
+
+Follow the highlighted branch. partialResponse already contains the full text received so far, so updateStreamingMessage replaces the displayed content. Adding it with += would repeat earlier prefixes. When the flow emits Complete, the ViewModel either handles the parsed tool proposal or finishes an ordinary answer. Errors have a separate branch. The when expression is exhaustive because all result types are covered.
+
+Presenter cue: Start with the highlighted two lines, then point to completion and error. The surrounding coroutine, history trimming, tool allowlist and live metrics are omitted. Nested result classes are imported for short names, and combinedSystemPrompt is shortened to systemPrompt. The real use case accumulates native chunks before emitting cumulative Streaming results. It extracts a tool proposal only after generation ends.
+
+Sources: composeApp/src/commonMain/kotlin/org/abma/offlinelai_kmp/ui/viewmodel/ChatViewModel.kt:628–654 ; composeApp/src/commonMain/kotlin/org/abma/offlinelai_kmp/domain/usecase/GenerateResponseUseCase.kt:20–39,85–120.
+
+Transition → The preceding code uses our prompted proposal format. What can the Android SDK handle for us instead?
+
+## 20. LiteRT-LM SDK function calling
+
+25:15–26:30
 
 SDK means Software Development Kit: the runtime library and APIs we integrate into our application. Google AI Edge LiteRT-LM’s Kotlin SDK can derive a tool contract from a ToolSet’s annotated Kotlin functions. @Tool supplies a description; @ToolParam supplies the parameter description; Kotlin’s function name and parameter type supply their corresponding contract information. The example deliberately calls the function toggle_torch to match that exposed name.
 
@@ -276,11 +294,11 @@ Sources: https://raw.githubusercontent.com/google-ai-edge/LiteRT-LM/v0.14.0/kotl
 
 Transition → Return to the prompted route this app implements and follow a proposal into native execution.
 
-## 20. A complete tool-call lifecycle
+## 21. A complete tool-call lifecycle
 
-25:15–27:00
+26:30–28:00
 
-Trace the same flashlight-OFF request, rather than another abstract API. First define the name and Boolean argument. A runtime can expose that definition through SDK registration; our current app exposes it through shared prompt instructions. The model returns a proposal, not a completed action.
+Trace the same flashlight-OFF request, rather than another abstract API. First define the name and Boolean argument in the shared ToolSpec. The prompt builder includes those instructions so the model knows the available tool and parameter. The model returns a proposal, not a completed action.
 
 In this app, extractToolCall normalizes generated text into a shared ToolCall with a JsonObject. The registered torch handler requires exactly the enable key and a real JSON Boolean. Invalid requests stop before native execution. A valid request reaches the platform adapter, which can still fail because hardware or permissions are unavailable. Show the resulting status in the UI.
 
@@ -294,9 +312,9 @@ Sources: current local ToolPrompt.kt, Tooling.kt, GenerateResponseUseCase.kt and
 
 Transition → What can still go wrong after parsing and type checks?
 
-## 21. What validation does not prove
+## 22. What validation does not prove
 
-27:00–28:00
+28:00–29:00
 
 A correctly typed proposal can still contradict the user. If the user says “Do not change the flashlight” and the model proposes enable=true, the Boolean shape can pass while the action is wrong. Each handler needs its own validation, and consequential actions may need review before execution. The current chat dispatches automatically after its implemented checks; confirmation is a product recommendation.
 
@@ -306,9 +324,9 @@ Sources: Tooling.kt ; ChatViewModel.kt ; current native action adapters.
 
 Transition → Inspect a real proposed call and its observable device effect.
 
-## 22. Live clipboard proof
+## 23. Live clipboard proof
 
-28:00–35:00
+29:00–35:00
 
 Before switching examples: the flashlight call showed the dispatch path. For the live run, use another registered device tool whose result everyone can inspect: copy_to_clipboard.
 
@@ -322,21 +340,21 @@ Presenter cues — preparation, not spoken script:
 Name the actual rehearsed artifact filename/precision, backend and phone before starting. These must come from the real setup; a model-family example or estimated size is not a measured setup.
 Rehearse the exact build, artifact and phone first. Provision and load the model before disconnecting. Mirror by USB without tethering. With scrcpy use --no-clipboard-autosync. Type and long-press Paste on the phone; a laptop paste shortcut can inject its clipboard.
 Expected shape, not captured output: <<{"tool":"copy_to_clipboard","arguments":{"text":"Essex lantern <number>"}}>>.
-Planned demonstration: four minutes. The remainder of this slot is reserved for audience interaction, device delays and recovery; do not fill it with another unplanned live feature. At34:15 stop retrying and show the resources/Q&A page by35:00. If the run finishes early, begin questions rather than adding filler.
+Planned demonstration: four minutes. The remainder of this slot is reserved for audience interaction, device delays and recovery; do not fill it with another unplanned live feature. At 34:15 stop retrying and show the resources/Q&A page by 35:00. If the run finishes early, begin questions rather than adding filler.
 
 Transition → Keep the repository QR visible and open questions.
 
-## 23. Code, setup and questions
+## 24. Code, setup and questions
 
 35:00–40:00 | Q&A
 
 The repository contains the shared prompt, parser, handlers and native adapters. Follow ToolPrompt.kt for tool instructions, GenerateResponseUseCase.kt for extracting proposals, and Tooling.kt for registry and handler behavior. The live run used the actual artifact, backend and phone named during the demonstration. These are the sources to inspect if you want to reproduce that path. Let’s take questions.
 
-Presenter cue: Keep the project QR visible. Open Q&A no later than 35:00; finish at 40:00. Optional references begin at 24.
+Presenter cue: Keep the project QR visible. Open Q&A no later than 35:00; finish at 40:00. Optional references begin at 25.
 
 Source: https://github.com/SEAbdulbasit/OfflineAI-KMP
 
-## 24. Reference: A useful local feature
+## 25. Reference: A useful local feature
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -349,7 +367,7 @@ Sara will update the slides, but no deadline was agreed. We want that task, owne
 
 Sources: workshop/visuals/ios-notes-source.jpg; DemoSamples.kt in the current local project.
 
-## 25. Reference: Walkthrough: note to draft
+## 26. Reference: Walkthrough: note to draft
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -362,7 +380,7 @@ The parser checks that evidence occurs in the source, that task occurs in the ev
 
 Sources: DemoSamples.kt notesPrompt and parseNotes, DemoScreen.kt Action Items to Review.
 
-## 26. Reference: Walkthrough: local reference
+## 27. Reference: Walkthrough: local reference
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -377,7 +395,7 @@ If asked — parser details: parseFaq checks that the sourceId exists and the qu
 
 Sources: DemoSamples.kt sections, faqPrompt and parseFaq; DemoController.kt.
 
-## 27. Reference: A reusable evaluation method
+## 28. Reference: A reusable evaluation method
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -391,7 +409,7 @@ If asked: The note-extraction workflow needs its own cases for commitments, miss
 
 Sources: ToggleTorchTool in Tooling.kt; ToggleTorchToolTest.kt; current metrics and platform tool adapters.
 
-## 28. Reference: Failure and recovery
+## 29. Reference: Failure and recovery
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -404,7 +422,7 @@ Cancellation produces “Generation stopped. You can edit the input and try agai
 
 Sources: current DemoController.kt, DemoScreen.kt and Tooling.kt.
 
-## 29. Reference: Google’s original function-calling diagram
+## 30. Reference: Google’s original function-calling diagram
 
 BACKUP — Google’s original function-calling diagram
 
@@ -414,7 +432,7 @@ Source: https://ai.google.dev/gemini-api/docs/function-calling
 Image: https://www.gstatic.com/cloud-cms/6fae8435a773b720d5db0c8746efb318.png
 
 
-## 30. Reference: app-owned execution
+## 31. Reference: app-owned execution
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -431,7 +449,7 @@ Sources:
 https://gemma.ai/models/functiongemma/formatting/
 Local working tree: see the corresponding project source file.
 
-## 31. Reference: the Swift bridge
+## 32. Reference: the Swift bridge
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -448,7 +466,7 @@ Local working tree: corresponding project source file.
 Local working tree: corresponding project source file.
 https://developers.google.com/edge/litert-lm/swift
 
-## 32. Reference: a structured draft
+## 33. Reference: a structured draft
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -461,7 +479,7 @@ Here's the expected JSON shape behind our note-to-action-items demo in `DemoSamp
 Sources:
 Local working tree: corresponding project source file.
 
-## 33. Reference: source checks and meaning
+## 34. Reference: source checks and meaning
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -478,7 +496,7 @@ Sources:
 Local working tree: corresponding project source file.
 Local working tree: corresponding project source file.
 
-## 34. Reference: compatible deployment
+## 35. Reference: compatible deployment
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -496,7 +514,7 @@ https://gemma.ai/models/functiongemma/formatting/
 Local working tree: corresponding project source file.
 Local working tree: corresponding project source file.
 
-## 35. Reference: Model families
+## 36. Reference: Model families
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -518,7 +536,7 @@ https://gemma.ai/models/gemma-4/model-card/
 https://gemma.ai/models/functiongemma/model-card/
 https://gemma.ai/models/functiongemma/formatting/
 
-## 36. Reference: a local source or null
+## 37. Reference: a local source or null
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -533,7 +551,7 @@ A quote existing in the source does not prove it answers the question. Check rel
 Sources:
 Local working tree: corresponding project source file.
 
-## 37. Reference: choose a bounded task
+## 38. Reference: choose a bounded task
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -546,7 +564,7 @@ The tradeoff is a product decision per feature: evaluate task quality, target-de
 
 Sources: the task checks in DemoSamples.kt and Tooling.kt; model cards linked in the model-selection appendix.
 
-## 38. Reference: Native startup policies
+## 39. Reference: Native startup policies
 
 OPTIONAL REFERENCE — outside the timed forward talk
 
@@ -560,3 +578,17 @@ Define the same phases before measuring: artifact provisioned, engine initialize
 If asked: This is a lesson drawn from the current implementation, not a claim that we observed a particular device failure or speedup. The iOS bridge shown has no Android-style CPU-fallback sequence. Swift samplerConfig is intentionally nil so the model/runtime defaults are used. Both adapters now forward cancel/close; older notes saying otherwise are obsolete.
 
 Sources: current local working tree, GemmaInference.android.kt, GemmaInference.ios.kt and iosApp/iosApp/InferenceBridge.swift.
+
+## 40. Reference: image requests on Android and iOS
+
+OPTIONAL REFERENCE — outside the timed forward talk
+
+These are SDK integration illustrations, not the current app’s image pipeline. The current native initialization and shared chat API are text-only. Adding an image argument alone cannot enable a text-only model or engine.
+
+Use a compatible multimodal .litertlm export. Configure visionBackend with the supported backend before initializing the engine: Backend.GPU() in the pinned Kotlin API, .gpu in Swift. Both snippets assume that work is already complete and imagePath is a readable absolute local path. Resolve or copy picker URIs into an accessible file first. Kotlin also supports Content.ImageBytes(ByteArray); Swift supports .imageData(Data).
+
+Android sends Contents containing image and text and collects Flow<Message>. The use block keeps the conversation open until collection completes. Swift sends a Message containing image and text and iterates an AsyncThrowingStream<Message,Error>. Release the Swift conversation when finished; its deinitializer deletes the native handle. Cancel active work and handle errors in production code; these details are omitted here. Neither SDK uses the Flutter-specific TextResponse/ThinkingResponse classes in the reference image. Separate reasoning or tool events require the actual model/API protocol; do not present arbitrary text as a typed reasoning channel.
+
+Sources: https://raw.githubusercontent.com/google-ai-edge/LiteRT-LM/v0.14.0/docs/api/kotlin/getting_started.md ; https://raw.githubusercontent.com/google-ai-edge/LiteRT-LM/v0.14.0/kotlin/java/com/google/ai/edge/litertlm/Message.kt ; vendored iosApp/LiteRTWrapper/Sources/LiteRTLM/Message.swift, Conversation.swift and Config.swift.
+
+Presenter cue: Open only if asked about extending beyond text. Highlight the image content line on each platform. Return to Q&A.
