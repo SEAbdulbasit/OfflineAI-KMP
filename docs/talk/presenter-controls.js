@@ -12,15 +12,15 @@
     const total = slides.length;
     const qaIndex = slides.findIndex(slide => slide.dataset.role === 'qa');
     const firstReference = slides.findIndex(slide => slide.dataset.backup === 'true');
-    const quizIndex = slides.indexOf(guard.closest('section'));
+    const quizIndex = guard ? slides.indexOf(guard.closest('section')) : -1;
     const go = deck._go.bind(deck);
     let references = deck.index >= firstReference;
     let statusTimer;
     const tell = (message) => { status.textContent = message; clearTimeout(statusTimer); statusTimer = setTimeout(() => status.textContent = '', 3500); };
-    const reveal = () => { guard.setAttribute('data-revealed', ''); guard.setAttribute('aria-hidden', 'false'); cue.style.visibility = 'hidden'; };
+    const reveal = () => { if (!guard) return; guard.setAttribute('data-revealed', ''); guard.setAttribute('aria-hidden', 'false'); if (cue) cue.style.visibility = 'hidden'; };
     deck._go = (index, reason = 'api') => {
       if (index <= 0) references = false;
-      if (deck.index === quizIndex && index > quizIndex && !guard.hasAttribute('data-revealed')) { reveal(); return; }
+      if (quizIndex >= 0 && deck.index === quizIndex && index > quizIndex && !guard.hasAttribute('data-revealed')) { reveal(); return; }
       if (!references && reason === 'keyboard' && index === total - 1) index = qaIndex;
       if (!references && deck.index === qaIndex && index > qaIndex) { tell('Q&A · press B to open the reference slides'); return; }
       go(index, reason);
@@ -33,7 +33,7 @@
       document.getElementById('backup-toggle').textContent = references ? 'Main talk B' : 'References B';
     };
     deck.addEventListener('slidechange', (event) => {
-      guard.removeAttribute('data-revealed'); guard.setAttribute('aria-hidden', 'true'); cue.style.visibility = '';
+      guard?.removeAttribute('data-revealed'); guard?.setAttribute('aria-hidden', 'true'); if (cue) cue.style.visibility = '';
       update();
     });
     const toggleNotes = () => { panel.hidden = !panel.hidden; document.getElementById('notes-toggle').setAttribute('aria-pressed', String(!panel.hidden)); update(); };

@@ -1,15 +1,12 @@
-# Offline AI with KMP — 40-minute speaker notes
+# Offline AI with KMP — focused 40-minute speaker notes
 
 ## 1. Cover
 
 0:00–0:30
 
-Today we’ll move an AI feature from the cloud onto a phone. We’ll turn a short note into a reviewable draft, understand the model choices behind it, and use KMP to share the rules while native runtimes do the work. We’ll finish by checking a real offline device action.
+Today we will run a language model on a phone, connect it to a KMP app, and trace a device action from the user request to native execution. We will start with the model choices, then read the Android and Swift code, and finish with one observable offline action.
 
-Presenter cue: Keep this promise under thirty seconds.
-
-Transition → Begin with the familiar cloud-model round trip.
-
+Transition → Begin with the familiar cloud request path.
 
 ## 2. The cloud round trip
 
@@ -21,8 +18,7 @@ Presenter cue: Keep this to the diagram and network dependency; explain the reas
 
 Source: https://developers.google.com/edge/litert-lm/overview
 
-Transition → What would make us move this inference step off the cloud?
-
+Transition → Why would we move that inference step onto the phone?
 
 ## 3. Why run models offline
 
@@ -36,41 +32,19 @@ Presenter cue: Lead with the use case, then point to the four reasons. Do not pr
 
 Source: https://developers.google.com/edge/litert-lm/overview
 
-Transition → How does the local path change the architecture?
+Transition → What components must the phone run?
 
-
-## 4. Inference on the phone
+## 4. What runs on the phone
 
 2:15–3:00
 
-Now keep the user’s goal and move inference onto the phone. The model file holds learned numerical values. The runtime is the software that loads that file and runs generation. Follow the request into the local runtime and the reply back to the app. Once the compatible model and tokenizer are provisioned, this inference path can work without a cloud-model call. We will unpack those numerical values and text pieces shortly.
+The model file holds learned numerical values. The runtime loads that compatible artifact and performs generation. The application supplies a request and receives generated output. Once the model and tokenizer are provisioned, this inference path does not need a cloud-model call. Follow the device boundary in the diagram; the phone now supplies storage, memory and compute.
 
-Presenter cue: Trace the local boundary. Keep resource and privacy tradeoffs on the preceding slide rather than repeating them here. Provisioning or updating the model may still need a connection.
+Transition → Which kinds of model can perform the job?
 
-Source: https://developers.google.com/edge/litert-lm/overview
+## 5. Model kinds and capabilities
 
-Transition → Give those benefits a concrete job: turn a short note into a useful draft.
-
-
-## 5. A useful local feature
-
-3:00–3:45
-
-Here is the useful feature: turn a short meeting note into a draft the user can inspect. The screenshot is our real iOS-simulator input screen before inference. It is UI evidence only; it is not a captured successful model response. The separate draft is illustrative expected output.
-
-Sara will update the slides, but no deadline was agreed. We want that task, owner Sara, and deadline null. We do not want to infer a deadline from another person's sentence or turn a casual discussion into a commitment. That small, checkable transformation is our running example.
-
-Presenter cue: Keep this feature preview under one minute. Do not read the entire screenshot or imply its missing-model state is a successful inference run. If a real recorded result becomes available, label its exact setup separately.
-
-
-Sources: workshop/visuals/ios-notes-source.jpg; DemoSamples.kt in the current local project.
-
-Transition → Which kinds of local model can do that job?
-
-
-## 6. Model kinds and capabilities
-
-3:45–4:30
+3:00–4:00
 
 Choose the job first. A text instruction model can draft or extract. A multimodal model accepts other input types, such as images or audio, if the app implements that pipeline. A tool specialist focuses on selecting functions and arguments. Base models learn continuation; instruct models receive further training to follow requests. The examples shown illustrate those roles; they are not a list of verified demo artifacts.
 
@@ -80,12 +54,11 @@ These are model-family examples, not a claim that each artifact was loaded or me
 
 Sources: https://huggingface.co/google/gemma-3-1b-it ; https://gemma.ai/models/gemma-4/model-card/ ; https://gemma.ai/models/functiongemma/model-card/
 
-Transition → What actual model families and sizes could we evaluate?
+Transition → What model families and sizes could we evaluate?
 
+## 6. Mobile model families and sizes
 
-## 7. Mobile model families and sizes
-
-4:30–5:30
+4:00–5:00
 
 M means million learned parameters; B means billion. We will unpack that term on the next slide. Gemma is one option, not the whole mobile-model landscape. Within Gemma 3, 270M and 1B are text-only; 4B adds image input, and the family also includes larger 12B and 27B variants. Do not assume every size fits a phone. Qwen3 has compact 0.6B and 1.7B text models. Llama 3.2 has 1B and 3B text variants. SmolLM2 spans 135M, 360M and 1.7B.
 
@@ -95,12 +68,11 @@ If asked: This is a deliberately small, non-exhaustive set rather than a claim a
 
 Sources: https://gemma.ai/models/gemma-3/ ; https://huggingface.co/Qwen/Qwen3-0.6B ; https://huggingface.co/Qwen/Qwen3-1.7B ; https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct ; https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct
 
-Transition → Before choosing by size, what do the parts of a model label actually mean?
+Transition → What do the parts of those model names mean?
 
+## 7. What 1B IT and INT4 mean
 
-## 8. Read a model label
-
-5:30–6:30
+5:00–6:15
 
 Read Gemma 3, 1B, and IT separately. Gemma 3 names the model family/generation. 1B means approximately one billion numerical parameters learned during training. IT means instruction-tuned. 270M means approximately 270 million parameters. A parameter count is not a download size, a speed benchmark, or a guarantee of quality.
 
@@ -110,12 +82,11 @@ If asked: A context-window number is different again: it counts how many tokens 
 
 Sources: official Gemma 3 artifact card; https://huggingface.co/docs/transformers/quantization/concept_guide
 
-Transition → What does that precision label mean in bits and bytes?
+Transition → How many bits store each numerical value?
 
+## 8. Bits bytes and weight precision
 
-## 9. Bits bytes and weight precision
-
-6:30–7:30
+6:15–7:15
 
 A bit has two possible values: zero or one. Two bits produce four patterns: 00, 01, 10 and 11. Four bits provide sixteen codes; eight bits provide 256. Eight bits make one byte. For a simple quantizer, these codes map onto a limited set of numerical levels.
 
@@ -127,12 +98,11 @@ If asked: Real formats combine integer codes with scales and sometimes zero-poin
 
 Sources: https://huggingface.co/docs/transformers/quantization/concept_guide ; https://developers.google.com/edge/litert/quantization/quantization_spec
 
-Transition → How do those limited binary codes approximate learned numerical weights?
+Transition → How do limited numerical levels approximate learned weights?
 
+## 9. Quantization and weight storage
 
-## 10. Quantization and weight storage
-
-7:30–9:00
+7:15–8:45
 
 Use the four codes we just introduced. In this toy 2-bit quantizer, they map to 0.00, 0.25, 0.50 and 0.75. A weight of 0.73 is approximated by 0.75, introducing +0.02 error. Quantization changes representation precision; it does not remove parameters. This is intuition, not the exact algorithm used by a particular Gemma artifact.
 
@@ -142,12 +112,11 @@ Real files add scales, metadata and other tensors, and may mix precisions. Runti
 
 Sources: https://developers.google.com/edge/litert/quantization/quantization_spec ; https://huggingface.co/docs/transformers/quantization/concept_guide
 
-Transition → The weights are stored. How does the runtime turn a prompt into generated text?
+Transition → How do those saved weights produce text?
 
+## 10. How a prompt becomes streamed text
 
-## 11. Generation
-
-9:00–10:15
+8:45–10:15
 
 Saved weights were learned during training. Inference uses them with a prompt; a supplied fact changes the current context, not the saved weights. A tokenizer splits text into pieces and maps them to IDs. Tokens may be words, parts of words or punctuation; exact splits depend on the tokenizer. Prefill processes the supplied instructions, note and included history. At each decode step the model scores possible next tokens; the runtime selects one, appends it and repeats until a stop condition or output limit. Sampling can make successive runs differ.
 
@@ -158,27 +127,23 @@ If asked: Current shared defaults reserve 768 estimated output tokens from a 409
 
 Sources: PromptBuilder.kt in the current local working tree; https://huggingface.co/docs/transformers/llm_tutorial
 
-Transition → Which runtime supplies those generation steps in this project?
+Transition → Which runtime performs these generation steps in this app?
 
+## 11. LiteRT-LM and MediaPipe LLM Inference
 
-## 12. What LiteRT-LM is
+10:15–11:45
 
-10:15–11:00
+LiteRT-LM is Google AI Edge’s runtime and APIs for on-device language-model inference. It loads a compatible model, runs conversations and streams generated text. Our app supplies prompts and decides what to do with the response.
 
-LiteRT-LM is the Google AI Edge runtime and API layer we use for local language-model inference. It loads a compatible model, runs generation and streams output back to the app. Point across the diagram: model file, runtime, app.
+You may also recognize MediaPipe’s LLM Inference API from older examples. That specific API is now maintenance-only; Google recommends migrating it to LiteRT-LM. This does not mean all MediaPipe tasks are retired. This repository already uses LiteRT-LM: Kotlin on Android and a Swift bridge on iOS. Gemma is the model family, LiteRT-LM is the runtime, and KMP shares the application behavior.
 
-Keep three roles separate: Gemma is a model family, LiteRT-LM is the runtime, and KMP shares our app behavior. Android connects through the Kotlin SDK; iOS connects through Swift. Now those adapters in the next diagram have a concrete purpose.
+Sources: https://developers.google.com/edge/litert-lm/overview ; https://developers.google.com/edge/mediapipe/solutions/genai/llm_inference ; current platform adapters.
 
-If asked: LiteRT-LM builds on LiteRT for language-model inference. Supported model packages and CPU/GPU backends depend on the pinned runtime/platform. The current app’s Android GPU-to-CPU startup policy and iOS GPU path are described later. Do not assume every family in our model table has a compatible artifact for this exact app build.
+Transition → Place LiteRT-LM behind the Android and iOS adapters.
 
-Sources: https://developers.google.com/edge/litert-lm/overview ; GemmaInference.android.kt, GemmaInference.ios.kt and InferenceBridge.swift.
+## 12. KMP owns the product rules
 
-Transition → Now place that runtime behind the Android and iOS adapters in our KMP architecture.
-
-
-## 13. KMP owns the product rules
-
-11:00–12:15
+11:45–13:00
 
 KMP shares the behavior around the model: Compose UI, prompts, state, parsing, argument checks and routing. The GemmaInference contract is in commonMain. Both platforms provide a Kotlin actual adapter.
 
@@ -194,12 +159,11 @@ composeApp/src/androidMain/kotlin/org/abma/offlinelai_kmp/inference/GemmaInferen
 composeApp/src/iosMain/kotlin/org/abma/offlinelai_kmp/inference/GemmaInference.ios.kt
 iosApp/iosApp/InferenceBridge.swift
 
-Transition → Put a small Kotlin boundary between shared behavior and native runtimes.
+Transition → Read the common Kotlin boundary first.
 
+## 13. The shared inference API
 
-## 14. The shared inference API
-
-12:15–13:15
+13:00–14:15
 
 The shared app sees a small Kotlin boundary: load a compatible local artifact, then collect decoded text chunks through Flow. The expect declaration defines the shared contract; each actual implementation connects to its native runtime.
 
@@ -210,64 +174,25 @@ If asked: The current main chat uses generateConversationResponse to pass system
 
 Sources: current local working tree, GemmaInference.kt, GemmaInference.android.kt, GemmaInference.ios.kt and iosApp/iosApp/InferenceBridge.swift.
 
-Transition → What does loading that model actually involve on each platform?
+Transition → Now follow loadModel into each native engine.
 
+## 14. Android and iOS engine initialization
 
-## 15. Native startup policies
+14:15–16:15
 
-13:15–14:15
+The common loadModel method reaches these native initialization paths. Android constructs EngineConfig with the model path, selected backend and cache directory, creates Engine, and calls initialize. The helper is invoked with GPU first and CPU if GPU initialization fails. Swift constructs its EngineConfig with the same kind of model path and cache location, chooses GPU, creates Engine, and awaits initialize.
 
-The common method loads a model on both platforms, but startup policy differs. Android tries GPU, then CPU if initialization fails, and attempts warm-up. This iOS bridge initializes on GPU and preserves native sampler defaults.
+Both load paths wait for native initialization before reporting ready. Sharing a signature does not establish equal backend support, loading cost or latency. Provision the artifact first and measure initialization, first visible text and completion separately.
 
-Both current implementations await initialization and forward cancellation and close. Equal method signatures still do not establish equal resource cost or behavior.
+Presenter cue: Trace modelPath → config → Engine → initialize on both sides. The snippets are source-derived abridgements; Android token/image limits and error checks are omitted for readability. The full Android EngineConfig is near207–218, initialization immediately after it; Swift initialization is near181–190 in the reviewed working tree.
 
-Define the same phases before measuring: artifact provisioned, engine initialized, any warm-up, first visible chunk, then completion. Measure each device rather than comparing unlike phases.
+Sources: GemmaInference.android.kt ; iosApp/iosApp/InferenceBridge.swift.
 
+Transition → With a loaded engine, how can generated text request an application action?
 
-If asked: This is a lesson drawn from the current implementation, not a claim that we observed a particular device failure or speedup. The iOS bridge shown has no Android-style CPU-fallback sequence. Swift samplerConfig is intentionally nil so the model/runtime defaults are used. Both adapters now forward cancel/close; older notes saying otherwise are obsolete.
+## 15. Weather function calling: request to tool result
 
-Sources: current local working tree, GemmaInference.android.kt, GemmaInference.ios.kt and iosApp/iosApp/InferenceBridge.swift.
-
-Transition → Once the runtime is ready, follow the text into the note-to-draft feature.
-
-
-## 16. Walkthrough: note to draft
-
-14:15–15:30
-
-Read the two fictional commitments. Ask whose task has Friday as a deadline. Sara owns the slide update; no deadline was agreed for that task. Omar owns the Android recording with Friday as its deadline.
-
-The right side is one illustrative expected item, not a captured model result and not the complete response. The app expects an items array. Keep task and evidence as exact source substrings; keep absent deadline null. The original sample includes further commitments and discussion, omitted here to focus the example.
-
-The parser checks that evidence occurs in the source, that task occurs in the evidence, and that non-null owner and deadline occur there too. This can reject unsupported fields, but an overly broad evidence span can still contain the wrong person’s deadline. Exact matches do not establish semantic attribution or whether a statement is a commitment. Keep the review step and evaluate those cases explicitly.
-
-
-Sources: DemoSamples.kt notesPrompt and parseNotes, DemoScreen.kt Action Items to Review.
-
-Transition → The same source discipline can answer a question from a bundled local reference.
-
-
-## 17. Walkthrough: local reference
-
-15:30–16:45
-
-This is a second narrow feature: answer only from a supplied local reference. The fictional workshop section has ID venue and says the workshop is in Room Cedar on level 2. The prompt includes the sections directly. There is no embedding pipeline, vector database, PDF ingestion or implemented retrieval system in this demo.
-
-For the location question, an expected response names the known section and copies an exact quote. For a Wi-Fi password question, no supplied section contains that information, so the expected response is null/null. These examples are teaching outputs, not measured model results.
-
-If asked — parser details: parseFaq checks that the sourceId exists and the quote is a nonblank exact substring of that section. It also handles null/null as no answer. Those checks do not prove the quote answers the question: a model can select a real but irrelevant sentence. Evaluate supported, unsupported and irrelevant-quote cases separately.
-
-KMP shares prompt construction, source data and response checks; platform runtimes supply generation. Presenter cue: This slot is a static walkthrough. Read both expected responses and ask why an existing quote could still be irrelevant. Keep the only live-device block on slide 27; an extra app demo would require trading time from that block.
-
-
-Sources: DemoSamples.kt sections, faqPrompt and parseFaq; DemoController.kt.
-
-Transition → If the answer is not in our supplied context, how can the app obtain fresh information?
-
-
-## 18. Cloud function calling: fresh weather
-
-16:45–18:00
+16:15–18:00
 
 Ask: what is the weather in Riyadh today? Model weights alone are not a live weather feed. Function calling lets the model request information from a function the app has described.
 
@@ -281,48 +206,63 @@ If asked: Google’s Gemini guide illustrates weather function calling. Provider
 
 Source: https://ai.google.dev/gemini-api/docs/function-calling
 
-Transition → The model can also run locally. Which tools would still need a connection?
+Diagram credit: Google Gemini API documentation, https://ai.google.dev/gemini-api/docs/function-calling . The supplied original diagram illustrates the general function-call flow, not a weather-specific API. Image licensed under the documentation’s stated terms; attribution retained here and in the slide caption.
+
+Transition → Keep function calling, move inference locally, and change from remote weather to a device flashlight action.
+Diagram note: The main sequence is a presentation-width adaptation of the tool branch in Google’s general diagram. Google’s unmodified original is preserved on reference29. The optional direct-answer/extra-function branches are in that original; this slide traces the weather lookup branch only.
 
 
-## 19. Function calling on the device
+## 16. A complete function-calling request
 
-18:00–18:45
+18:00–19:45
 
-Move inference onto the phone; keep the tool contract, proposal, checks and execution. That move does not make a live weather API work offline. A cached report needs a timestamp and may be stale.
+Move the inference step onto the phone. The contract, proposed call and app-owned execution remain the same idea, but today’s live weather would still require a network-backed tool. We now switch to a local device action: turn off the flashlight.
 
-Now switch to a device-local job: turn off the flashlight. The local model proposes toggle_torch with enable=false, and the app validates it before native execution.
+Read the complete small request. The system instructions describe toggle_torch and its required Boolean enable argument, then define the response format. History is empty. The user asks OFF, so the illustrative expected proposal contains enable=false. No native code has run yet.
 
-Android offers SDK tool APIs. Our current iOS AND Android code instead uses shared prompt instructions and parsing. Swift also has native tool APIs; prompting is our project choice.
+Presenter cue: Point to SYSTEM, then USER, then the expected proposal. Do not read every instruction aloud. Tool instructions accompany the app’s default-persona chat generations; they are not learned permanently by the model.
 
-Presenter cue: Keep this overview within 45 seconds. Leave the annotation and SDK code walkthrough for slide 21.
+If asked: This is a self-contained teaching request, not a raw app capture. The companion complete-tool-request.md contains the source-derived full nine-tool default prompt. The actual builder combines persona, optional pinned context and tool descriptions, then sends system text, prepared history and user text separately. Specialized/custom personas and standalone extraction workflows use different prompts. A cached weather report must show its observation time and may be stale.
 
-If asked: The weather example explains obtaining new information; the torch example explains a local effect. Function calling can serve either purpose. Native tool availability is separate from whether a particular tool depends on the network. The Swift wrapper has ConversationConfig.tools and a Tool protocol. The current app displays its tool result without feeding it into an automatic next model turn.
+Sources: ToolPrompt.kt; ChatViewModel.kt currentCombinedSystemPrompt; PromptBuilder.kt; GenerateResponseUseCase.kt; complete-tool-request.md.
 
-Sources: ToolPrompt.kt, Tooling.kt; LiteRTWrapper Config.swift and Tool.swift; https://ai.google.dev/gemini-api/docs/function-calling
+Transition → Where does this tool contract come from in our application code?
 
-Transition → Read the full local tool contract in the system prompt alongside the user’s flashlight request.
+## 17. Register the available tool handlers
 
+19:45–21:45
 
-## 20. A complete function-calling request
+The screenshot is the real createDefaultToolRegistry function. It constructs the shared registry from nine handler instances. Point to ToggleTorchTool, which handles our running flashlight example, and CopyToClipboardTool, which we will use in the live demonstration. The model did not discover these functions; the app selected the available handlers.
 
-18:45–20:30
+Each handler owns a ToolSpec with its name, description and argument contract. The shared prompt builder reads the registry’s specs to describe the tools. After generation, ToolRegistry matches a proposed name to one of these handlers. An unknown name produces an error result. The selected handler validates its inputs before delegating to native code.
 
-Read this as a complete small teaching request. The system role sets behavior, supplies one tool’s name and description, explains its required enable argument, and defines the response contract. History is empty because this is a new conversation. The user role asks to turn the flashlight off; the expected proposal therefore has enable=false. This is an illustrative expected response, not a captured successful model run.
+This is the app’s shared registry, not LiteRT-LM ToolSet registration. The screenshot shows registration only; we will trace dispatch after the generation examples.
 
-The wording is deliberately self-contained and compact, not a verbatim capture of the app’s larger default prompt. The companion complete-tool-request.md includes a source-derived full default-persona request with the complete registry, all generated rules/examples, no pinned context and empty history.
+Presenter cue: Point to ToggleTorchTool and CopyToClipboardTool in the actual source capture. Do not read all nine names.
 
-If asked — actual app assembly: In the default-persona chat path, currentCombinedSystemPrompt combines persona instructions, optional pinned messages and tool instructions for each generation. GenerateResponseUseCase passes that system text, prepared history and current user text separately through generateConversationResponse. Android supplies systemInstruction; Swift creates a systemMessage. Tool instructions consume context budget alongside history and the user message. They are not permanent training or a discovery mechanism.
+Sources: Tooling.kt ToolRegistry, createDefaultToolRegistry and ToolHandler.spec; ToolPrompt.kt.
 
-The actual ToolPrompt builder lists names, descriptions and parameter names with required/optional descriptions. It does not serialize the entire JSON schema or automatically expose every schema type. The torch examples and Boolean rule clarify its argument; the handler enforces the strict type/key checks. Specialized/custom chat personas and the separate note/FAQ workflows do not receive the default chat tool registry.
+Transition → How do both native runtimes receive the same system instructions and user request?
 
-Sources: ToolPrompt.kt buildSystemPrompt/extractParamDetails; ChatViewModel.kt currentCombinedSystemPrompt/generateResponse; PromptBuilder.kt buildCombinedSystemPrompt; GenerateResponseUseCase.kt; both platform adapters and InferenceBridge.swift.
+## 18. Android and iOS: the same tool prompt
 
-Transition → Now compare the prompting approach with the Android SDK’s tool APIs.
+21:45–23:45
 
+Now the variables have a concrete meaning: systemPrompt contains the tool instructions we just read, and userPrompt asks to turn the flashlight off. The loaded engine is already available. These are shortened new-conversation excerpts, with empty history.
 
-## 21. LiteRT-LM SDK function calling
+On Android, ConversationConfig receives systemInstruction. The conversation accepts the user message separately and produces text through a callback. On iOS, the Swift config receives a system Message; sendMessageStream emits chunks. Our postToken helper forwards those chunks through notifications into Kotlin Flow.
 
-20:30–22:15
+Both return generated text to shared Kotlin. The shared parser extracts a proposed call, and its handler validates it before a native action. Neither excerpt registers SDK tools or automatically executes a flashlight function.
+
+If asked: The snippets use shorter local names and assume a nonblank systemPrompt. The actual Android callback extracts Content.Text, calls trySend and handles completion/errors within callbackFlow. Swift postToken is a project helper, not a LiteRT-LM API. Real history, sampler configuration, cancellation and cleanup are omitted here; the earlier startup slide and source code cover those concerns. Swift also exposes native tool APIs. Both current platforms choose the shared prompting route.
+
+Sources: GemmaInference.android.kt generateConversationResponse; iosApp/iosApp/InferenceBridge.swift; GemmaInference.ios.kt callbackFlow bridge.
+
+Transition → The Android SDK also offers tool registration; compare that optional route with the app’s implementation.
+
+## 19. LiteRT-LM SDK function calling
+
+23:45–25:15
 
 SDK means Software Development Kit: the runtime library and APIs we integrate into our application. Google AI Edge LiteRT-LM’s Kotlin SDK can derive a tool contract from a ToolSet’s annotated Kotlin functions. @Tool supplies a description; @ToolParam supplies the parameter description; Kotlin’s function name and parameter type supply their corresponding contract information. The example deliberately calls the function toggle_torch to match that exposed name.
 
@@ -334,12 +274,11 @@ If asked — app wiring and integration details: Our current Android AND iOS cha
 
 Sources: https://raw.githubusercontent.com/google-ai-edge/LiteRT-LM/v0.14.0/kotlin/java/com/google/ai/edge/litertlm/Tool.kt ; https://raw.githubusercontent.com/google-ai-edge/LiteRT-LM/v0.14.0/kotlin/java/com/google/ai/edge/litertlm/Config.kt ; pinned v0.14.0 Kotlin getting_started.md; current local app code.
 
-Transition → Follow our app’s prompted route from proposal to shared checks and native execution.
+Transition → Return to the prompted route this app implements and follow a proposal into native execution.
 
+## 20. A complete tool-call lifecycle
 
-## 22. A complete tool-call lifecycle
-
-22:15–23:45
+25:15–27:00
 
 Trace the same flashlight-OFF request, rather than another abstract API. First define the name and Boolean argument. A runtime can expose that definition through SDK registration; our current app exposes it through shared prompt instructions. The model returns a proposal, not a completed action.
 
@@ -347,90 +286,31 @@ In this app, extractToolCall normalizes generated text into a shared ToolCall wi
 
 Our app displays the native result and ends this operation. Returning that result to the model for another turn would require an additional conversation loop.
 
-Presenter cue: Read the literal proposal on the slide. Follow its tool name through extractToolCall into ToggleTorchTool, then follow the enable value into the native call. Contrast a native success with a missing-hardware error; neither outcome is known at proposal time. Leave the argument quiz unanswered until the next slide.
+Presenter cue: Read the literal proposal on the slide. Follow its tool name through extractToolCall into ToggleTorchTool, then follow the enable value into the native call. Contrast a native success with a missing-hardware error; neither outcome is known at proposal time.
 
 If asked — continuing conversations: ChatViewModel.handleToolCall currently does not feed its result into another model turn. A continuing loop must submit the result, handle subsequent responses and enforce loop limits. Android SDK automatic mode offers orchestration; manual mode leaves it to the app. SDK arguments need adaptation before reuse of this app’s JsonObject checks.
 
 Sources: current local ToolPrompt.kt, Tooling.kt, GenerateResponseUseCase.kt and ChatViewModel.kt; pinned LiteRT-LM v0.14.0 Kotlin getting_started.md.
 
-Transition → Before any native call, which candidate arguments should the handler accept?
+Transition → What can still go wrong after parsing and type checks?
 
+## 21. What validation does not prove
 
-## 23. Argument quiz
+27:00–28:00
 
-23:45–25:00
+A correctly typed proposal can still contradict the user. If the user says “Do not change the flashlight” and the model proposes enable=true, the Boolean shape can pass while the action is wrong. Each handler needs its own validation, and consequential actions may need review before execution. The current chat dispatches automatically after its implemented checks; confirmation is a product recommendation.
 
-Which proposals should be rejected? Give the audience fifteen seconds. A supplies a JSON Boolean. B supplies a quoted string, and C adds an undefined key. We reject B and C; A passes this argument guard.
+Native execution can also fail because the device has no available torch or access is restricted. Report the API result or error; do not treat a generated success sentence as evidence of a device effect.
 
-The excerpt safely casts to JsonPrimitive, then excludes strings before reading booleanOrNull. That exclusion matters: booleanOrNull alone can parse the content of a quoted “true.” We also require exactly the enable key. Missing values, arrays, objects, strings and extra keys therefore fail before a native call. The real handler uses the same checks.
+Sources: Tooling.kt ; ChatViewModel.kt ; current native action adapters.
 
-Passing the guard does not prove intent or hardware success. The API still reports the execution outcome.
+Transition → Inspect a real proposed call and its observable device effect.
 
+## 22. Live clipboard proof
 
-Presenter cue: Keep the guard hidden during the fifteen-second vote. Press Right/Space or click Next once to reveal it, then explain B and C. Advance again to continue. The displayed guard is abridged from ToggleTorchTool's checks.
+28:00–35:00
 
-If asked: Other registered tools need their own checks. The clipboard tool currently has simpler string extraction, so do not imply universal strict schema enforcement.
-
-Sources:
-Local working tree: see the corresponding project source file.
-
-Transition → Passing the guard proves the input shape. Does it prove the user wanted that action?
-
-
-## 24. Limits
-
-25:00–26:00
-
-The happy path hides the difficult cases. If the user says “Do NOT turn the flashlight on,” a model may still propose enable=true. A type guard can pass while the action contradicts the request.
-
-A quoted sentence about discussing dark mode also does not establish a commitment. Test negative and no-action cases, check each handler, and add review for consequential effects. The current chat dispatches automatically after its implemented checks; confirmation is a design recommendation.
-
-Local weights do not supply fresh facts. Provide current local references or choose another architecture when needed.
-
-
-Sources:
-https://gemma.ai/models/gemma-3/
-https://gemma.ai/models/functiongemma/formatting/
-Local working tree: see the corresponding project source file.
-
-Transition → That gap gives us a test plan: check task quality, proposals and actual effects separately.
-
-
-## 25. A reusable evaluation method
-
-26:00–27:45
-
-Give attendees a method they can use on their own feature. First, a positive case: Sara's explicit commitment yields the task and owner, with null for the missing deadline. Second, a negative case: discussing dark theme does not invent a commitment. Third, an invalid tool request: a quoted Boolean or extra field is rejected before a native call. These are proposed expected test cases, not a claimed model pass rate.
-
-Inspect separate properties: response shape, correct task/tool and arguments, consistency with the user's intent, and the actual native outcome. A valid JSON object or a generated success sentence proves only a small part of that chain.
-
-Record the exact artifact/hash, runtime, backend, phone and OS. Measure cold load, first nonempty visible chunk and total completion separately; inspect memory on the device. Do not transfer another talk's benchmarks to this build.
-
-
-Sources: DemoSamples.kt, DemoSamplesTest.kt, Tooling.kt and MetricsCollector.kt in the current local working tree.
-
-Transition → A test also needs an expected recovery path. What can the user do when a check fails?
-
-
-## 26. Failure and recovery
-
-27:45–29:15
-
-Walk the audience through the actual recovery paths. Model readiness is checked before running; the model-required UI guides the user to Settings. The workflow preserves its input. A new run clears the previous result, and failed validation shows an error rather than a new validated result. Raw generated text remains available for inspection. The user can shorten or edit the input and retry.
-
-A rejected torch argument is a separate boundary: it produces an invalid-request tool result before native execution. Do not generalize this strict guard to every tool; clipboard parsing is currently simpler.
-
-Cancellation produces “Generation stopped. You can edit the input and try again.” The controller releases the generation slot and restores its non-running state. This slide describes implemented branches, not a claimed set of observed model failures. A complete manual alternative is a recommended product extension.
-
-
-Sources: current DemoController.kt, DemoScreen.kt and Tooling.kt.
-
-Transition → Now inspect a real proposal and verify its native effect on a prepared device.
-
-
-## 27. Live clipboard proof
-
-29:15–33:15
+Before switching examples: the flashlight call showed the dispatch path. For the live run, use another registered device tool whose result everyone can inspect: copy_to_clipboard.
 
 Ask someone for a two-digit number to make this input specific to the live run. Use it instead of 47 in the displayed request.
 
@@ -442,38 +322,101 @@ Presenter cues — preparation, not spoken script:
 Name the actual rehearsed artifact filename/precision, backend and phone before starting. These must come from the real setup; a model-family example or estimated size is not a measured setup.
 Rehearse the exact build, artifact and phone first. Provision and load the model before disconnecting. Mirror by USB without tethering. With scrcpy use --no-clipboard-autosync. Type and long-press Paste on the phone; a laptop paste shortcut can inject its clipboard.
 Expected shape, not captured output: <<{"tool":"copy_to_clipboard","arguments":{"text":"Essex lantern <number>"}}>>.
-At 32:30 stop retrying. Explain the observed outcome and move to the takeaways by 33:15.
+Planned demonstration: four minutes. The remainder of this slot is reserved for audience interaction, device delays and recovery; do not fill it with another unplanned live feature. At34:15 stop retrying and show the resources/Q&A page by35:00. If the run finishes early, begin questions rather than adding filler.
 
-Transition → What should attendees reuse in their own offline feature?
+Transition → Keep the repository QR visible and open questions.
 
-
-## 28. Three things to take home
-
-33:15–35:00
-
-Choose one bounded task and a compatible artifact that passes checks on a real target phone. Share the product rules—prompts, parsing, validation and routing—in commonMain. Prove the effect with no-action tests, rejected-argument tests and an observable native result.
-
-For our note example, a useful draft keeps a missing deadline null and remains reviewable. For a device action, a generated claim is not enough: inspect the proposal and read the native outcome. That is the reusable pattern: model proposes, shared Kotlin checks, native code executes.
-
-Presenter cue: Keep the close concise, then leave the project QR on Q&A for scanning. At 35:00, open questions; references 30–37 are optional.
-
-Sources: current project GemmaInference.kt, Tooling.kt and DemoSamples.kt.
-
-Transition → Keep the project QR visible and open questions.
-
-
-## 29. Questions
+## 23. Code, setup and questions
 
 35:00–40:00 | Q&A
 
-Keep the project QR visible for at least twelve seconds, then take questions.
+The repository contains the shared prompt, parser, handlers and native adapters. Follow ToolPrompt.kt for tool instructions, GenerateResponseUseCase.kt for extracting proposals, and Tooling.kt for registry and handler behavior. The live run used the actual artifact, backend and phone named during the demonstration. These are the sources to inspect if you want to reproduce that path. Let’s take questions.
 
-Backup guide: 30 execution responsibilities; 31 Swift bridge; 32 structured draft; 33 source checks versus meaning; 34 compatibility; 35 model-family details; 36 local reference; 37 task-fit guidance. Optional, outside the timed forward talk.
+Presenter cue: Keep the project QR visible. Open Q&A no later than 35:00; finish at 40:00. Optional references begin at 24.
 
 Source: https://github.com/SEAbdulbasit/OfflineAI-KMP
 
+## 24. Reference: A useful local feature
+
+OPTIONAL REFERENCE — outside the timed forward talk
+
+Here is the useful feature: turn a short meeting note into a draft the user can inspect. The screenshot is our real iOS-simulator input screen before inference. It is UI evidence only; it is not a captured successful model response. The separate draft is illustrative expected output.
+
+Sara will update the slides, but no deadline was agreed. We want that task, owner Sara, and deadline null. We do not want to infer a deadline from another person's sentence or turn a casual discussion into a commitment. That small, checkable transformation is our running example.
+
+
+
+
+Sources: workshop/visuals/ios-notes-source.jpg; DemoSamples.kt in the current local project.
+
+## 25. Reference: Walkthrough: note to draft
+
+OPTIONAL REFERENCE — outside the timed forward talk
+
+Read the two fictional commitments. Ask whose task has Friday as a deadline. Sara owns the slide update; no deadline was agreed for that task. Omar owns the Android recording with Friday as its deadline.
+
+The right side is one illustrative expected item, not a captured model result and not the complete response. The app expects an items array. Keep task and evidence as exact source substrings; keep absent deadline null. The original sample includes further commitments and discussion, omitted here to focus the example.
+
+The parser checks that evidence occurs in the source, that task occurs in the evidence, and that non-null owner and deadline occur there too. This can reject unsupported fields, but an overly broad evidence span can still contain the wrong person’s deadline. Exact matches do not establish semantic attribution or whether a statement is a commitment. Keep the review step and evaluate those cases explicitly.
+
+
+Sources: DemoSamples.kt notesPrompt and parseNotes, DemoScreen.kt Action Items to Review.
+
+## 26. Reference: Walkthrough: local reference
+
+OPTIONAL REFERENCE — outside the timed forward talk
+
+This is a second narrow feature: answer only from a supplied local reference. The fictional workshop section has ID venue and says the workshop is in Room Cedar on level 2. The prompt includes the sections directly. There is no embedding pipeline, vector database, PDF ingestion or implemented retrieval system in this demo.
+
+For the location question, an expected response names the known section and copies an exact quote. For a Wi-Fi password question, no supplied section contains that information, so the expected response is null/null. These examples are teaching outputs, not measured model results.
+
+If asked — parser details: parseFaq checks that the sourceId exists and the quote is a nonblank exact substring of that section. It also handles null/null as no answer. Those checks do not prove the quote answers the question: a model can select a real but irrelevant sentence. Evaluate supported, unsupported and irrelevant-quote cases separately.
+
+
+
+
+Sources: DemoSamples.kt sections, faqPrompt and parseFaq; DemoController.kt.
+
+## 27. Reference: A reusable evaluation method
+
+OPTIONAL REFERENCE — outside the timed forward talk
+
+Keep the same flashlight feature while testing three different things. First a requested action: “Turn off the flashlight” should produce enable=false, and the native effect must be inspected. Second a no-action case: “Do not change the flashlight” should not dispatch a tool at all. Third invalid arguments: a quoted Boolean or extra key must be rejected before native execution.
+
+These are expected test cases, not a claimed model pass rate. Check selection and intent, argument validation, and the actual device outcome separately. A valid JSON shape or generated success message proves only part of the chain.
+
+Record the exact artifact, runtime, backend and phone. Measure cold load, first visible chunk and total completion separately. A Boolean argument passing validation does not establish hardware success.
+
+If asked: The note-extraction workflow needs its own cases for commitments, missing fields and unrelated deadlines. That is a different task’s test set; do not switch examples while explaining the tool-call tests here.
+
+Sources: ToggleTorchTool in Tooling.kt; ToggleTorchToolTest.kt; current metrics and platform tool adapters.
+
+## 28. Reference: Failure and recovery
+
+OPTIONAL REFERENCE — outside the timed forward talk
+
+Walk the audience through the actual recovery paths. Model readiness is checked before running; the model-required UI guides the user to Settings. The workflow preserves its input. A new run clears the previous result, and failed validation shows an error rather than a new validated result. Raw generated text remains available for inspection. The user can shorten or edit the input and retry.
+
+A rejected torch argument is a separate boundary: it produces an invalid-request tool result before native execution. Do not generalize this strict guard to every tool; clipboard parsing is currently simpler.
+
+Cancellation produces “Generation stopped. You can edit the input and try again.” The controller releases the generation slot and restores its non-running state. This slide describes implemented branches, not a claimed set of observed model failures. A complete manual alternative is a recommended product extension.
+
+
+Sources: current DemoController.kt, DemoScreen.kt and Tooling.kt.
+
+## 29. Reference: Google’s original function-calling diagram
+
+BACKUP — Google’s original function-calling diagram
+
+This is Google’s unmodified general diagram from its Gemini API guide, not a weather-specific diagram. The main weather slide uses a wide, weather-labelled adaptation so the arrows and text are readable on a presentation screen. In the original, Gemini may answer directly, propose a function, or continue with another function after receiving a result. The application executes functions.
+
+Source: https://ai.google.dev/gemini-api/docs/function-calling
+Image: https://www.gstatic.com/cloud-cms/6fae8435a773b720d5db0c8746efb318.png
+
 
 ## 30. Reference: app-owned execution
+
+OPTIONAL REFERENCE — outside the timed forward talk
 
 BACKUP — App-owned execution responsibilities
 
@@ -490,6 +433,8 @@ Local working tree: see the corresponding project source file.
 
 ## 31. Reference: the Swift bridge
 
+OPTIONAL REFERENCE — outside the timed forward talk
+
 BACKUP — iOS Swift Bridge (iosApp/iosApp/InferenceBridge.swift)
 
 This is the Swift side behind the same `Flow<String>` contract. `InferenceBridge` creates a LiteRT-LM conversation, loops over `conversation.sendMessageStream(message)`, and calls our helper `postToken(chunk.toString)`.
@@ -505,6 +450,8 @@ https://developers.google.com/edge/litert-lm/swift
 
 ## 32. Reference: a structured draft
 
+OPTIONAL REFERENCE — outside the timed forward talk
+
 BACKUP — Structured Text Draft (DemoSamples.kt)
 
 Here's the expected JSON shape behind our note-to-action-items demo in `DemoSamples.kt`. The fictional rehearsal note has Sara (no deadline), Omar (Friday), Lina (Thursday), plus a dark-theme discussion with no commitment.
@@ -515,6 +462,8 @@ Sources:
 Local working tree: corresponding project source file.
 
 ## 33. Reference: source checks and meaning
+
+OPTIONAL REFERENCE — outside the timed forward talk
 
 BACKUP — Source Checks vs. Meaning (DemoSamples.kt & DemoSamplesTest.kt)
 
@@ -531,6 +480,8 @@ Local working tree: corresponding project source file.
 
 ## 34. Reference: compatible deployment
 
+OPTIONAL REFERENCE — outside the timed forward talk
+
 BACKUP — Model & Runtime Compatibility
 
 Four things have to line up: exact converted artifact, pinned runtime version, chat template/input types, and device RAM + context budget + license.
@@ -545,7 +496,9 @@ https://gemma.ai/models/functiongemma/formatting/
 Local working tree: corresponding project source file.
 Local working tree: corresponding project source file.
 
-## 35. Model families
+## 35. Reference: Model families
+
+OPTIONAL REFERENCE — outside the timed forward talk
 
 BACKUP — Model-family examples
 
@@ -557,7 +510,7 @@ These are selection examples, not measured performance results from this app. St
 
 Use only if asked about model families; return to Q&A.
 
-Presenter cue: Before presenting, rehearse and record the exact demo artifact filename/hash, device, backend and observed behavior. Name the verified setup aloud; do not substitute an estimated file-size range for a measurement.
+
 
 Sources:
 https://gemma.ai/models/gemma-3/
@@ -566,6 +519,8 @@ https://gemma.ai/models/functiongemma/model-card/
 https://gemma.ai/models/functiongemma/formatting/
 
 ## 36. Reference: a local source or null
+
+OPTIONAL REFERENCE — outside the timed forward talk
 
 BACKUP — Local Reference Answers (DemoSamples.kt)
 
@@ -580,6 +535,8 @@ Local working tree: corresponding project source file.
 
 ## 37. Reference: choose a bounded task
 
+OPTIONAL REFERENCE — outside the timed forward talk
+
 BACKUP — Choosing a bounded task
 
 Start with narrow transformations: extracting fields, classifying short text, or drafting a concise summary. Our note-to-task draft is useful because its fields can be checked against the source. Small local models are not a substitute for fresh external facts or dependable unrestricted multi-step reasoning.
@@ -588,3 +545,18 @@ The tradeoff is a product decision per feature: evaluate task quality, target-de
 
 
 Sources: the task checks in DemoSamples.kt and Tooling.kt; model cards linked in the model-selection appendix.
+
+## 38. Reference: Native startup policies
+
+OPTIONAL REFERENCE — outside the timed forward talk
+
+The common method loads a model on both platforms, but startup policy differs. Android tries GPU, then CPU if initialization fails, and attempts warm-up. This iOS bridge initializes on GPU and preserves native sampler defaults.
+
+Both current implementations await initialization and forward cancellation and close. Equal method signatures still do not establish equal resource cost or behavior.
+
+Define the same phases before measuring: artifact provisioned, engine initialized, any warm-up, first visible chunk, then completion. Measure each device rather than comparing unlike phases.
+
+
+If asked: This is a lesson drawn from the current implementation, not a claim that we observed a particular device failure or speedup. The iOS bridge shown has no Android-style CPU-fallback sequence. Swift samplerConfig is intentionally nil so the model/runtime defaults are used. Both adapters now forward cancel/close; older notes saying otherwise are obsolete.
+
+Sources: current local working tree, GemmaInference.android.kt, GemmaInference.ios.kt and iosApp/iosApp/InferenceBridge.swift.

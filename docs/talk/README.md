@@ -1,6 +1,6 @@
 # Offline AI with KMP — presentation website
 
-A self-contained HTML slide deck for Abdul Basit’s 40-minute talk: 35 minutes of teaching/demo and 5 minutes of Q&A. There are 37 slides: 29 in the main path including Q&A, plus 8 optional references. Scripts, fonts and images are bundled locally.
+A locally bundled HTML presentation for Abdul Basit’s 40-minute session. The main path has 23 slides including the final resources/Q&A page. Fifteen optional references preserve earlier examples, including earlier note/FAQ walkthroughs and engineering detail. Total 38 slides.
 
 ## Run locally
 
@@ -10,38 +10,42 @@ From the repository root:
 python3 -m http.server 8000 --bind 127.0.0.1
 ```
 
-Open [the presentation](http://127.0.0.1:8000/docs/talk/). After the server is running, presenting does not require a cloud model or remote asset downloads.
-
-This is a static site. It can also be served from a subdirectory on any static host; it has no build step. Adding these files to GitHub does not enable a hosted GitHub Pages site automatically.
+Open http://127.0.0.1:8000/docs/talk/. Fonts, scripts and presented images are bundled. No build step or external model service is required to view the slides.
 
 ## Controls
 
-- Right / Space: advance; Left: previous slide.
-- N: show or hide speaker notes. Notes appear in the same browser window, so hide them on the projected screen.
-- F: request fullscreen; R: reset.
-- B: switch between Q&A and the references.
-- Direct links use the slide number, for example `#18` for the weather example.
+- Right / Space: next; Left: previous.
+- N: speaker notes (same window; hide when projecting).
+- F: fullscreen; R: reset.
+- B: switch between the resources/Q&A page and references.
+- Hash links use the displayed number, such as `#15` for the weather example.
 
-Slide 23 reveals its quiz answer on the first advance. Main navigation stops at Q&A 29. References 30–37 are outside the timed forward talk.
+Main navigation stops at 23. References 24–38 are outside the timed talk. The rejected quiz is removed entirely. The controller discovers boundaries from markup.
 
-## Content and speaker material
+## Timing and story
 
-The story moves from cloud inference and why offline to model families, parameters, bit precision, quantization and generation; then LiteRT-LM, shared Kotlin/native adapters, useful text features and function calling. Weather 18 explains the cloud function/tool-result loop before local device actions 19, the complete request 20, Kotlin SDK APIs 21 and the application lifecycle 22.
+Plan 32 minutes of explanation and the live run, with 3 minutes reserved for audience interaction and device recovery. The live block 22 is 28:00–35:00: plan 4 minutes of demonstration and use the remainder only when needed. Stop retrying by 34:15. Begin questions no later than 35:00 and finish 40:00; if delivery finishes early, begin questions rather than filling the reserve.
 
-- [Speaker notes](speaker-notes.md): timed explanation, transitions, optional detail and sources.
-- [Complete default-chat request](complete-tool-request.md), also available as [JSON](complete-tool-request.json): source-derived system instructions for all nine tools, empty history and an OFF request.
-- [Teaching request](teaching-tool-request.txt): the shorter complete example shown on slide 20.
+The main path is cloud → reasons for offline → model kinds/sizes/labels → bits and quantization → generation → LiteRT-LM and MediaPipe context → KMP API → Android/Swift initialization → Google’s cloud tool-call diagram/weather example → full local flashlight request → actual registry source screenshot → Android/Swift generation → optional Android SDK route → shared dispatch/native execution → limits → live clipboard action → resources/Q&A.
 
-The embedded notes in `index.html`, `notes.json` and `speaker-notes.md` are synchronized. If changing notes, update all three. Slide labels, counters and speaker timings should be updated together when reordering. The navigation detects the quiz, Q&A and reference boundaries from the markup.
+Concrete headings replace the earlier vague labels. Note extraction, FAQ grounding and additional tests/recovery remain optional references. The quiz and generic slogan closing are removed.
 
-## Evidence and implementation scope
+## Speaker material and source scope
 
-The app screenshot shows the input screen before inference. Drafts, FAQ answers and weather values are illustrative expected outputs, not captured successful runs. The weather tool explains the cloud pattern; this app does not implement it. Local inference does not make a live weather lookup work offline.
+[Speaker notes](speaker-notes.md), `notes.json` and embedded notes are synchronized. Update all three along with labels/counters/timings when reordering.
 
-Android’s SDK tool-registration example is an available integration option; this project’s current chat uses prompted proposals on Android and iOS. Swift also exposes native tool APIs. Implementation details describe the local app revision used to prepare the talk; check the exact build and runtime versions when reproducing it.
+[Complete default-chat request](complete-tool-request.md) and its JSON contain the source-derived nine-tool prompt; [teaching request](teaching-tool-request.txt) is the shorter flashlight example shown on 16.
 
-Rehearse the exact model artifact, backend and phone before presenting. The live block is 29:15–33:15; stop retries at 32:30 and start Q&A at 35:00.
+The runtime page concerns MediaPipe’s LLM Inference API specifically: Google marks it maintenance-only and recommends LiteRT-LM. This is not a statement that every MediaPipe task is retired. This project uses LiteRT-LM through Android Kotlin and iOS Swift.
 
-## Attribution
+Slide 14 uses source-derived abridged initialization excerpts. Slide 18 compares actual app generation paths with a model already loaded, empty history and omitted error/bridge details. Slide 19 is an available SDK registration option, not current app wiring. Current Android and iOS both use prompted proposals. Slide 17’s source screenshot shows the actual nine-handler application registry; that is separate from SDK ToolSet registration.
 
-See [ATTRIBUTION.md](ATTRIBUTION.md) for the design/runtime reference and asset sources.
+The main weather slide adapts Google’s general cloud function-call flow; reference 29 preserves the unmodified official image. Weather values are mock teaching data, and this app does not implement weather lookup. Moving inference onto a phone does not remove a weather service’s network dependency. Native clipboard/flashlight actions are different tool effects.
+
+Name the rehearsed artifact/precision, backend and phone during the live demonstration. Inspect the actual proposal, native result and phone clipboard paste. Do not claim illustrative outputs are measured model results. Archived pages describe their own workflows; they are not guarantees about the main chat path.
+
+## Assets and attribution
+
+Original template CSS and deck-stage.js remain unchanged. See [ATTRIBUTION.md](ATTRIBUTION.md) for the original design/runtime reference. `assets/google-function-calling.png` is the supplied Google Gemini documentation diagram, credited in the notes and source reference with https://ai.google.dev/gemini-api/docs/function-calling. `assets/tool-source-screenshot.jpg` is a real browser capture of the repository’s source registry. The portrait and repository QR belong to this talk.
+
+The main weather sequence is a wide, weather-labelled adaptation of Google’s function-calling diagram for legibility. Google’s unmodified original remains on reference 29. The generic slogan closing has been removed.

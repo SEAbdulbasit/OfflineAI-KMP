@@ -38,5 +38,21 @@
   {
     "file": "repo-qr.png",
     "source": "User-owned image from supplied Google Slides deck"
+  },
+  {
+    "file": "google-function-calling.png",
+    "source": "https://www.gstatic.com/cloud-cms/6fae8435a773b720d5db0c8746efb318.png",
+    "context": "Google Gemini function-calling guide: general request/function/result loop"
+  },
+  {
+    "file": "tool-source-screenshot.jpg",
+    "source": "Browser screenshot of composeApp/src/commonMain/kotlin/org/abma/offlinelai_kmp/tools/Tooling.kt createDefaultToolRegistry()",
+    "context": "Actual registry source rendered for presentation"
+  },
+  {
+    "file": "weather-function-flow.svg",
+    "source": "Presentation-width adaptation of Google Gemini function-calling guide",
+    "reference": "https://ai.google.dev/gemini-api/docs/function-calling",
+    "notes": "Weather branch only; illustrative weather data. Unmodified original bundled separately."
   }
 ]
